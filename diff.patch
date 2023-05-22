@@ -24287,10 +24287,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..4a3bd19
+index 0000000..18516ce
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1100 @@
+@@ -0,0 +1,1103 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -24353,7 +24353,6 @@ index 0000000..4a3bd19
 +    // Global
 +    public static LocalizationKey GLOBAL_SOLO_ADVENTURES = CreateKey("GLUE_ADVENTURE");
 +    public static LocalizationKey GLOBAL_ARENA    = CreateKey("ACCESSIBILITY_MODES_ARENA");
-+    public static LocalizationKey GLOBAL_DUELS    = CreateKey("ACCESSIBILITY_MODES_DUELS");
 +    public static LocalizationKey GLOBAL_TAVERN    = CreateKey("ACCESSIBILITY_MODES_TAVERN");
 +    public static LocalizationKey GLOBAL_BATTLEGROUNDS = CreateKey("GLUE_BACON");
 +    public static LocalizationKey GLOBAL_GAME_MODES = CreateKey("GLUE_GAME_MODES");
@@ -25138,6 +25137,10 @@ index 0000000..4a3bd19
 +    public static LocalizationKey SCREEN_DUELS_READ_STATS = CreateKey("ACCESSIBILITY_DUELS_READ_STATS");
 +    public static LocalizationKey SCREEN_DUELS_CHOOSE_TYPE = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_TYPE");
 +    public static LocalizationKey SCREEN_DUELS_LOSSES_COUNT = CreateKey("ACCESSIBILITY_DUELS_LOSSES_COUNT");
++    public static LocalizationKey DUELS_CHOOSE_HERO_POWER_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_HERO_POWER_HELP");
++    public static LocalizationKey DUELS_CHOOSE_STARTER_TREASURE_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_STARTER_TREASURE_HELP");
++    public static LocalizationKey DUELS_CHOOSE_TREASURE_REWARD_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_TREASURE_REWARD_HELP");
++    public static LocalizationKey DUELS_CHOOSE_LOOT_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_LOOT_HELP");
 +
 +    // Quest progress toast
 +    public static LocalizationKey TOAST_QUEST_PROGRESS_TOAST_TITLE = CreateKey("ACCESSIBILITY_TOAST_QUEST_PROGRESS_TOAST_TITLE");
@@ -25529,10 +25532,10 @@ index 0000000..a7d8e6a
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizedText.cs b/Assembly-CSharp/Accessibility/Localization/LocalizedText.cs
 new file mode 100644
-index 0000000..6caa7f5
+index 0000000..6c108ba
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizedText.cs
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,74 @@
 +﻿using Accessibility;
 +using System;
 +using System.Collections.Generic;
@@ -25558,7 +25561,6 @@ index 0000000..6caa7f5
 +    public static string MODES_MENU_TITLE => LocalizationUtils.Get(LocalizationKey.GLOBAL_CHOOSE_MODE);
 +    public static string MODES_SOLO_ADVENTURES_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_SOLO_ADVENTURES);
 +        public static string MODES_ARENA_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_ARENA);
-+        public static string MODES_DUELS_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_DUELS);
 +        public static string MODES_TAVERN_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_TAVERN);
 +
 +    // Global
@@ -34422,7 +34424,7 @@ index b2c616f..4c637ba 100644
  	protected override void Awake()
  	{
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
-index 095502c..78acc44 100644
+index 095502c..98cec21 100644
 --- a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 +++ b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 @@ -11,9 +11,10 @@ using PegasusClient;
@@ -34675,7 +34677,7 @@ index 095502c..78acc44 100644
  	}
  
  	private void OnSessionEndComplete()
-@@ -3273,4 +3287,674 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -3273,4 +3287,671 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  		Navigation.PopBlockBackingOut();
  		Navigation.GoBack();
  	}
@@ -34718,7 +34720,7 @@ index 095502c..78acc44 100644
 +
 +	private void ReadScreen()
 +    {
-+		if (!SupportedAdventure())
++		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode())
 +        {
 +			return;
 +        }
@@ -34850,7 +34852,7 @@ index 095502c..78acc44 100644
 +
 +    private bool SupportedAdventure()
 +    {
-+		return m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.BOH||m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.BOM||m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.PVPDR_DEATH_KNIGHT;
++		return m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.BOH||m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.BOM;
 +    }
 +
 +	private void ChooseHeroPower()
@@ -34911,7 +34913,7 @@ index 095502c..78acc44 100644
 +			var Item = DefLoader.Get().GetEntityDef((int)LootOptionsA[i]);
 +			var ItemID = Item.GetCardId();
 +			var ItemTitle = Item.GetName();
-+			var TitleString = "1!" + ItemTitle;
++			var TitleString = "1. " + ItemTitle;
 +			if (i == 0) {
 +				m_AccessibleLootA = new AccessibleHorizontalMenu<AccessibleArenaDraftCard>(this, TitleString, null); //
 +			}
@@ -34927,7 +34929,7 @@ index 095502c..78acc44 100644
 +			var Item = DefLoader.Get().GetEntityDef((int)LootOptionsB[i]);
 +			var ItemID = Item.GetCardId();
 +			var ItemTitle = Item.GetName();
-+			var TitleString = "2!" + ItemTitle;
++			var TitleString = "2. " + ItemTitle;
 +			if (i == 0) {
 +				m_AccessibleLootB = new AccessibleHorizontalMenu<AccessibleArenaDraftCard>(this, TitleString, null);
 +			}
@@ -34943,7 +34945,7 @@ index 095502c..78acc44 100644
 +			var Item = DefLoader.Get().GetEntityDef((int)LootOptionsC[i]);
 +			var ItemID = Item.GetCardId();
 +			var ItemTitle = Item.GetName();
-+			var TitleString = "3!" + ItemTitle;
++			var TitleString = "3. " + ItemTitle;
 +			if (i == 0) {
 +				m_AccessibleLootC = new AccessibleHorizontalMenu<AccessibleArenaDraftCard>(this, TitleString, null);
 +			}
@@ -35221,19 +35223,19 @@ index 095502c..78acc44 100644
 +
 +		else if (m_curAccessibleState == AccessibleState.CHOOSING_HERO_POWER)
 +		{
-+			return m_AccessibleHeroPower.GetHelp();
++			return LocalizationUtils.Format(LocalizationKey.DUELS_CHOOSE_HERO_POWER_HELP, AccessibleKey.CONFIRM);
 +		}
 +		else if (m_curAccessibleState == AccessibleState.CHOOSING_TREASURE)
 +		{
-+			return m_AccessibleTreasure.GetHelp();
++			return LocalizationUtils.Format(LocalizationKey.DUELS_CHOOSE_STARTER_TREASURE_HELP, AccessibleKey.CONFIRM);
 +		}
 +		else if (m_curAccessibleState == AccessibleState.CHOOSING_TREASURE_REWARD)
 +		{
-+			return m_AccessibleTreasureReward.GetHelp();
++			return LocalizationUtils.Format(LocalizationKey.DUELS_CHOOSE_TREASURE_REWARD_HELP, AccessibleKey.CONFIRM, AccessibleKey.READ_DECK);
 +		}
 +		else if (m_curAccessibleState == AccessibleState.CHOOSING_LOOT)
 +		{
-+			return m_AccessibleLoot.GetHelp();
++			return LocalizationUtils.Format(LocalizationKey.DUELS_CHOOSE_LOOT_HELP, AccessibleKey.READ_LOOT_FORWARDS, AccessibleKey.READ_LOOT_BACKWARDS, AccessibleKey.TAKE_LOOT, AccessibleKey.READ_DECK);
 +		}
 +		else if (m_curAccessibleState == AccessibleState.READING_STATS)
 +		{
@@ -35313,13 +35315,13 @@ index 095502c..78acc44 100644
 +
 +	public Boolean IsDuels()
 +	{
-+			if (m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.PVPDR_DEATH_KNIGHT)
-+			{
-+				return true;
-+			}
-+			else {
-+				return false;
-+			}
++		if (SceneMgr.Get().IsInDuelsMode())
++		{
++			return true;
++		}
++		else {
++			return false;
++		}
 +	}
 +
 +	private void OnReadStats()
@@ -35337,11 +35339,8 @@ index 095502c..78acc44 100644
 +
 +		var lines = new List<string>();
 +		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(GameStrings.Get("GLUE_PVPDR_LABEL_VAULT_WINS"), $"{WinsCount}"));
-+		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(GameStrings.Get("GLUE_LOSSES"), $"{LossesCount}"));
-+		//lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_LOSSES_COUNT), $"{LossesCount}"));
-+		//lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(GameStrings.Get("GLUE_PVPDR_LABEL_VAULT_LIVES"), $"{LivesLeft}"));
++		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_LOSSES_COUNT), $"{LossesCount}"));
 +		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(GameStrings.Format("GLUE_PVPDR_BEST_WINS_AS_CLASS", HeroName), $"{TotalWinsCount}"));
-+		//lines.Add(AccessibleSpeech.PRESS_BACK_TO_GO_BACK);
 +		m_accessibleStats = new AccessibleMultilineText(this, lines);
 +		m_accessibleStats.ReadAllLines();
 +		m_curAccessibleState = AccessibleState.READING_STATS;
@@ -64755,7 +64754,7 @@ index 4169bba..50003bd 100644
  	private Font m_overrideFont;
  
 diff --git a/Assembly-CSharp/DuelsPopupManager.cs b/Assembly-CSharp/DuelsPopupManager.cs
-index 7d792d6..859313d 100644
+index 7d792d6..af9971f 100644
 --- a/Assembly-CSharp/DuelsPopupManager.cs
 +++ b/Assembly-CSharp/DuelsPopupManager.cs
 @@ -1,5 +1,6 @@
@@ -64782,7 +64781,7 @@ index 7d792d6..859313d 100644
  	}
  
  	public void ShowNotice(string header, string desc, string rating, Action callback)
-@@ -659,4 +661,75 @@ public class DuelsPopupManager : MonoBehaviour, IStore
+@@ -659,4 +661,74 @@ public class DuelsPopupManager : MonoBehaviour, IStore
  		}
  		return hashSet;
  	}
@@ -64814,8 +64813,7 @@ index 7d792d6..859313d 100644
 +	}
 +	private void SetupDuelsTypeMenu()
 +	{
-+		m_currMenu = new AccessibleHorizontalMenu<AccessibleMultilineText>(this, GameStrings.Get("GLUE_PVPDR"), onGoBackToHub);
-+		//m_currMenu = new AccessibleHorizontalMenu<AccessibleMultilineText>(this, LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_CHOOSE_TYPE), onGoBackToHub);
++		m_currMenu = new AccessibleHorizontalMenu<AccessibleMultilineText>(this, LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_CHOOSE_TYPE), onGoBackToHub);
 +		m_currMenu.AddOption(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_LABEL_NORMAL"), GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_DESCRIPTION_NORMAL")), onClickNormal);
 +		//m_currMenu.AddOption(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_LABEL_HEROIC"), GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_DESCRIPTION_HEROIC")), onClickHeroic);
 +		ReadDuelsTypeMenu();
