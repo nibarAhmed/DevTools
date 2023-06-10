@@ -3763,10 +3763,10 @@ index 0000000..e0e755d
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..04087d9
+index 0000000..eb81d88
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2782 @@
+@@ -0,0 +1,2787 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -5384,6 +5384,11 @@ index 0000000..04087d9
 +            if (tradingCard)
 +            {
 +                m_tradingCardWaitingForHold = true;
++            }
++
++            if(m_cardBeingRead.GetCard()!=InputManager.Get().GetMousedOverCard()) {
++                AccessibilityMgr.Output(null,LocalizationUtils.Get(LocalizationKey.GAMEPLAY_TRY_AGAIN));
++                InputManager.Get().SetMousedOverCard(m_cardBeingRead.GetCard());
 +            }
 +
 +            AccessibleInputMgr.ClickLeftMouseButton();
@@ -24287,10 +24292,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..18516ce
+index 0000000..8758e03
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1103 @@
+@@ -0,0 +1,1104 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -24709,6 +24714,7 @@ index 0000000..18516ce
 +    public static LocalizationKey GAMEPLAY_CONFIRM_TO_ATTACK_TARGET = CreateKey("ACCESSIBILITY_GAMEPLAY_CONFIRM_TO_ATTACK_TARGET");
 +    public static LocalizationKey GAMEPLAY_PRESS_ENTER_TO_SUMMON_THIS_MINION = CreateKey("ACCESSIBILITY_GAMEPLAY_PRESS_ENTER_TO_SUMMON_THIS_MINION");
 +    public static LocalizationKey GAMEPLAY_CONFIRM_END_TURN_HELP = CreateKey("ACCESSIBILITY_GAMEPLAY_CONFIRM_END_TURN_HELP");
++    public static LocalizationKey GAMEPLAY_TRY_AGAIN = CreateKey("ACCESSIBILITY_GAMEPLAY_TRY_AGAIN");
 +    public static LocalizationKey GAMEPLAY_SEE_VALID_OPTIONS = CreateKey("ACCESSIBILITY_GAMEPLAY_SEE_VALID_OPTIONS");
 +    public static LocalizationKey GAMEPLAY_SEE_PLAYER_HAND_HELP = CreateKey("ACCESSIBILITY_GAMEPLAY_SEE_PLAYER_HAND_HELP");
 +    public static LocalizationKey GAMEPLAY_COUNT_OPPONENT_HAND_HELP = CreateKey("ACCESSIBILITY_GAMEPLAY_COUNT_OPPONENT_HAND_HELP");
