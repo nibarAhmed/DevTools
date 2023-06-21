@@ -6641,10 +6641,10 @@ index 0000000..ee68336
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHearthstoneApplication.cs b/Assembly-CSharp/Accessibility/AccessibleHearthstoneApplication.cs
 new file mode 100644
-index 0000000..3291f55
+index 0000000..35f43cf
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHearthstoneApplication.cs
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,64 @@
 +﻿using System;
 +using System.Net;
 +
@@ -6672,6 +6672,8 @@ index 0000000..3291f55
 +
 +        private static bool HearthstoneAccessUpdateRequired()
 +        {
++            return false; // inoperable at the moment.
++            
 +            try
 +            {
 +                var fileName = "hsa-version";
