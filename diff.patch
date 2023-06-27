@@ -24294,10 +24294,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..8758e03
+index 0000000..6b67dbb
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1104 @@
+@@ -0,0 +1,1105 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25149,6 +25149,7 @@ index 0000000..8758e03
 +    public static LocalizationKey DUELS_CHOOSE_STARTER_TREASURE_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_STARTER_TREASURE_HELP");
 +    public static LocalizationKey DUELS_CHOOSE_TREASURE_REWARD_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_TREASURE_REWARD_HELP");
 +    public static LocalizationKey DUELS_CHOOSE_LOOT_HELP = CreateKey("ACCESSIBILITY_DUELS_CHOOSE_LOOT_HELP");
++    public static LocalizationKey DUELS_HEROIC_RUN_ENDED = CreateKey("ACCESSIBILITY_DUELS_HEROIC_RUN_ENDED");
 +
 +    // Quest progress toast
 +    public static LocalizationKey TOAST_QUEST_PROGRESS_TOAST_TITLE = CreateKey("ACCESSIBILITY_TOAST_QUEST_PROGRESS_TOAST_TITLE");
@@ -34432,7 +34433,7 @@ index b2c616f..4c637ba 100644
  	protected override void Awake()
  	{
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
-index d6bb02b..72081f4 100644
+index d6bb02b..a1f760d 100644
 --- a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 +++ b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 @@ -11,9 +11,10 @@ using PegasusClient;
@@ -34676,7 +34677,17 @@ index d6bb02b..72081f4 100644
  		if (m_seedDeckCreateRequested)
  		{
  			CollectionDeck deck = CollectionManager.Get().GetDeck(deckID);
-@@ -3265,6 +3277,8 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -3182,6 +3194,9 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+ 		m_BackButton.SetEnabled(enabled: false);
+ 		m_BackButton.Flip(faceUp: false);
+ 		Navigation.PushBlockBackingOut();
++
++		AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.DUELS_HEROIC_RUN_ENDED, AccessibleKey.CONFIRM));
++		m_curAccessibleState = AccessibleState.HEROIC_RUN_COMPLETED;
+ 	}
+ 
+ 	public void EndDuelsSession(long noticeId = 0L)
+@@ -3265,6 +3280,8 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  			key = "GLUE_PVPDR_END_OF_RUN_TIER_1_WIN";
  		}
  		PvPDungeonRunScene.ShowDuelsMessagePopup(GameStrings.Format("GLUE_PVPDR_END_OF_RUN_HEADER", lastRunWins), GameStrings.Get(key), GameStrings.Format("GLUE_PVPDR_RATING_CHANGE", text), callback);
@@ -34685,14 +34696,14 @@ index d6bb02b..72081f4 100644
  	}
  
  	private void OnSessionEndComplete()
-@@ -3274,4 +3288,671 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -3274,4 +3291,689 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  		Navigation.PopBlockBackingOut();
  		Navigation.GoBack();
  	}
 +
 +	#region Accessibility
 +
-+	private enum AccessibleState { WAITING, IS_VO_PLAYING, READING_DUELS_MENU, READING_PLAY_MENU, READING_DECK, CHOOSING_HERO_POWER, CHOOSING_TREASURE, CHOOSING_LOOT, RUN_COMPLETED, READING_STATS, CHOOSING_TREASURE_REWARD};
++	private enum AccessibleState { WAITING, IS_VO_PLAYING, READING_DUELS_MENU, READING_PLAY_MENU, READING_DECK, CHOOSING_HERO_POWER, CHOOSING_TREASURE, CHOOSING_LOOT, RUN_COMPLETED, READING_STATS, CHOOSING_TREASURE_REWARD, HEROIC_RUN_COMPLETED};
 +
 +	private AccessibleState m_curAccessibleState;
 +	private AccessibleState m_prevAccessibleState;
@@ -34759,6 +34770,10 @@ index d6bb02b..72081f4 100644
 +			else if (ShouldShowRunCompletedScreen())
 +			{
 +				PvPDungeonRunScene.IsRetired = true;
++				if (PvPDungeonRunDisplay.Get().GetPVPDRLobbyDataModel().IsPaidEntry)
++				{
++					AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.DUELS_HEROIC_RUN_ENDED, AccessibleKey.CONFIRM));
++				}
 +				return;
 +			}
 +			else if (m_playMat.GetPlayMatState() != AdventureDungeonCrawlPlayMat.PlayMatState.PVPDR_ACTIVE)
@@ -35084,6 +35099,16 @@ index d6bb02b..72081f4 100644
 +				OnSessionEndComplete();
 +			}
 +		}
++		else if (m_curAccessibleState == AccessibleState.HEROIC_RUN_COMPLETED)
++		{
++			if (AccessibleKey.CONFIRM.IsPressed())
++			{
++				var vaultButton = m_playMat.GetDuelsPlayMat().m_leverButton.GetPegUIElement();
++				vaultButton.TriggerPress();
++				vaultButton.TriggerRelease();
++				m_curAccessibleState = AccessibleState.WAITING;
++			}
++		}
 +		else if (m_curAccessibleState == AccessibleState.CHOOSING_HERO_POWER)
 +		{
 +			m_AccessibleHeroPower.HandleAccessibleInput();
@@ -35204,6 +35229,10 @@ index d6bb02b..72081f4 100644
 +        {
 +			return m_duelsMenu.GetHelp();
 +        }
++		else if (m_curAccessibleState == AccessibleState.HEROIC_RUN_COMPLETED)
++		{
++			return LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_CONTINUE, AccessibleKey.CONFIRM);
++		}
 +
 +		if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.PVPDR_ACTIVE)
 +		{
@@ -35373,7 +35402,7 @@ index 2f707c3..71f81ac 100644
 +    #endregion
  }
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs b/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs
-index 975c7c0..df84977 100644
+index 975c7c0..4b630a1 100644
 --- a/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs
 +++ b/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs
 @@ -8,6 +8,7 @@ using Hearthstone.DungeonCrawl;
@@ -35435,7 +35464,7 @@ index 975c7c0..df84977 100644
  	}
  
  	public void HideBossHeroPowerTooltip(bool immediate = false)
-@@ -1892,4 +1896,18 @@ public class AdventureDungeonCrawlPlayMat : MonoBehaviour
+@@ -1892,4 +1896,23 @@ public class AdventureDungeonCrawlPlayMat : MonoBehaviour
  			}
  		}
  	}
@@ -35450,6 +35479,11 @@ index 975c7c0..df84977 100644
 +	internal bool IsStateInitialized()
 +	{
 +		return m_playMatStateInitialized;
++	}
++
++	internal DuelsPlayMat GetDuelsPlayMat()
++	{
++		return m_duelsPlayMat;
 +	}
 +
 +    #endregion
@@ -64978,8 +65012,21 @@ index 4169bba..50003bd 100644
  
  	private Font m_overrideFont;
  
+diff --git a/Assembly-CSharp/DuelsPlayMat.cs b/Assembly-CSharp/DuelsPlayMat.cs
+index 4ad5858..9eb59f3 100644
+--- a/Assembly-CSharp/DuelsPlayMat.cs
++++ b/Assembly-CSharp/DuelsPlayMat.cs
+@@ -11,7 +11,7 @@ public class DuelsPlayMat : MonoBehaviour
+ 
+ 	public AsyncReference m_vaultLeverReference;
+ 
+-	private Clickable m_leverButton;
++	internal Clickable m_leverButton;
+ 
+ 	private Widget m_livesWidget;
+ 
 diff --git a/Assembly-CSharp/DuelsPopupManager.cs b/Assembly-CSharp/DuelsPopupManager.cs
-index 7d792d6..af9971f 100644
+index 7d792d6..b3a7e00 100644
 --- a/Assembly-CSharp/DuelsPopupManager.cs
 +++ b/Assembly-CSharp/DuelsPopupManager.cs
 @@ -1,5 +1,6 @@
@@ -64994,11 +65041,19 @@ index 7d792d6..af9971f 100644
  using UnityEngine;
  
 -public class DuelsPopupManager : MonoBehaviour, IStore
-+public class DuelsPopupManager : MonoBehaviour, IStore, AccessibleScreen
++public class DuelsPopupManager : MonoBehaviour, IStore, AccessibleUI
  {
  	private const string HEROIC_STORE_OPENED_EVENT = "HEROIC_STORE_OPENED";
  
-@@ -305,6 +306,7 @@ public class DuelsPopupManager : MonoBehaviour, IStore
+@@ -206,6 +207,7 @@ public class DuelsPopupManager : MonoBehaviour, IStore
+ 
+ 	private void OnBuyWithTicketButtonPressed(UIEvent buttonEvent)
+ 	{
++		AccessibilityMgr.HideUI(this);
+ 		m_visualController.SetState("PURCHASE_ACKNOWLEDGED");
+ 		m_purchaseSuccessfulDelegate();
+ 	}
+@@ -305,6 +307,7 @@ public class DuelsPopupManager : MonoBehaviour, IStore
  	{
  		this.OnProductOpened?.Invoke();
  		m_visualController.SetState("OPEN");
@@ -65006,14 +65061,36 @@ index 7d792d6..af9971f 100644
  	}
  
  	public void ShowNotice(string header, string desc, string rating, Action callback)
-@@ -659,4 +661,74 @@ public class DuelsPopupManager : MonoBehaviour, IStore
+@@ -318,6 +321,7 @@ public class DuelsPopupManager : MonoBehaviour, IStore
+ 	{
+ 		PresenceMgr.Get().SetStatus(Global.PresenceStatus.DUELS_IDLE);
+ 		m_visualController.SetState("HIDE");
++		AccessibilityMgr.HideUI(this);
+ 	}
+ 
+ 	public void AddOnNormalButtonPressedDelegate(Action action)
+@@ -541,6 +545,7 @@ public class DuelsPopupManager : MonoBehaviour, IStore
+ 		{
+ 			EndArenaTicketTransaction();
+ 			BlockInputs(blocked: false);
++			AccessibilityMgr.HideUI(this);
+ 			m_visualController.SetState("PURCHASE_ACKNOWLEDGED");
+ 			m_purchaseSuccessfulDelegate();
+ 		}
+@@ -659,4 +664,149 @@ public class DuelsPopupManager : MonoBehaviour, IStore
  		}
  		return hashSet;
  	}
++
 +	#region Accessibility
-+	private enum State { LOADING, DUELS_TYPE_CHOOSING, GO_BACK };
++	private enum State { LOADING, choosing_DUELS_TYPE, HEROIC_DUEL_HAS_TICKET, HEROIC_DUEL_NO_TICKET };
++
 +	private State m_curState = State.LOADING;
-+	private AccessibleHorizontalMenu<AccessibleMultilineText> m_currMenu;
++
++	private AccessibleHorizontalMenu<AccessibleMultilineText> m_typeMenu;
++
++	private AccessibleMenu m_buyWithTicketMenu, m_buyWithCurrencyMenu;
++
 +	private void onClickNormal()
 +	{
 +		OnNormalButtonPressed(null);
@@ -65021,62 +65098,131 @@ index 7d792d6..af9971f 100644
 +		m_curState = State.LOADING;
 +	}
 +
-+	private void onClickHeroic() // todo implement heroic duels
++	private void onClickHeroic()
 +	{
-+		OnBuyWithCurrencyButtonPressed(null);
-+		Hide();
-+		m_curState = State.LOADING;
++		var numTickets = NetCache.Get().GetArenaTicketBalance();
++		if (numTickets > 0)
++		{
++			SetupBuyWithTicketMenu(numTickets);
++		}
++		else
++		{
++			SetupBuyWithCurrencyMenu();
++		}
 +	}
 +
-+	private void onGoBackToHub()
++	private void SetupBuyWithTicketMenu(int numTickets)
 +	{
-+		m_curState = State.GO_BACK;
-+		Hide();
-+		Navigation.PopBlockBackingOut();
-+		Navigation.GoBack();
-+		//todo get main menu in dungeonrun, not to choose mode menu
++		m_curState = State.HEROIC_DUEL_HAS_TICKET;
++		AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.ARENA_TICKETS_COUNT, numTickets));
++		m_buyWithTicketMenu = new AccessibleMenu(this, GameStrings.Get("GLUE_PVPDR_HEROIC_POPUP_DESCRIPTION_HASTICKETS"), SetupDuelsTypeMenu);
++		m_buyWithTicketMenu.AddOption(GameStrings.Get("GLOBAL_FRIEND_CHALLENGE_ACCEPT"), () => OnBuyWithTicketButtonPressed(null));
++		m_buyWithTicketMenu.AddOption(GameStrings.Get("GLOBAL_FRIEND_CHALLENGE_DECLINE"), SetupDuelsTypeMenu);
++		m_buyWithTicketMenu.StartReading();
 +	}
++
++	private void SetupBuyWithCurrencyMenu()
++	{
++		m_buyWithCurrencyMenu = new AccessibleMenu(this, null, SetupDuelsTypeMenu);
++		long goldCost = DuelsConfig.PAID_GOLD_COST;
++		m_arenaTicketBundle.TryGetVCPrice(CurrencyType.ROW_RUNESTONES, out long runestoneCost);
++		if (goldCost > 0)
++		{
++			m_buyWithCurrencyMenu.AddOption(LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_GOLD, goldCost), () => tryBuyWithGold(goldCost));
++		}
++		if (runestoneCost > 0)
++		{
++			m_buyWithCurrencyMenu.AddOption(LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_RUNESTONES, runestoneCost), () => tryBuyWithRunestones(runestoneCost));
++		}
++		if (m_buyWithCurrencyMenu.GetNumItems() > 0)
++		{
++			m_curState = State.HEROIC_DUEL_NO_TICKET;
++			m_buyWithCurrencyMenu.StartReading(false);
++		}
++	}
++
++	private void tryBuyWithGold(long cost)
++	{
++		var goldBalance = AccessibleShopUtils.GetGoldBalance();
++		if (goldBalance < cost)
++		{
++			AccessibilityMgr.Output(this, GameStrings.Get("GAMEPLAY_PlayErrors_REQ_ENOUGH_COIN"));
++		}
++		else
++		{
++			OnBuyWithGoldButtonPressed(null);
++		}
++	}
++
++		private void tryBuyWithRunestones(long cost)
++	{
++		var runestoneBalance = AccessibleShopUtils.GetRunestoneBalance();
++		if (runestoneBalance < cost)
++		{
++			AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.UI_SHOP_NOT_ENOUGH_RUNESTONES));
++		}
++		else
++		{
++			OnBuyWithVCButtonPressed(null);
++		}
++	}
++
++
++	private void onGoBack()
++	{
++		Hide();
++		PvPDungeonRunScene.Get().ReadMainMenu(); // Stuck in loading state otherwise.
++	}
++
 +	private void SetupDuelsTypeMenu()
 +	{
-+		m_currMenu = new AccessibleHorizontalMenu<AccessibleMultilineText>(this, LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_CHOOSE_TYPE), onGoBackToHub);
-+		m_currMenu.AddOption(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_LABEL_NORMAL"), GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_DESCRIPTION_NORMAL")), onClickNormal);
-+		//m_currMenu.AddOption(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_LABEL_HEROIC"), GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_DESCRIPTION_HEROIC")), onClickHeroic);
++		m_typeMenu = new AccessibleHorizontalMenu<AccessibleMultilineText>(this, LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_CHOOSE_TYPE), onGoBack);
++		m_typeMenu.AddOption(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_LABEL_NORMAL"), GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_DESCRIPTION_NORMAL")), onClickNormal);
++		m_typeMenu.AddOption(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_LABEL_HEROIC"), GameStrings.Get("GLUE_PVPDR_ENTRY_POPUP_DESCRIPTION_HEROIC")), onClickHeroic);
 +		ReadDuelsTypeMenu();
 +	}
++
 +	private void ReadDuelsTypeMenu()
 +	{
-+		m_curState = State.DUELS_TYPE_CHOOSING;
-+		m_currMenu.StartReading();
++		m_curState = State.choosing_DUELS_TYPE;
++		m_typeMenu.StartReading();
 +	}
-+	public void HandleInput()
++
++	public void HandleAccessibleInput()
 +	{
-+		if (m_curState == State.DUELS_TYPE_CHOOSING)
++		if (m_curState == State.choosing_DUELS_TYPE)
 +		{
-+			m_currMenu?.HandleAccessibleInput();
++			m_typeMenu?.HandleAccessibleInput();
 +		}
-+		else if  (m_curState == State.GO_BACK)
++		else if (m_curState == State.HEROIC_DUEL_HAS_TICKET)
 +		{
-+			return; // return to main menu, not working yet, menu not found, todo
++			m_buyWithTicketMenu?.HandleAccessibleInput();
++		}
++		else if (m_curState == State.HEROIC_DUEL_NO_TICKET)
++		{
++			m_buyWithCurrencyMenu.HandleAccessibleInput();
 +		}
 +	}
-+		public string GetHelp()
++
++		public string GetAccessibleHelp()
 +	{
-+		if (m_curState == State.DUELS_TYPE_CHOOSING)
++		if (m_curState == State.choosing_DUELS_TYPE)
 +		{
-+			return m_currMenu?.GetHelp();
++			return m_typeMenu?.GetHelp();
 +		}
 +		return "";
 +	}
++
 +	public void OnGainedFocus()
 +	{
-+		if (m_curState == State.DUELS_TYPE_CHOOSING)
++		if (m_curState == State.choosing_DUELS_TYPE)
 +		{
-+			m_currMenu?.StartReading();
++			m_typeMenu?.StartReading();
 +		}
 +	}
 +	public void ReadScreen()
 +	{
-+		AccessibilityMgr.SetScreen(this);
++		AccessibilityMgr.ShowUI(this);
 +		SetupDuelsTypeMenu();
 +	}
 +	#endregion
