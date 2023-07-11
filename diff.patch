@@ -2123,7 +2123,7 @@ index 0000000..75b068e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCard.cs b/Assembly-CSharp/Accessibility/AccessibleCard.cs
 new file mode 100644
-index 0000000..830919a
+index 0000000..e49aefb
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCard.cs
 @@ -0,0 +1,287 @@
@@ -2408,7 +2408,7 @@ index 0000000..830919a
 +                return new List<string>();
 +            }
 +
-+            return AccessibleCardUtils.GetQuestRewardCardLines(rewardCardId);
++            return AccessibleCardUtils.GetQuestRewardCardLines(m_card.GetEntity(), rewardCardId);
 +        }
 +
 +		#endregion
@@ -2416,10 +2416,10 @@ index 0000000..830919a
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs b/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs
 new file mode 100644
-index 0000000..5f3b481
+index 0000000..726b5ec
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,427 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -2611,7 +2611,7 @@ index 0000000..5f3b481
 +            return AccessibleRuneUtils.StringifyRunePattern(entityDef.GetRuneCost());
 +        }
 +
-+        public static List<string> GetQuestRewardCardLines(string cardId)
++        public static List<string> GetQuestRewardCardLines(Entity questEnt, string cardId)
 +        {
 +            var ret = new List<string>();
 +
@@ -2627,7 +2627,9 @@ index 0000000..5f3b481
 +
 +            AccessibleCardUtils.AddLineIfExists(GetResources(entityDef), ret);
 +
-+            AccessibleCardUtils.AddLineIfExists(entityDef.GetCardTextInHand(), ret);
++            var formattedText = Actor.FormatDynamicQuestRewardText(questEnt, entityDef);
++            var text = formattedText != null ? formattedText : entityDef.GetCardTextInHand();
++            AccessibleCardUtils.AddLineIfExists(text, ret);
 +
 +            AccessibleCardUtils.AddLineIfExists(entityDef.GetRaceText(), ret);
 +
@@ -33832,7 +33834,7 @@ index ebabc8b..380f8aa 100644
  		m_rewards = new List<RewardData>(rewardDataList);
  		FixUpRewardOrigins(m_rewards);
 diff --git a/Assembly-CSharp/Actor.cs b/Assembly-CSharp/Actor.cs
-index dd40f39..cb20f55 100644
+index dd40f39..f5a00ce 100644
 --- a/Assembly-CSharp/Actor.cs
 +++ b/Assembly-CSharp/Actor.cs
 @@ -27,25 +27,21 @@ public class Actor : MonoBehaviour, IVisibleWidgetComponent
@@ -33861,6 +33863,64 @@ index dd40f39..cb20f55 100644
  			get;
  			private set; }
  
+@@ -3344,23 +3340,13 @@ public class Actor : MonoBehaviour, IVisibleWidgetComponent
+ 		{
+ 			return;
+ 		}
+-		if (questEnt.HasTag(GAME_TAG.BACON_MINION_TYPE_REWARD))
+-		{
+-			string cardTextInHand = m_entityDef.GetCardTextInHand();
+-			cardTextInHand = string.Format(cardTextInHand, GameStrings.GetRaceNameBattlegrounds((TAG_RACE)questEnt.GetTag(GAME_TAG.BACON_MINION_TYPE_REWARD)));
+-			SetCardDefPowerTextOverride(cardTextInHand);
+-		}
+-		if (questEnt.HasTag(GAME_TAG.BACON_CARD_DBID_REWARD))
++
++		var formattedText = FormatDynamicQuestRewardText(questEnt, m_entityDef);
++		if (formattedText != null)
+ 		{
+-			string cardTextInHand2 = m_entityDef.GetCardTextInHand();
+-			CardDbfRecord record = GameDbf.Card.GetRecord(questEnt.GetTag(GAME_TAG.BACON_CARD_DBID_REWARD));
+-			if (record != null)
+-			{
+-				string arg = record.Name;
+-				cardTextInHand2 = string.Format(cardTextInHand2, arg);
+-				SetCardDefPowerTextOverride(cardTextInHand2);
+-			}
++			SetCardDefPowerTextOverride(formattedText);
+ 		}
++
+ 	}
+ 
+ 	private bool ShouldUseEntityDefForPowersText()
+@@ -5976,4 +5962,28 @@ public class Actor : MonoBehaviour, IVisibleWidgetComponent
+ 	{
+ 		return m_cardRuneBanner;
+ 	}
++
++	#region Accessibility
++	internal static string FormatDynamicQuestRewardText(Entity questEnt, EntityDef entityDef)
++	{
++				if (questEnt.HasTag(GAME_TAG.BACON_MINION_TYPE_REWARD))
++		{
++			string cardTextInHand = entityDef.GetCardTextInHand();
++			cardTextInHand = string.Format(cardTextInHand, GameStrings.GetRaceNameBattlegrounds((TAG_RACE)questEnt.GetTag(GAME_TAG.BACON_MINION_TYPE_REWARD)));
++			return cardTextInHand;
++		}
++		if (questEnt.HasTag(GAME_TAG.BACON_CARD_DBID_REWARD))
++		{
++			string cardTextInHand2 = entityDef.GetCardTextInHand();
++			CardDbfRecord record = GameDbf.Card.GetRecord(questEnt.GetTag(GAME_TAG.BACON_CARD_DBID_REWARD));
++			if (record != null)
++			{
++				string arg = record.Name;
++				cardTextInHand2 = string.Format(cardTextInHand2, arg);
++			}
++			return cardTextInHand2;
++		}
++		return null;
++	}
++	#endregion
+ }
 diff --git a/Assembly-CSharp/ActorStateType.cs b/Assembly-CSharp/ActorStateType.cs
 index 0181599..7ccc86c 100644
 --- a/Assembly-CSharp/ActorStateType.cs
@@ -84235,7 +84295,7 @@ index 23926a8..8ba672c 100644
 +	EOE
  }
 diff --git a/Assembly-CSharp/HistoryManager.cs b/Assembly-CSharp/HistoryManager.cs
-index 19e74f1..b7c7e87 100644
+index 19e74f1..336a5a0 100644
 --- a/Assembly-CSharp/HistoryManager.cs
 +++ b/Assembly-CSharp/HistoryManager.cs
 @@ -2,6 +2,7 @@ using System.Collections;
@@ -84305,7 +84365,7 @@ index 19e74f1..b7c7e87 100644
 +	public void CreateTriggeredBigCard(PowerTaskList origin, Entity entity, BigCardStartedCallback startedCallback, BigCardFinishedCallback finishedCallback, bool fromMetaData, bool isSecret)
  	{
 -		if (!GameState.Get().GetGameEntity().ShouldShowBigCard() || entity.IsBobQuest())
-+		if (!AccessibilityMgr.IsAccessibilityEnabled() && (!GameState.Get().GetGameEntity().ShouldShowBigCard() || entity.IsBobQuest()))
++		if ((!AccessibilityMgr.IsAccessibilityEnabled() && !GameState.Get().GetGameEntity().ShouldShowBigCard()) || entity.IsBobQuest())
  		{
 +      // Some tutorials don't show big cards but we depend on it for accessibility atm
  			finishedCallback();
