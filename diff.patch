@@ -3742,10 +3742,10 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..eb81d88
+index 0000000..457f71f
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2787 @@
+@@ -0,0 +1,2796 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -3830,6 +3830,8 @@ index 0000000..eb81d88
 +
 +        private bool m_tradingCard;
 +        private bool m_tradingCardWaitingForHold; // Used to prevent "Summon?" or "Play?" when a card is traded straight from hand but we still need to wait for it to be held
++
++        protected bool m_forceAnnounceChooseTarget; // Needed so that cards with multiple targets can correctly inform the player.
 +
 +        internal static AccessibleGameplay Get()
 +        {
@@ -3995,6 +3997,7 @@ index 0000000..eb81d88
 +            m_waitingForMulliganReplacementCards = false;
 +            m_tradingCard = false;
 +            m_tradingCardWaitingForHold = false;
++            m_forceAnnounceChooseTarget = false;
 +            AccessibleHistoryMgr.Get().Reset();
 +        }
 +
@@ -4262,7 +4265,6 @@ index 0000000..eb81d88
 +                    if(!canHandleChoiceMode) HandleTargetMode();
 +                    return;
 +                case AccessibleGameState.TARGET_MODE:
-+                    //HandleCardReadingInput();
 +                    HandleCheckStatusKeys();
 +                    HandleTargetMode();
 +                    return;
@@ -4863,7 +4865,8 @@ index 0000000..eb81d88
 +
 +        protected bool HandleChoiceMode()
 +        {
-+            if (m_accessibleChoiceCards == null || !m_accessibleChoiceCards.IsReading())
++            bool isTargetChoice = GameState.Get().GetFriendlyEntityChoices()?.ChoiceType == CHOICE_TYPE.TARGET;
++            if (isTargetChoice || m_accessibleChoiceCards == null || !m_accessibleChoiceCards.IsReading())
 +            {
 +                return false; // yield
 +            }
@@ -4891,8 +4894,9 @@ index 0000000..eb81d88
 +        protected void HandleTargetMode()
 +        {
 +            //if (m_prevState != AccessibleGameState.TARGET_MODE) // Was broken due to play
-+            if (m_prevResponseMode != m_curResponseMode&&m_curResponseMode!=GameState.ResponseMode.CHOICE)
++            if (m_forceAnnounceChooseTarget || (m_prevResponseMode != m_curResponseMode && m_curResponseMode != GameState.ResponseMode.CHOICE))
 +            {
++                m_forceAnnounceChooseTarget = false;
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_CHOOSE_TARGET));
 +
 +                if (m_cardBeingRead != null && m_cardBeingRead.GetCard().GetZone() == GameState.Get().GetFriendlySidePlayer().GetHandZone())
@@ -4906,6 +4910,11 @@ index 0000000..eb81d88
 +            HandleValidOptionsSelectionInput();
 +            HandleZoneSelection(true);
 +            HandleConfirmOrCancel(true);
++        }
++
++        public void ForceAnnounceChooseTarget()
++        {
++            m_forceAnnounceChooseTarget = true;
 +        }
 +
 +        private void UpdateState()
@@ -85130,10 +85139,18 @@ index 755b8a0..33d1804 100644
  	}
  
 diff --git a/Assembly-CSharp/InputManager.cs b/Assembly-CSharp/InputManager.cs
-index 740657a..59a3cdd 100644
+index 740657a..6b64dfd 100644
 --- a/Assembly-CSharp/InputManager.cs
 +++ b/Assembly-CSharp/InputManager.cs
-@@ -252,6 +252,10 @@ public class InputManager : MonoBehaviour
+@@ -6,6 +6,7 @@ using Blizzard.T5.Core.Utils;
+ using Blizzard.T5.Services;
+ using Hearthstone;
+ using UnityEngine;
++using Accessibility;
+ 
+ public class InputManager : MonoBehaviour
+ {
+@@ -252,6 +253,10 @@ public class InputManager : MonoBehaviour
  
  	public Vector3 LastMouseDownPosition => m_lastMouseDownPosition;
  
@@ -85144,7 +85161,7 @@ index 740657a..59a3cdd 100644
  	private void Awake()
  	{
  		s_instance = this;
-@@ -595,6 +599,8 @@ public class InputManager : MonoBehaviour
+@@ -595,6 +600,8 @@ public class InputManager : MonoBehaviour
  
  	public void SetMousedOverCard(Card card)
  	{
@@ -85153,7 +85170,7 @@ index 740657a..59a3cdd 100644
  		if (!(m_mousedOverCard == card))
  		{
  			if (m_mousedOverCard != null && !(m_mousedOverCard.GetZone() is ZoneHand))
-@@ -603,7 +609,7 @@ public class InputManager : MonoBehaviour
+@@ -603,7 +610,7 @@ public class InputManager : MonoBehaviour
  			}
  			if (card.IsInputEnabled())
  			{
@@ -85162,7 +85179,7 @@ index 740657a..59a3cdd 100644
  				card.NotifyMousedOver();
  			}
  		}
-@@ -994,11 +1000,11 @@ public class InputManager : MonoBehaviour
+@@ -994,11 +1001,11 @@ public class InputManager : MonoBehaviour
  					if (cardStandIn != null)
  					{
  						if (HasPlayFromMiniHandEnabled() && m_useHandEnlarge && m_touchedDownOnSmallHand)
@@ -85179,7 +85196,7 @@ index 740657a..59a3cdd 100644
  					if (m_universalInputManager.IsTouchMode() && actor != null && choiceCardMgr.GetSubOptionParentCard() != null)
  					{
  						Card card2 = actor.GetCard();
-@@ -2119,9 +2125,9 @@ public class InputManager : MonoBehaviour
+@@ -2119,9 +2126,9 @@ public class InputManager : MonoBehaviour
  		{
  			GameState gameState = m_gameState;
  			if (gameState == null || gameState.GetResponseMode() != GameState.ResponseMode.SUB_OPTION)
@@ -85192,7 +85209,16 @@ index 740657a..59a3cdd 100644
  		}
  		return true;
  	}
-@@ -3510,7 +3516,7 @@ public class InputManager : MonoBehaviour
+@@ -3183,6 +3190,8 @@ public class InputManager : MonoBehaviour
+ 				m_targetReticleManager.CreateFriendlyTargetArrow(entity, showDamageIndicatorText: true);
+ 			}
+ 		}
++
++		AccessibleGameplay.Get().ForceAnnounceChooseTarget();
+ 	}
+ 
+ 	public void FinishPendingChoiceTarget()
+@@ -3510,7 +3519,7 @@ public class InputManager : MonoBehaviour
  	{
  		if (card.IsInputEnabled() && !m_gameState.GetGameEntity().ShouldSuppressCardMouseOver(card.GetEntity()))
  		{
@@ -85201,7 +85227,7 @@ index 740657a..59a3cdd 100644
  			bool flag = m_gameState.IsFriendlySidePlayerTurn() && (bool)m_targetReticleManager && m_targetReticleManager.ShouldPreventMouseOverBigCard();
  			if (!PermitDecisionMakingInput())
  			{
-@@ -3522,7 +3528,7 @@ public class InputManager : MonoBehaviour
+@@ -3522,7 +3531,7 @@ public class InputManager : MonoBehaviour
  			}
  			if (!m_gameState.IsMulliganManagerActive() || !card.GetEntity().IsHeroPower())
  			{
@@ -85210,7 +85236,7 @@ index 740657a..59a3cdd 100644
  			}
  			if (m_gameState.IsMulliganManagerActive() && card.GetEntity().IsControlledByFriendlySidePlayer() && card.GetZone() is ZoneHand)
  			{
-@@ -3547,7 +3553,7 @@ public class InputManager : MonoBehaviour
+@@ -3547,7 +3556,7 @@ public class InputManager : MonoBehaviour
  		{
  			PegCursor.Get().SetMode(PegCursor.Mode.UP);
  			Card mousedOverCard = m_mousedOverCard;
@@ -85219,7 +85245,7 @@ index 740657a..59a3cdd 100644
  			mousedOverCard.HideTooltip();
  			mousedOverCard.NotifyMousedOut();
  			ShowBullseyeIfNeeded();
-@@ -4115,4 +4121,12 @@ public class InputManager : MonoBehaviour
+@@ -4115,4 +4124,12 @@ public class InputManager : MonoBehaviour
  	{
  		return NetCache.Get().GetNetObject<NetCache.NetCacheFeatures>().EnablePlayingFromMiniHand;
  	}
