@@ -20421,10 +20421,10 @@ index 0000000..9d84d65
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..b91253e
+index 0000000..135bf0f
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2109 @@
+@@ -0,0 +1,2133 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -20464,7 +20464,8 @@ index 0000000..b91253e
 +            CRAFTING_MENU,
 +            CRAFTING_SEE_COLLECTION,
 +            VIEW_CARD,
-+            VIEW_CARD_READ_CARD, // Big or related
++            VIEW_CARD_READ_CARD,
++            VIEW_CARD_VIEW_RELATED_CARDS,
 +            VIEW_CARD_CRAFTING,
 +        };
 +
@@ -20502,6 +20503,7 @@ index 0000000..b91253e
 +        private EntityDef m_cardBeingRead;
 +        private TAG_PREMIUM m_cardBeingReadPremium;
 +        private AccessibleItem m_accessibleCardBeingRead;
++        private AccessibleListOfItems<AccessibleMultilineText> m_relatedCards;
 +        private State m_stateBeforeViewCard; // Used to go back to the right menu after closing a card view
 +
 +        private bool m_waitingForServerResponse; // Used to read things more intuitively when regaining focus in certain cases
@@ -20891,6 +20893,9 @@ index 0000000..b91253e
 +                    break;
 +                case State.VIEW_CARD_READ_CARD:
 +                    HandleViewCardReadCard();
++                    break;
++                    case State.VIEW_CARD_VIEW_RELATED_CARDS:
++                    HandleViewCardViewRelatedCards();
 +                    break;
 +                case State.VIEW_CARD_CRAFTING:
 +                    m_viewCardCraftingMenu?.HandleAccessibleInput();
@@ -21947,7 +21952,7 @@ index 0000000..b91253e
 +
 +            if (relatedCardIds.Count > 0)
 +            {
-+                m_viewCardMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_READ_RELATED_CARD), ReadRelatedCard);
++                m_viewCardMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_READ_RELATED_CARDS), () => ReadRelatedCards(relatedCardIds));
 +            }
 +
 +            m_viewCardMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_READ_FLAVOR), ReadCardFlavor);
@@ -21973,16 +21978,21 @@ index 0000000..b91253e
 +            Navigation.GoBack();
 +        }
 +
-+        private void ReadRelatedCard()
++        private void ReadRelatedCards(List<string> cardIds)
 +        {
-+            var relatedCardId = CraftingManager.Get().GetRelatedCardIds(m_cardBeingRead, out bool unused)[0];
-+            var entityDef = DefLoader.Get().GetEntityDef(relatedCardId);
++            var accessibleRelatedCards = new List<AccessibleMultilineText>();
++            foreach (var relatedCardId in cardIds)
++            {
++                var entityDef = DefLoader.Get().GetEntityDef(relatedCardId);
 +
-+            var lines = AccessibleCardUtils.GetLinesForNormalEntityDef(entityDef, m_cardBeingReadPremium);
-+            m_accessibleCardBeingRead = new AccessibleMultilineText(this, lines);
++                var lines = AccessibleCardUtils.GetLinesForNormalEntityDef(entityDef, m_cardBeingReadPremium);
++                var card = new AccessibleMultilineText(this, lines);
++                accessibleRelatedCards.Add(card);
++            }
 +
-+            m_accessibleCardBeingRead.ReadLine();
-+            m_curState = State.VIEW_CARD_READ_CARD;
++            m_relatedCards = new AccessibleListOfItems<AccessibleMultilineText>(this, accessibleRelatedCards);
++            m_relatedCards.StartReading();
++            m_curState = State.VIEW_CARD_VIEW_RELATED_CARDS;
 +        }
 +
 +        private void ReadCard()
@@ -22003,6 +22013,18 @@ index 0000000..b91253e
 +            else
 +            {
 +                m_accessibleCardBeingRead.HandleAccessibleInput();
++            }
++        }
++
++        private void HandleViewCardViewRelatedCards()
++        {
++            if (AccessibleKey.BACK.IsPressed())
++            {
++                ReadViewCard();
++            }
++            else
++            {
++                m_relatedCards.HandleAccessibleInput();
 +            }
 +        }
 +
@@ -22315,6 +22337,8 @@ index 0000000..b91253e
 +                    return m_viewCardMenu?.GetHelp();
 +                case State.VIEW_CARD_READ_CARD:
 +                    return AccessibleSpeech.PRESS_BACK_TO_GO_BACK;
++                    case State.VIEW_CARD_VIEW_RELATED_CARDS:
++                    return m_relatedCards?.GetHelp(true);
 +                case State.VIEW_CARD_CRAFTING:
 +                    return m_viewCardCraftingMenu?.GetHelp();
 +            }
@@ -24286,7 +24310,7 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..692ef5c
+index 0000000..5ca95a1
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 @@ -0,0 +1,1105 @@
@@ -25093,7 +25117,7 @@ index 0000000..692ef5c
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_READ_DUST = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_READ_DUST");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_MASS_DISENCHANT_FOR_N_DUST = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_MASS_DISENCHANT_FOR_N_DUST");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_READ_CARD = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_READ_CARD");
-+    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_READ_RELATED_CARD = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_READ_RELATED_CARD");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_READ_RELATED_CARDS = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_READ_RELATED_CARDS");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_READ_FLAVOR = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_READ_FLAVOR");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_FOR_N_DUST = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_FOR_N_DUST");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_DISENCHANT_CARD_FOR_N_DUST = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_DISENCHANT_CARD_FOR_N_DUST");
