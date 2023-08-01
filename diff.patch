@@ -7110,10 +7110,10 @@ index 0000000..4d6a89d
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHub.cs b/Assembly-CSharp/Accessibility/AccessibleHub.cs
 new file mode 100644
-index 0000000..40f3582
+index 0000000..04e5d2c
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHub.cs
-@@ -0,0 +1,268 @@
+@@ -0,0 +1,271 @@
 +﻿using Hearthstone.Progression;
 +using PegasusShared;
 +using System;
@@ -7301,7 +7301,10 @@ index 0000000..40f3582
 +
 +            m_playRankedChooseFormatMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_STANDARD), PlayRankedStandard);
 +			m_playRankedChooseFormatMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_WILD), PlayRankedWild);
-+			m_playRankedChooseFormatMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_TWIST), PlayRankedTwist);
++            if (RankMgr.GetCurrentTwistSeasonRecord() != null)
++            {
++                m_playRankedChooseFormatMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_TWIST), PlayRankedTwist);
++            }
 +
 +			m_playRankedChooseFormatMenu.StartReading();
 +			m_curState = State.PLAY_RANKED_MENU_CHOOSE_FORMAT;
