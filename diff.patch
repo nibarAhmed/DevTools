@@ -3742,7 +3742,7 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..7fe5cba
+index 0000000..8e2ab87
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 @@ -0,0 +1,2796 @@
@@ -4813,7 +4813,7 @@ index 0000000..7fe5cba
 +
 +            foreach (var entity in faceTargetters)
 +            {
-+                if (entity.GetCard()?.GetZone() == GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone())
++                if (entity.IsMinion() && !entity.HasUsableTitanAbilities() && entity.GetCard()?.GetZone() == GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone())
 +                {
 +                    ret.Add(entity.GetCard());
 +                }
