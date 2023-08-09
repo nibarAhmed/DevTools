@@ -3742,10 +3742,10 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..8e2ab87
+index 0000000..50bcd15
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2796 @@
+@@ -0,0 +1,2797 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -4390,14 +4390,15 @@ index 0000000..8e2ab87
 +        {
 +            if (AccessibleKey.TRADE_CARD.IsPressed() && CanTradeCard(m_heldCard))
 +            {
-+                QueryTradeCard();
++                QueryTradeOrForgeCard(m_heldCard);
 +            }
 +        }
 +
-+        private void QueryTradeCard()
++        private void QueryTradeOrForgeCard(Card card)
 +        {
 +            m_tradingCard = true;
-+            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_QUERY_TRADE_CARD));
++            var key = card.GetEntity().IsTradeable() ? LocalizationKey.GAMEPLAY_QUERY_TRADE_CARD : LocalizationKey.GAMEPLAY_QUERY_FORGE_CARD;
++            AccessibilityMgr.Output(this, LocalizationUtils.Get(key));
 +        }
 +
 +        private bool CanTradeCard(Card card)
@@ -4721,7 +4722,7 @@ index 0000000..8e2ab87
 +            }
 +            else if (AccessibleKey.TRADE_CARD.IsPressed() && m_cardBeingRead != null && CanTradeCard(m_cardBeingRead.GetCard()))
 +            {
-+                QueryTradeCard();
++                QueryTradeOrForgeCard(m_cardBeingRead.GetCard());
 +                ClickCard(true);
 +            }
 +        }
@@ -24313,10 +24314,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..5ca95a1
+index 0000000..d10d865
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1105 @@
+@@ -0,0 +1,1106 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -24531,6 +24532,7 @@ index 0000000..5ca95a1
 +    public static LocalizationKey GAMEPLAY_QUERY_SUMMON_MINION_BETWEEN = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_SUMMON_MINION_BETWEEN");
 +    public static LocalizationKey GAMEPLAY_QUERY_PLAY_CARD = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_PLAY_CARD");
 +    public static LocalizationKey GAMEPLAY_QUERY_TRADE_CARD = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_TRADE_CARD");
++    public static LocalizationKey GAMEPLAY_QUERY_FORGE_CARD = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_FORGE_CARD");
 +    public static LocalizationKey GAMEPLAY_QUERY_END_TURN_WHEN_VALID_PLAYS = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_END_TURN_WHEN_VALID_PLAYS");
 +    public static LocalizationKey GAMEPLAY_QUERY_END_TURN_WHEN_CAN_ATK = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_END_TURN_WHEN_CAN_ATK");
 +    public static LocalizationKey GAMEPLAY_QUERY_END_TURN_WHEN_CAN_USE_LOCATION = CreateKey("ACCESSIBILITY_GAMEPLAY_QUERY_END_TURN_WHEN_CAN_USE_LOCATION");
