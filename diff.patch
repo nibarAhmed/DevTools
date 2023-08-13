@@ -3742,7 +3742,7 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..06bb2be
+index 0000000..b83635d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 @@ -0,0 +1,2836 @@
@@ -4895,7 +4895,7 @@ index 0000000..06bb2be
 +                AccessibleInputMgr.MoveMouseTo(m_cardBeingRead.GetCard());
 +                AccessibleInputMgr.ClickLeftMouseButton();
 +            }
-+            else if (AccessibleKey.READ_NEXT_VALID_ITEM.IsPressed())
++            else if (AccessibleKey.READ_NEXT_VALID_ITEM.IsPressed() && m_curState == AccessibleGameState.CHOICE_MODE)
 +            {
 +                ChoiceCardMgr.Get().GetToggleButton().TriggerRelease();
 +            }
@@ -46053,7 +46053,7 @@ index dbee850..3bf3a67 100644
 +    #endregion
  }
 diff --git a/Assembly-CSharp/ChoiceCardMgr.cs b/Assembly-CSharp/ChoiceCardMgr.cs
-index 0a06ca9..5ea9579 100644
+index 0a06ca9..7dc2d4e 100644
 --- a/Assembly-CSharp/ChoiceCardMgr.cs
 +++ b/Assembly-CSharp/ChoiceCardMgr.cs
 @@ -160,19 +160,16 @@ public class ChoiceCardMgr : MonoBehaviour
@@ -46091,16 +46091,19 @@ index 0a06ca9..5ea9579 100644
  	}
  
  	public void QuenePendingCancelSubOptions()
-@@ -1038,6 +1035,8 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1038,6 +1035,11 @@ public class ChoiceCardMgr : MonoBehaviour
  	private void ShowChoiceCards(ChoiceState state, bool friendly)
  	{
  		StartCoroutine(PlayCardAnimation(state, friendly));
 +
-+		Accessibility.AccessibleGameplay.Get().OnChoice(state.m_cards, m_choiceBanner, m_confirmChoiceButton);
++		if (friendly)
++		{
++			Accessibility.AccessibleGameplay.Get().OnChoice(state.m_cards, m_choiceBanner, m_confirmChoiceButton);
++		}
  	}
  
  	private void GetDeckTransform(ZoneDeck deckZone, out Vector3 startPos, out Vector3 startRot, out Vector3 startScale)
-@@ -1548,18 +1547,18 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1548,18 +1550,18 @@ public class ChoiceCardMgr : MonoBehaviour
  		HideChoiceBanner();
  		if (!choiceState.m_isSubOptionChoice || choiceState.m_isTitanAbility)
  		{
@@ -46128,7 +46131,7 @@ index 0a06ca9..5ea9579 100644
  		}
  	}
  
-@@ -1585,7 +1584,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1585,7 +1587,7 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		else
  		{
@@ -46137,7 +46140,7 @@ index 0a06ca9..5ea9579 100644
  		}
  		Network.EntityChoices friendlyEntityChoices = GameState.Get().GetFriendlyEntityChoices();
  		if (friendlyEntityChoices != null && !friendlyEntityChoices.IsSingleChoice())
-@@ -1673,6 +1672,8 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1673,6 +1675,8 @@ public class ChoiceCardMgr : MonoBehaviour
  			m_toggleChoiceButton.SetText(GameStrings.Get("GLOBAL_SHOW"));
  			HideChoiceCards(state);
  			m_friendlyChoicesShown = false;
@@ -46146,7 +46149,7 @@ index 0a06ca9..5ea9579 100644
  		}
  		else
  		{
-@@ -1786,30 +1787,30 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1786,30 +1790,30 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		if (spell != null)
  		{
@@ -46197,7 +46200,7 @@ index 0a06ca9..5ea9579 100644
  					card.transform.localScale = localScale;
  				}
  			}
-@@ -1863,6 +1864,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1863,6 +1867,7 @@ public class ChoiceCardMgr : MonoBehaviour
  			ShowChoiceUi(choiceState);
  		}
  		HideEnlargedHand();
@@ -46205,16 +46208,19 @@ index 0a06ca9..5ea9579 100644
  	}
  
  	private void HideSubOptions(Entity chosenEntity = null)
-@@ -1963,6 +1965,8 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1963,6 +1968,11 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		PlayChoiceEffects(choiceState, choiceState.m_isFriendly);
  		choiceState.m_hasBeenRevealed = true;
 +
-+		Accessibility.AccessibleGameplay.Get().OnChoice(choiceState.m_cards, m_choiceBanner, m_confirmChoiceButton);
++		if (choiceState.m_isFriendly)
++		{
++			Accessibility.AccessibleGameplay.Get().OnChoice(choiceState.m_cards, m_choiceBanner, m_confirmChoiceButton);
++		}
  	}
  
  	private void ConcealChoiceCardsUsingCustomSpell(Spell customChoiceConcealSpell, ChoiceState choiceState, Network.EntitiesChosen chosen)
-@@ -1988,4 +1992,11 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1988,4 +1998,11 @@ public class ChoiceCardMgr : MonoBehaviour
  		OnFinishedConcealChoices(entitiesChosen.PlayerId);
  		GameState.Get().OnEntitiesChosenProcessed(entitiesChosen);
  	}
