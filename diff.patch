@@ -85749,7 +85749,7 @@ index 755b8a0..33d1804 100644
  	}
  
 diff --git a/Assembly-CSharp/InputManager.cs b/Assembly-CSharp/InputManager.cs
-index f15a752..d281961 100644
+index f15a752..b5f2ad9 100644
 --- a/Assembly-CSharp/InputManager.cs
 +++ b/Assembly-CSharp/InputManager.cs
 @@ -6,6 +6,7 @@ using Blizzard.T5.Core.Utils;
@@ -85846,12 +85846,7 @@ index f15a752..d281961 100644
  	}
  
  	public void FinishPendingChoiceTarget()
-@@ -3558,28 +3567,28 @@ public class InputManager : MonoBehaviour
- 
- 	private void HandleMouseOverCard(Card card)
- 	{
-+			SetMousedOverCardVariable(card);
- 		if (!card.IsInputEnabled() || m_gameState.GetGameEntity().ShouldSuppressCardMouseOver(card.GetEntity()))
+@@ -3562,24 +3571,24 @@ public class InputManager : MonoBehaviour
  		{
  			return;
  		}
@@ -85867,6 +85862,7 @@ index f15a752..d281961 100644
 -		}
 -		if (!m_gameState.IsMulliganManagerActive() || !card.GetEntity().IsHeroPower())
 -		{
++			SetMousedOverCardVariable(card);
 +			bool flag = m_gameState.IsFriendlySidePlayerTurn() && (bool)m_targetReticleManager && m_targetReticleManager.ShouldPreventMouseOverBigCard();
 +			if (!PermitDecisionMakingInput())
 +			{
