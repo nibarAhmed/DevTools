@@ -6820,10 +6820,10 @@ index 0000000..2709a4d
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHistoryMgr.cs b/Assembly-CSharp/Accessibility/AccessibleHistoryMgr.cs
 new file mode 100644
-index 0000000..ee9c037
+index 0000000..bfb9ba6
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHistoryMgr.cs
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,147 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.IO;
@@ -6853,12 +6853,13 @@ index 0000000..ee9c037
 +
 +        internal void AddEntry(string entry)
 +        {
-+            if (entry == null || entry.Length == 0||(m_entries.Count>0&&entry==m_entries[m_entries.Count-1]))
++            if (entry == null || entry.Length == 0)
 +            {
 +                return;
 +            }
 +entry=entry.Replace("\n"," ");
 +            AccessibilityUtils.LogDebug($"HIST add entry: {entry}");
++            AccessibilityUtils.LogDebug(Environment.StackTrace);
 +            m_entries.Add(entry);
 +        }
 +
@@ -12498,10 +12499,10 @@ index 0000000..a2fd21e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
 new file mode 100644
-index 0000000..94a314a
+index 0000000..7706a8d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
-@@ -0,0 +1,600 @@
+@@ -0,0 +1,601 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -12603,7 +12604,7 @@ index 0000000..94a314a
 +
 +            // Not really a play but the card itself may be useful if the player wants to read it
 +            var play = LocalizationUtils.Format(LocalizationKey.GAMEPLAY_CARD_IN_ZONE_TRIGGERED, fullCardName);
-+            return RegisterPlay(play);
++            return play;
 +        }
 +
 +		private bool ShouldShowTriggeredBigCard(Entity card, PowerTaskList taskList)
@@ -12731,7 +12732,7 @@ index 0000000..94a314a
 +                }
 +            }
 +
-+            return RegisterPlay(play);
++            return play;
 +        }
 +
 +		private bool IsBlacklistedCard(Entity card)
@@ -12871,7 +12872,7 @@ index 0000000..94a314a
 +                return "";
 +            }
 +
-+            return RegisterPlay(play);
++            return play;
 +        }
 +
 +        private string GetBigCardTriggeredText(Entity card)
@@ -12918,6 +12919,7 @@ index 0000000..94a314a
 +            m_pendingReadings++;
 +
 +            AccessibilityMgr.OutputAndWait(text, null, OnOutputEnd);
++            RegisterPlay(text);
 +        }
 +
 +        internal void OnBigCardTriggered(PowerTaskList taskList, Entity card)
@@ -12975,7 +12977,7 @@ index 0000000..94a314a
 +                play = LocalizationUtils.Get(LocalizationKey.GAMEPLAY_OPPONENT_DREW_CARD_FROM_EMPTY_DECK);
 +            }
 +
-+            return RegisterPlay(play);
++            return play;
 +        }
 +
 +        internal List<string> OnCardsBurned(List<Entity> burnedCards)
@@ -12996,7 +12998,7 @@ index 0000000..94a314a
 +                    play = LocalizationUtils.Format(LocalizationKey.GAMEPLAY_OPPONENT_DREW_CARD_BUT_BURNED, cardName);
 +                }
 +
-+                ret.Add(RegisterPlay(play));
++                ret.Add(play);
 +            }
 +
 +            return ret;
