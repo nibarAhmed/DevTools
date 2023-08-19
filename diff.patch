@@ -3742,10 +3742,10 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..b83635d
+index 0000000..88890ec
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2836 @@
+@@ -0,0 +1,2844 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -3891,6 +3891,7 @@ index 0000000..b83635d
 +                    var opponentClass = opponent.GetHero().GetClass();
 +                    var opponentClassName = GameStrings.GetClassName(opponentClass);
 +                    AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.GAMEPLAY_VS_PLAYER_ANNOUNCEMENT, opponentName, opponentClassName));
++                    AccessibleHistoryMgr.Get().AddEntry(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_VS_PLAYER_ANNOUNCEMENT, opponentName, opponentClassName));
 +                }
 +            }
 +            catch (Exception e)
@@ -3933,8 +3934,9 @@ index 0000000..b83635d
 +                    {
 +                        var droppedNames = AccessibleSpeechUtils.GetNames(droppedCards);
 +                        var newNames = AccessibleSpeechUtils.GetNames(newCards);
-+
++AccessibleHistoryMgr.Get().AddEntry(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_PLAYER_DISCARDED_CARDS, droppedNames));
 +                        AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.GAMEPLAY_PLAYER_DREW_CARDS, newNames));
++                        AccessibleHistoryMgr.Get().AddEntry(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_PLAYER_DREW_CARDS, newNames));
 +                    }
 +                }
 +            }
@@ -5884,7 +5886,6 @@ index 0000000..b83635d
 +                m_curPhase = AccessibleGamePhase.PLAYING;
 +                IsInBeginningChooseOne = false;
 +                m_curState = AccessibleGameState.WAITING;
-+                AccessibleHistoryMgr.Get().Reset();
 +
 +                GameState.Get().RegisterGameOverListener(OnGameOver);
 +            }
@@ -5899,8 +5900,14 @@ index 0000000..b83635d
 +            m_curPhase = AccessibleGamePhase.GAME_OVER;
 +
 +            AccessibilityMgr.Output(this, GetGameOverMessage(playState));
++            SaveGameHistory();
 +        }
-+
++private void SaveGameHistory() {
++                if (AccessibleGameplayUtils.IsFindingOrPlayingBattlegrounds()) return;
++if(Options.Get().GetBool(Option.ACCESSIBILITY_SAVE_BATTLE_LOGS)) {
++    AccessibleHistoryMgr.Get().SaveToFile(DateTime.Now.ToString("yyyy-M-d H_mm")+" "+GameState.Get().GetFriendlySidePlayer().GetName()+" v "+GameState.Get().GetOpposingSidePlayer().GetName()+".txt");
++    }
++}
 +        private string GetGameOverMessage(TAG_PLAYSTATE playState)
 +        {
 +            switch (playState)
@@ -5976,6 +5983,7 @@ index 0000000..b83635d
 +                m_curPhase = AccessibleGamePhase.PLAYING;
 +                IsInBeginningChooseOne = true;
 +                m_accessibleChoiceCards.StartReading();
++                AccessibleHistoryMgr.Get().AddEntry(choiceBanner.m_headline.Text+": "+AccessibleSpeechUtils.GetNames(cards));
 +            }
 +            catch (Exception e)
 +            {
@@ -6812,12 +6820,14 @@ index 0000000..2709a4d
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHistoryMgr.cs b/Assembly-CSharp/Accessibility/AccessibleHistoryMgr.cs
 new file mode 100644
-index 0000000..ed5a085
+index 0000000..ee9c037
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHistoryMgr.cs
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,146 @@
 +﻿using System;
 +using System.Collections.Generic;
++using System.IO;
++using UnityEngine;
 +
 +namespace Accessibility
 +{
@@ -6843,16 +6853,34 @@ index 0000000..ed5a085
 +
 +        internal void AddEntry(string entry)
 +        {
-+            if (entry == null || entry.Length == 0)
++            if (entry == null || entry.Length == 0||(m_entries.Count>0&&entry==m_entries[m_entries.Count-1]))
 +            {
 +                return;
 +            }
-+
++entry=entry.Replace("\n"," ");
 +            AccessibilityUtils.LogDebug($"HIST add entry: {entry}");
 +            m_entries.Add(entry);
 +        }
 +
-+        internal void Reset()
++        internal void SaveToFile(string filePath) {
++            if(m_entries.Count==0) return;
++            string battleLogsPath=Application.dataPath+"../../battle logs";
++            var entries=new List<string>(m_entries);
++            for(int i=0; i<entries.Count; i++) {
++                entries[i]=AccessibilityUtils.CurateText(entries[i]);
++            }
++            try {
++                if(!(Directory.Exists(battleLogsPath))) {
++Directory.CreateDirectory(battleLogsPath);
++                }
++                File.WriteAllLines(battleLogsPath+"/"+filePath,entries.ToArray());
++            }
++            catch (Exception e) {
++AccessibilityMgr.Output(null,"An error occurred when saving your battle log. "+e.ToString()+" "+e.Message);
++            }
++        }
++
++            internal void Reset()
 +        {
 +            AccessibilityUtils.LogDebug("HIST Reset");
 +            m_entries.Clear();
@@ -13112,10 +13140,10 @@ index 0000000..a1b3698
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessiblePowerTaskListDescriber.cs b/Assembly-CSharp/Accessibility/AccessiblePowerTaskListDescriber.cs
 new file mode 100644
-index 0000000..7a5feb5
+index 0000000..ae96330
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessiblePowerTaskListDescriber.cs
-@@ -0,0 +1,649 @@
+@@ -0,0 +1,651 @@
 +﻿using PegasusGame;
 +using System;
 +using System.Collections.Generic;
@@ -13383,6 +13411,7 @@ index 0000000..7a5feb5
 +                    if (!AccessibleGameplayUtils.IsPlayingBattlegrounds())
 +					{
 +						lines.Add(LocalizedText.GAMEPLAY_TURN_ENDED);
++//                        AccessibleHistoryMgr.Get().AddEntry(LocalizedText.GAMEPLAY_TURN_ENDED);
 +					}
 +
 +					OnTurnEnded();
@@ -13463,7 +13492,7 @@ index 0000000..7a5feb5
 +                var description = AccessibleInGameState.DescribeDiff(taskList, m_lastDescribedState, newState);
 +
 +                AddIfNotNull(lines, description);
-+                AccessibleHistoryMgr.Get().AddEntry(description);
++                //AccessibleHistoryMgr.Get().AddEntry(description);
 +            }
 +
 +            var prevState = m_lastDescribedState;
@@ -13688,6 +13717,7 @@ index 0000000..7a5feb5
 +
 +            AccessibilityUtils.LogDebug($"SPS Describing blocked task list: {text}");
 +            AccessibilityMgr.OutputAndWait(text, OnOutputStart, OnOutputEnd);
++            AccessibleHistoryMgr.Get().AddEntry(text);
 +        }
 +
 +        private void Output(List<string> lines)
@@ -15703,10 +15733,10 @@ index 0000000..d7d60b6
 \ No newline at end of file
 diff --git a/Assembly-CSharp/Accessibility/AccessibleSpeechUtils.cs b/Assembly-CSharp/Accessibility/AccessibleSpeechUtils.cs
 new file mode 100644
-index 0000000..b140fb5
+index 0000000..400b739
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleSpeechUtils.cs
-@@ -0,0 +1,341 @@
+@@ -0,0 +1,343 @@
 +﻿using System.Collections.Generic;
 +using System.Text;
 +using System.Text.RegularExpressions;
@@ -15916,13 +15946,15 @@ index 0000000..b140fb5
 +
 +                var curNameCount = nameCounts[name];
 +
-+                if (curNameCount > 1 && name.Equals(cardString))
++                if (curNameCount > 1)
 +                {
-+                    sb.Append(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES, curNameCount, cardStringPlural));
++                    if(name.Equals(cardString)) sb.Append(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES, curNameCount, cardStringPlural));
++                    else sb.Append(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES, curNameCount, name));
 +                }
 +                else
 +                {
-+                    sb.Append(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES, curNameCount, name));
++                    if( name.Equals(cardString))                    sb.Append(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES, curNameCount,  name));
++                    else sb.Append(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES, "",  name));
 +                }
 +
 +                idx++;
@@ -24370,10 +24402,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..5918e01
+index 0000000..d12f2a9
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1108 @@
+@@ -0,0 +1,1109 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -24426,6 +24458,7 @@ index 0000000..5918e01
 +    public static LocalizationKey OPTIONS_MENU_AUTO_ATTACK_SPEED_SLOW = CreateKey("ACCESSIBILITY_OPTIONS_MENU_AUTO_ATTACK_SPEED_SLOW");
 +    public static LocalizationKey OPTIONS_MENU_AUTO_ATTACK_SPEED_MEDIUM = CreateKey("ACCESSIBILITY_OPTIONS_MENU_AUTO_ATTACK_SPEED_MEDIUM");
 +    public static LocalizationKey OPTIONS_MENU_AUTO_ATTACK_SPEED_FAST = CreateKey("ACCESSIBILITY_OPTIONS_MENU_AUTO_ATTACK_SPEED_FAST");
++    public static LocalizationKey OPTIONS_MENU_SAVE_BATTLE_LOGS = CreateKey("ACCESSIBILITY_OPTIONS_MENU_SAVE_BATTLE_LOGS");
 +
 +    // Hub
 +    public static LocalizationKey HUB_MAIN_MENU_TITLE = CreateKey("ACCESSIBILITY_HUB_MAIN_MENU_TITLE");
@@ -46330,10 +46363,10 @@ index 3c6f477..93bf0c9 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/ClientOption.cs b/Assembly-CSharp/ClientOption.cs
-index c890cbf..35d9831 100644
+index c890cbf..5e76604 100644
 --- a/Assembly-CSharp/ClientOption.cs
 +++ b/Assembly-CSharp/ClientOption.cs
-@@ -130,6 +130,12 @@ public enum ClientOption
+@@ -130,6 +130,13 @@ public enum ClientOption
  	APKINSTALL_START,
  	APKINSTALL_FAILURE_REPORTED,
  	INTERNET_UNREACHABLE,
@@ -46341,6 +46374,7 @@ index c890cbf..35d9831 100644
 +	ACCESSIBILITY_GAME_SPEED,
 +	ACCESSIBILITY_BACKGROUND_SPEECH,
 +	ACCESSIBILITY_AUTO_ATTACK_SPEED,
++	ACCESSIBILITY_SAVE_BATTLE_LOGS,
 +	ACCESSIBILITY_BATTLEGROUNDS_NARRATE_ATTACKS,
 +	#endregion
  	DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
@@ -89996,10 +90030,10 @@ index 2c2d16e..7421a8a 100644
  		{
  			durationSeconds = ClipLengthEstimator.StringToReadTime(text);
 diff --git a/Assembly-CSharp/Option.cs b/Assembly-CSharp/Option.cs
-index e430121..d8d3533 100644
+index e430121..ca71bf2 100644
 --- a/Assembly-CSharp/Option.cs
 +++ b/Assembly-CSharp/Option.cs
-@@ -655,10 +655,22 @@ public enum Option
+@@ -655,10 +655,24 @@ public enum Option
  	EARLY_CONCEDE_CONFIRMATION_DISABLED,
  	[Description("hasSeenMythicUnlock")]
  	HAS_SEEN_MYTHIC_UNLOCK,
@@ -90020,14 +90054,16 @@ index e430121..d8d3533 100644
 +	[Description("accessibilityAutoAttackSpeed")]
 +	ACCESSIBILITY_AUTO_ATTACK_SPEED,
 +	[Description("accessibilityBattlegroundsNarrateAttacks")]
-+	ACCESSIBILITY_BATTLEGROUNDS_NARRATE_ATTACKS
++	ACCESSIBILITY_BATTLEGROUNDS_NARRATE_ATTACKS,
++		[Description("accessibilitySaveBattleLogs")]
++	ACCESSIBILITY_SAVE_BATTLE_LOGS
 +	#endregion
  }
 diff --git a/Assembly-CSharp/OptionDataTables.cs b/Assembly-CSharp/OptionDataTables.cs
-index 441ecb9..822198d 100644
+index 441ecb9..b94dc0e 100644
 --- a/Assembly-CSharp/OptionDataTables.cs
 +++ b/Assembly-CSharp/OptionDataTables.cs
-@@ -785,6 +785,24 @@ public class OptionDataTables
+@@ -785,6 +785,28 @@ public class OptionDataTables
  			Option.FORMAT_TYPE_LAST_PLAYED,
  			typeof(int)
  		},
@@ -90038,6 +90074,10 @@ index 441ecb9..822198d 100644
 +    },
 +		{
 +      Option.ACCESSIBILITY_BACKGROUND_SPEECH,
++			typeof(bool)
++    },
++		{
++      Option.ACCESSIBILITY_SAVE_BATTLE_LOGS,
 +			typeof(bool)
 +    },
 +		{
@@ -90052,7 +90092,7 @@ index 441ecb9..822198d 100644
  		{
  			Option.AADC_LOCAL_SAVE_TIME_STAMP,
  			typeof(ulong)
-@@ -843,7 +861,7 @@ public class OptionDataTables
+@@ -843,7 +865,7 @@ public class OptionDataTables
  		},
  		{
  			Option.SOUND_VOLUME,
@@ -90061,7 +90101,7 @@ index 441ecb9..822198d 100644
  		},
  		{
  			Option.MUSIC_VOLUME,
-@@ -1329,6 +1347,24 @@ public class OptionDataTables
+@@ -1329,6 +1351,28 @@ public class OptionDataTables
  			Option.HAS_SEEN_CLASSIC_MODE_VO,
  			false
  		},
@@ -90073,6 +90113,10 @@ index 441ecb9..822198d 100644
 +	    {
 +			Option.ACCESSIBILITY_BACKGROUND_SPEECH,
 +			true
++	},
++	    {
++			Option.ACCESSIBILITY_SAVE_BATTLE_LOGS,
++			false
 +	},
 +    {
 +			Option.ACCESSIBILITY_AUTO_ATTACK_SPEED,
@@ -90087,7 +90131,7 @@ index 441ecb9..822198d 100644
  			Option.DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
  			false
 diff --git a/Assembly-CSharp/OptionsMenu.cs b/Assembly-CSharp/OptionsMenu.cs
-index 3ff27f1..39c0a71 100644
+index 3ff27f1..d315e1a 100644
 --- a/Assembly-CSharp/OptionsMenu.cs
 +++ b/Assembly-CSharp/OptionsMenu.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
@@ -90139,7 +90183,7 @@ index 3ff27f1..39c0a71 100644
  		{
  			return false;
  		}
-@@ -697,4 +708,138 @@ public class OptionsMenu : MonoBehaviour
+@@ -697,4 +708,151 @@ public class OptionsMenu : MonoBehaviour
  		m_soundOptionsMenu.Show();
  		m_soundOptionsMenuLoading = false;
  	}
@@ -90157,7 +90201,7 @@ index 3ff27f1..39c0a71 100644
 +	private AccessibleDropdownControl m_accessibleFrameRate;
 +
 +	private AccessibleCheckBox m_speechInBackground;
-+
++private AccessibleCheckBox m_saveBattleLogs;
 +	private AccessibleCheckBox m_debugLogging;
 +
 +	private AccessibleCheckBox m_accessibleFullScreen;
@@ -90181,6 +90225,7 @@ index 3ff27f1..39c0a71 100644
 +		m_accessibleFrameRate = new AccessibleDropdownControl(this, LocalizationUtils.Get(LocalizationKey.OPTIONS_MENU_FRAME_RATE_OPTION), m_graphicsFps, BackToMainMenu);
 +
 +		m_speechInBackground = new AccessibleCheckBox(this, LocalizationUtils.Get(LocalizationKey.OPTIONS_MENU_SPEECH_IN_BACKGROUND_OPTION), OnToggleSpeechInBackground, GetSpeechinBackgroundState);
++				m_saveBattleLogs = new AccessibleCheckBox(this, LocalizationUtils.Get(LocalizationKey.OPTIONS_MENU_SAVE_BATTLE_LOGS), OnToggleSaveBattleLogs, GetSaveBattleLogsState);
 +		m_debugLogging = new AccessibleCheckBox(this, LocalizationUtils.Get(LocalizationKey.OPTIONS_MENU_DEBUG_LOGGING_OPTION), AccessibilityUtils.DebugLoggingToggle, AccessibilityUtils.GetDebugLoggingState);
 +		m_accessibleScreenShake = new AccessibleCheckBox(this, LocalizationUtils.Get(LocalizationKey.OPTIONS_MENU_ENABLE_SCREEN_SHAKE_OPTION), m_screenShakeCheckbox);
 +		m_accessibleFullScreen = new AccessibleCheckBox(this, LocalizationUtils.Get(LocalizationKey.OPTIONS_MENU_FULLSCREEN_OPTION), m_fullScreenCheckbox);
@@ -90200,6 +90245,7 @@ index 3ff27f1..39c0a71 100644
 +		m_accessibleMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SOUND_OPTIONS_MENU_TITLE), m_soundOptionsButton.TriggerRelease);
 +		m_accessibleMenu.AddOption(m_speechInBackground.GetText, m_speechInBackground.Toggle);
 +		m_accessibleMenu.AddOption(getAutoAttackSpeedText, setAutoAttackSpeed);
++		m_accessibleMenu.AddOption(m_saveBattleLogs.GetText, m_saveBattleLogs.Toggle);
 +		m_accessibleMenu.AddOption(m_accessibleGraphicsResolution.GetText, () => OnClickDropdown(m_accessibleGraphicsResolution));
 +		m_accessibleMenu.AddOption(m_accessibleGraphicsQuality.GetText, () => OnClickDropdown(m_accessibleGraphicsQuality));
 +		m_accessibleMenu.AddOption(m_accessibleFrameRate.GetText, () => OnClickDropdown(m_accessibleFrameRate));
@@ -90248,6 +90294,17 @@ index 3ff27f1..39c0a71 100644
 +	{
 +		return Options.Get().GetBool(Option.ACCESSIBILITY_BACKGROUND_SPEECH);
 +	}
++	private void OnToggleSaveBattleLogs()
++	{
++				Options.Get().SetBool(Option.ACCESSIBILITY_SAVE_BATTLE_LOGS, !(Options.Get().GetBool(Option.ACCESSIBILITY_SAVE_BATTLE_LOGS)));
++	}
++
++
++	private bool GetSaveBattleLogsState()
++	{
++		return Options.Get().GetBool(Option.ACCESSIBILITY_SAVE_BATTLE_LOGS);
++	}
++
 +
 +	public void HandleAccessibleInput()
 +	{
