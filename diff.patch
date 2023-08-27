@@ -11255,10 +11255,10 @@ index 0000000..8815132
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleKey.cs b/Assembly-CSharp/Accessibility/AccessibleKey.cs
 new file mode 100644
-index 0000000..2c89513
+index 0000000..2943fd9
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleKey.cs
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,421 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using UnityEngine;
@@ -11332,6 +11332,7 @@ index 0000000..2c89513
 +        public static AccessibleKey CREATE_DECK = CreateKey(KeyCode.N);
 +        public static AccessibleKey DELETE_DECK = CreateKey(KeyCode.Delete);
 +        public static AccessibleKey EDIT_DECK = CreateKey(KeyCode.E);
++        public static AccessibleKey EDIT_DECK_ENTER_CRAFTING_MODE = CreateKey(KeyCode.Return, true);
 +        #endregion
 +
 +        #region Quest Log
@@ -20525,10 +20526,10 @@ index 0000000..9d84d65
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..135bf0f
+index 0000000..6f13385
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2133 @@
+@@ -0,0 +1,2163 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -21211,6 +21212,10 @@ index 0000000..135bf0f
 +            {
 +                OpenSideboard();
 +            }
++            else if (AccessibleKey.EDIT_DECK_ENTER_CRAFTING_MODE.IsPressed())
++            {
++                AccessibleInputMgr.ClickRightMouseButton();
++            }
 +            else
 +            {
 +                HandleEditDeckShortcuts();
@@ -21643,7 +21648,7 @@ index 0000000..135bf0f
 +            m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_ADD_CARDS_OPTION), EditDeckAddCards);
 +            if (!collectionDeckTray.IsSideboardOpen)
 +            {
-+                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION), EditDeckSeeDeck);
++                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION), () => EditDeckSeeDeck());
 +                if (m_curMode == Mode.TRADITIONAL)
 +                    m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_RENAME_DECK_OPTION), EditDeckRenameDeck);
 +                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_COPY_DECK_OPTION), EditDeckCopyDeck);
@@ -21653,7 +21658,7 @@ index 0000000..135bf0f
 +            }
 +            else
 +            {
-+                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_SIDEBOARD_OPTION), EditDeckSeeDeck);
++                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_SIDEBOARD_OPTION), () => EditDeckSeeDeck());
 +                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_BACK_TO_DECK_OPTION), CloseSideboard);
 +            }
 +            m_editDeckMenu.StartReading();
@@ -21753,9 +21758,10 @@ index 0000000..135bf0f
 +
 +        private AccessibleListOfItems<AccessibleEditingDeckCard> m_editingDeckCards;
 +
-+        private void EditDeckSeeDeck()
++        private void EditDeckSeeDeck(bool isReread = false)
 +        {
 +            var editingDeckCards = BuildAccessibleEditingDeckCards();
++            var cachedCardIdx = m_editingDeckCards?.GetItemBeingReadIndex();
 +
 +            if (editingDeckCards.Count == 0)
 +            {
@@ -21765,12 +21771,22 @@ index 0000000..135bf0f
 +            {
 +                AccessibleInputMgr.HideMouse();
 +
-+                int cardCount = CountCards(editingDeckCards);
-+                int deckSize = GetDeckSize();
-+                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK, cardCount, deckSize));
++                if (!isReread)
++                {
++                    int cardCount = CountCards(editingDeckCards);
++                    int deckSize = GetDeckSize();
++                    AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK, cardCount, deckSize));
++                }
 +
 +                m_editingDeckCards = new AccessibleListOfItems<AccessibleEditingDeckCard>(this, BuildAccessibleEditingDeckCards());
-+                m_editingDeckCards.StartReading();
++                if (isReread)
++                {
++                    m_editingDeckCards.StartReadingFromIndex(cachedCardIdx ?? 0);
++                }
++                else
++                {
++                    m_editingDeckCards.StartReading();
++                }
 +                m_curState = State.EDIT_DECK_SEE_DECK;
 +            }
 +        }
@@ -22296,6 +22312,11 @@ index 0000000..135bf0f
 +
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_DONE));
 +
++            if (m_stateBeforeViewCard == State.EDIT_DECK_SEE_DECK)
++            {
++                OnServerResponse();
++            }
++
 +            // The reread is handled by the normal flow as the server response triggers it
 +            PopState();
 +        }
@@ -22309,6 +22330,11 @@ index 0000000..135bf0f
 +
 +            AccessibilityUtils.LogDebug($"OnCardDisenchanted");
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_DISENCHANT_DONE));
++
++            if (m_stateBeforeViewCard == State.EDIT_DECK_SEE_DECK)
++            {
++                OnServerResponse();
++            }
 +
 +            // The reread is handled by the normal flow as the server response triggers it
 +            PopState();
@@ -22331,6 +22357,10 @@ index 0000000..135bf0f
 +            {
 +                m_curPageCards.StartReading();
 +                m_curState = State.CRAFTING_SEE_COLLECTION;
++            }
++            else if (m_stateBeforeViewCard == State.EDIT_DECK_SEE_DECK)
++            {
++                EditDeckSeeDeck(isReread: true);
 +            }
 +            else
 +            {
@@ -22506,6 +22536,7 @@ index 0000000..135bf0f
 +
 +            ret.Add(LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_READING_DECK_HELP));
 +            ret.Add(LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_REMOVE_CARD_HELP, AccessibleKey.CONFIRM));
++            ret.Add(LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CRAFT_CARD_HELP, AccessibleKey.EDIT_DECK_ENTER_CRAFTING_MODE));
 +
 +            return AccessibleSpeechUtils.CombineLines(ret);
 +        }
@@ -24414,10 +24445,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..047e899
+index 0000000..5848884
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1110 @@
+@@ -0,0 +1,1111 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25212,6 +25243,7 @@ index 0000000..047e899
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_READ_HERO_SKINS_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_READ_HERO_SKINS_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_ADD_CARD_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_ADD_CARD_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_REMOVE_CARD_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_REMOVE_CARD_HELP");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_CRAFT_CARD_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_CRAFT_CARD_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_RENAME_DECK_PROMPT = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_RENAME_DECK_PROMPT");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_SEARCH_PROMPT = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_SEARCH_PROMPT");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_MANA_FILTER_ON = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_MANA_FILTER_ON");
@@ -50929,7 +50961,7 @@ index 73f47e3..c4d40e8 100644
 +
  }
 diff --git a/Assembly-CSharp/CollectionManagerDisplay.cs b/Assembly-CSharp/CollectionManagerDisplay.cs
-index 0eb24e0..25d1e1c 100644
+index 0eb24e0..b7927f6 100644
 --- a/Assembly-CSharp/CollectionManagerDisplay.cs
 +++ b/Assembly-CSharp/CollectionManagerDisplay.cs
 @@ -12,6 +12,7 @@ using Hearthstone;
@@ -51006,6 +51038,15 @@ index 0eb24e0..25d1e1c 100644
  	}
  
  	private IEnumerator InitCollectionWhenReady()
+@@ -1261,7 +1269,7 @@ public class CollectionManagerDisplay : CollectibleDisplay
+ 	{
+ 		if (GetViewMode() != CollectionUtils.ViewMode.DECK_TEMPLATE)
+ 		{
+-			if (!cardTile.GetSlot().Owned && !DuelsConfig.IsCardLoadoutTreasure(cardTile.GetCardID()))
++			if (!DuelsConfig.IsCardLoadoutTreasure(cardTile.GetCardID()))
+ 			{
+ 				CraftingManager.Get().EnterCraftMode(cardTile.GetActor());
+ 			}
 @@ -1399,16 +1407,21 @@ public class CollectionManagerDisplay : CollectibleDisplay
  		{
  			return;
