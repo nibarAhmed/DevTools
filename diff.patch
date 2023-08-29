@@ -20526,10 +20526,10 @@ index 0000000..9d84d65
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..6f13385
+index 0000000..5f04288
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2163 @@
+@@ -0,0 +1,2175 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -21653,7 +21653,7 @@ index 0000000..6f13385
 +                    m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_RENAME_DECK_OPTION), EditDeckRenameDeck);
 +                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_COPY_DECK_OPTION), EditDeckCopyDeck);
 +                // if (m_curMode == Mode.TRADITIONAL)
-+                    // m_editDeckMenu.AddOption(decksContent.m_deckOptionsMenu.m_convertText.Text, decksContent.m_deckOptionsMenu.m_switchFormatButton.TriggerRelease); Broke in 26.6
++                    SetupEditDeckFormatSwitcherButtons();
 +                m_editDeckMenu.AddOption(CollectionDeckTray.Get().m_doneButton.GetText(), EditDeckDone);
 +            }
 +            else
@@ -21670,6 +21670,18 @@ index 0000000..6f13385
 +
 +            CollectionDeckTray.Get().m_cardsContent.UnregisterCardCountUpdated(OnCardCountUpdated);
 +            CollectionDeckTray.Get().m_cardsContent.RegisterCardCountUpdated(OnCardCountUpdated);
++        }
++
++        private void SetupEditDeckFormatSwitcherButtons()
++        {
++            var deckOptionsMenu = CollectionDeckTray.Get().GetDecksContent().m_deckOptionsMenu;
++            foreach (var format in deckOptionsMenu.GetFormatTypesToConvert(CollectionManager.Get().GetEditedDeck().FormatType))
++            {
++                if (DeckOptionsMenu.s_FORMAT_TO_SWITCH_STRING.TryGetValue(format, out var switchString) && (format != PegasusShared.FormatType.FT_TWIST || deckOptionsMenu.CanConvertCurrentDeckToTwist()))
++                {
++                    m_editDeckMenu.AddOption(GameStrings.Get(switchString), () => deckOptionsMenu.StartCoroutine(deckOptionsMenu.SwitchFormat(format)));
++                }
++            }
 +        }
 +
 +        internal void OnDeckFormatChanged(CollectionDeck deck)
@@ -59616,7 +59628,7 @@ index 9980a38..4efb25f 100644
  				NotificationManager.Get().CreateInnkeeperQuote(UserAttentionBlocker.NONE, GameStrings.Get("VO_ANNOUNCER_CM_HELP_DECK_50"), "VO_ANNOUNCER_CM_HELP_DECK_50.prefab:450881875d33d094e9a27f6260fb06d9");
  				Options.Get().SetBool(Option.HAS_SEEN_DECK_HELPER, val: true);
 diff --git a/Assembly-CSharp/DeckOptionsMenu.cs b/Assembly-CSharp/DeckOptionsMenu.cs
-index 5a8ef51..b9ab3bb 100644
+index 5a8ef51..f68e90f 100644
 --- a/Assembly-CSharp/DeckOptionsMenu.cs
 +++ b/Assembly-CSharp/DeckOptionsMenu.cs
 @@ -4,6 +4,7 @@ using Blizzard.T5.Core;
@@ -59627,24 +59639,7 @@ index 5a8ef51..b9ab3bb 100644
  
  public class DeckOptionsMenu : MonoBehaviour
  {
-@@ -25,7 +26,7 @@ public class DeckOptionsMenu : MonoBehaviour
- 	private PegUIElement m_deleteButton;
- 
- 	[SerializeField]
--	private ConvertFormatButton[] m_convertFormatButtons;
-+	public ConvertFormatButton[] m_convertFormatButtons;
- 
- 	[SerializeField]
- 	private PegUIElement m_retireButton;
-@@ -160,6 +161,7 @@ public class DeckOptionsMenu : MonoBehaviour
- 	public void SetDeck(CollectionDeck deck)
- 	{
- 		m_deck = deck;
-+		SetSwitchFormatText(deck.FormatType);
- 	}
- 
- 	public void SetDeckInfo(CollectionDeckInfo deckInfo)
-@@ -208,6 +210,10 @@ public class DeckOptionsMenu : MonoBehaviour
+@@ -208,6 +209,10 @@ public class DeckOptionsMenu : MonoBehaviour
  				collectionManagerDisplay.OnDoneEditingDeck();
  			}
  		}
@@ -59655,7 +59650,16 @@ index 5a8ef51..b9ab3bb 100644
  	}
  
  	private void OnRetireButtonReleased(UIEvent e)
-@@ -309,6 +315,8 @@ public class DeckOptionsMenu : MonoBehaviour
+@@ -267,7 +272,7 @@ public class DeckOptionsMenu : MonoBehaviour
+ 		}
+ 	}
+ 
+-	private IEnumerator SwitchFormat(FormatType format)
++	internal IEnumerator SwitchFormat(FormatType format)
+ 	{
+ 		CollectionManagerDisplay collectionManagerDisplay = CollectionManager.Get().GetCollectibleDisplay() as CollectionManagerDisplay;
+ 		if (collectionManagerDisplay != null)
+@@ -309,9 +314,11 @@ public class DeckOptionsMenu : MonoBehaviour
  		{
  			SetDeckFormat(format);
  		}
@@ -59663,19 +59667,60 @@ index 5a8ef51..b9ab3bb 100644
 +		AccessibleCollectionManager.Get().OnDeckFormatChanged(m_deck);
  	}
  
- 	private List<FormatType> GetFormatTypesToConvert(FormatType formatType)
-@@ -387,14 +395,14 @@ public class DeckOptionsMenu : MonoBehaviour
+-	private List<FormatType> GetFormatTypesToConvert(FormatType formatType)
++	internal List<FormatType> GetFormatTypesToConvert(FormatType formatType)
+ 	{
+ 		List<FormatType> list = new List<FormatType>();
+ 		switch (formatType)
+@@ -386,21 +393,7 @@ public class DeckOptionsMenu : MonoBehaviour
+ 	private void SetSwitchFormatText(FormatType currentFormat)
  	{
  		List<FormatType> formatTypesToConvert = GetFormatTypesToConvert(currentFormat);
- 		Map<FormatType, string> map = new Map<FormatType, string>
+-		Map<FormatType, string> map = new Map<FormatType, string>
 -		{
- 			{
+-			{
 -				FormatType.FT_STANDARD,
 -				"GLUE_COLLECTION_TO_STANDARD"
 -			},
 -			{
 -				FormatType.FT_WILD,
 -				"GLUE_COLLECTION_TO_WILD"
+-			},
+-			{
+-				FormatType.FT_TWIST,
+-				"GLUE_COLLECTION_TO_TWIST"
+-			}
+-		};
++
+ 		if (m_convertFormatButtons.Length == formatTypesToConvert.Count)
+ 		{
+ 			for (int i = 0; i < m_convertFormatButtons.Length; i++)
+@@ -410,7 +403,7 @@ public class DeckOptionsMenu : MonoBehaviour
+ 					Debug.LogError("Button Uber text reference not assigned");
+ 					continue;
+ 				}
+-				if (map.TryGetValue(formatTypesToConvert[i], out var value))
++				if (s_FORMAT_TO_SWITCH_STRING.TryGetValue(formatTypesToConvert[i], out var value))
+ 				{
+ 					m_convertFormatButtons[i].ButtonText.Text = GameStrings.Get(value);
+ 					continue;
+@@ -448,7 +441,7 @@ public class DeckOptionsMenu : MonoBehaviour
+ 		}
+ 	}
+ 
+-	private bool CanConvertCurrentDeckToTwist()
++	internal bool CanConvertCurrentDeckToTwist()
+ 	{
+ 		if (!RankMgr.IsCurrentTwistSeasonActive())
+ 		{
+@@ -695,4 +688,22 @@ public class DeckOptionsMenu : MonoBehaviour
+ 		}
+ 		return true;
+ 	}
++
++	#region Accessibility
++			internal static Map<FormatType, string> s_FORMAT_TO_SWITCH_STRING = new Map<FormatType, string>
++			{
 +				{
 +					FormatType.FT_STANDARD,
 +					"GLUE_COLLECTION_TO_STANDARD"
@@ -59683,20 +59728,14 @@ index 5a8ef51..b9ab3bb 100644
 +				{
 +					FormatType.FT_WILD,
 +					"GLUE_COLLECTION_TO_WILD"
- 			},
- 			{
- 				FormatType.FT_TWIST,
-@@ -506,8 +514,8 @@ public class DeckOptionsMenu : MonoBehaviour
- 			for (int i = 0; i < convertFormatButtons.Length; i++)
- 			{
- 				convertFormatButtons[i].transform.position = m_buttonPositions[num].position;
--				num++;
--			}
-+			num++;
-+		}
- 			SetupConvertDeckButtons();
- 		}
- 		m_renameButton.gameObject.SetActive(flag2);
++			},
++			{
++				FormatType.FT_TWIST,
++				"GLUE_COLLECTION_TO_TWIST"
++			}
++		};
++		#endregion
+ }
 diff --git a/Assembly-CSharp/DeckPickerTrayDisplay.cs b/Assembly-CSharp/DeckPickerTrayDisplay.cs
 index 38da359..1256e26 100644
 --- a/Assembly-CSharp/DeckPickerTrayDisplay.cs
