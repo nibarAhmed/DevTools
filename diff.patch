@@ -37248,7 +37248,7 @@ index 5c3aee3..5f325b8 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/BaconTwoScoop.cs b/Assembly-CSharp/BaconTwoScoop.cs
-index 175179e..b8e1ed0 100644
+index 175179e..504baf9 100644
 --- a/Assembly-CSharp/BaconTwoScoop.cs
 +++ b/Assembly-CSharp/BaconTwoScoop.cs
 @@ -1,5 +1,7 @@
@@ -37281,15 +37281,15 @@ index 175179e..b8e1ed0 100644
  			{
  				m_waitForRatingTimeoutTimer += Time.unscaledDeltaTime;
  				yield return null;
-@@ -118,6 +126,8 @@ public class BaconTwoScoop : VictoryTwoScoop
+@@ -114,6 +122,8 @@ public class BaconTwoScoop : VictoryTwoScoop
+ 			m_Bottom4Visual.SetActive(value: true);
+ 			SoundManager.Get().Play(m_Bottom4Sound);
+ 		}
++
++		ReadPlace();
+ 	}
  
  	private IEnumerator PlayRatingChangeAnimation()
- 	{
-+		ReadPlace();
-+
- 		int oldRating = m_newRating - m_ratingChange;
- 		m_RatingChangeText.Text = "";
- 		m_RatingText.Text = oldRating.ToString();
 @@ -141,5 +151,43 @@ public class BaconTwoScoop : VictoryTwoScoop
  			yield return null;
  		}
