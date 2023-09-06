@@ -172,6 +172,10 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2023-09-06
+
+- Updated to Hearthstone version 27.2.2.185054
+
 ### 2023-09-02
 - When editing a deck in the collection manager, it is now possible to craft or disenchant the currently focused card by pressing Shift+Enter (contributed by Endefx)
 - Restored the ability to change the format of a deck in the collection manager (contributed by Endefx)

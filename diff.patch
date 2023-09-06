@@ -394,7 +394,7 @@ index 0000000..17c1c11
 +*.sln.iml
 +.vscode
 diff --git a/Assembly-CSharp/AbsDeckPickerTrayDisplay.cs b/Assembly-CSharp/AbsDeckPickerTrayDisplay.cs
-index e0dcee2..903155c 100644
+index dc193a3..9038121 100644
 --- a/Assembly-CSharp/AbsDeckPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/AbsDeckPickerTrayDisplay.cs
 @@ -7,6 +7,7 @@ using Hearthstone.DataModels;
@@ -50617,7 +50617,7 @@ index d19fff0..1906756 100644
 +    #endregion
  }
 diff --git a/Assembly-CSharp/CollectionManager.cs b/Assembly-CSharp/CollectionManager.cs
-index 73f47e3..c4d40e8 100644
+index 3441169..ed013b1 100644
 --- a/Assembly-CSharp/CollectionManager.cs
 +++ b/Assembly-CSharp/CollectionManager.cs
 @@ -15,6 +15,7 @@ using PegasusLettuce;
@@ -50760,7 +50760,7 @@ index 73f47e3..c4d40e8 100644
  			NetCache.Get().FavoriteBattlegroundsGuideSkinChanged += s_instance.OnFavoriteBattlegroundsGuideSkinChanged;
  			s_instance.InitImpl();
  		}
-@@ -2816,7 +2851,7 @@ public class CollectionManager
+@@ -2847,7 +2882,7 @@ public class CollectionManager
  				RemoveCollectionCard(cardChange.cardID, cardChange.premium, cardChange.count);
  				break;
  			}
@@ -50769,7 +50769,7 @@ index 73f47e3..c4d40e8 100644
  		SendPendingDeckUpdates();
  		OnCollectionChanged();
  		AchieveManager.Get().ValidateAchievesNow();
-@@ -2967,6 +3002,11 @@ public class CollectionManager
+@@ -2998,6 +3033,11 @@ public class CollectionManager
  
  	public bool ShouldAccountSeeStandardWild()
  	{
@@ -50781,7 +50781,7 @@ index 73f47e3..c4d40e8 100644
  		if (!RankMgr.Get().WildCardsAllowedInCurrentLeague())
  		{
  			return false;
-@@ -2980,6 +3020,11 @@ public class CollectionManager
+@@ -3011,6 +3051,11 @@ public class CollectionManager
  
  	public bool AccountHasUnlockedWild()
  	{
@@ -50793,7 +50793,7 @@ index 73f47e3..c4d40e8 100644
  		long value = 0L;
  		if (!GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.PLAYER_FLAGS, GameSaveKeySubkeyId.PLAYER_FLAGS_UNLOCKED_WILD, out value))
  		{
-@@ -3020,6 +3065,7 @@ public class CollectionManager
+@@ -3051,6 +3096,7 @@ public class CollectionManager
  		{
  			return true;
  		}
@@ -50801,7 +50801,7 @@ index 73f47e3..c4d40e8 100644
  		if (m_lastSearchForWildCardsTime > m_collectionLastModifiedTime)
  		{
  			return m_accountHasWildCards;
-@@ -3029,18 +3075,35 @@ public class CollectionManager
+@@ -3060,18 +3106,35 @@ public class CollectionManager
  		return m_accountHasWildCards;
  	}
  
@@ -50837,7 +50837,7 @@ index 73f47e3..c4d40e8 100644
  		return m_decks.Values.Count((CollectionDeck deck) => deck.FormatType == FormatType.FT_TWIST);
  	}
  
-@@ -3167,10 +3230,17 @@ public class CollectionManager
+@@ -3198,10 +3261,17 @@ public class CollectionManager
  		}
  		SetDeckRuleset(deckRuleset);
  		SetEditedDeck(deck, callbackData);
@@ -50855,7 +50855,7 @@ index 73f47e3..c4d40e8 100644
  		bool editMode = m_editMode;
  		m_editMode = false;
  		FriendChallengeMgr.Get().UpdateMyAvailability();
-@@ -3578,7 +3648,7 @@ public class CollectionManager
+@@ -3609,7 +3679,7 @@ public class CollectionManager
  			if (entityDef.HasTag(GAME_TAG.DECK_RULE_MOD_DECK_SIZE))
  			{
  				num = entityDef.GetTag(GAME_TAG.DECK_RULE_MOD_DECK_SIZE);
@@ -50864,7 +50864,7 @@ index 73f47e3..c4d40e8 100644
  		}
  		int num3 = deck.GetTotalValidCardCount() + list.Count;
  		int num4 = num - num3;
-@@ -3655,6 +3725,9 @@ public class CollectionManager
+@@ -3686,6 +3756,9 @@ public class CollectionManager
  
  	public bool ShouldShowWildToStandardTutorial(bool checkPrevSceneIsPlayMode = true)
  	{
@@ -50874,7 +50874,7 @@ index 73f47e3..c4d40e8 100644
  		if (!ShouldAccountSeeStandardWild())
  		{
  			return false;
-@@ -3802,6 +3875,7 @@ public class CollectionManager
+@@ -3833,6 +3906,7 @@ public class CollectionManager
  		}
  		BattlegroundsDataInit();
  		LettuceInitImpl();
@@ -50882,7 +50882,7 @@ index 73f47e3..c4d40e8 100644
  		NetCache.Get().RegisterCollectionManager(OnNetCacheReady);
  		LoginManager.Get().OnAchievesLoaded += OnAchievesLoaded;
  	}
-@@ -3813,6 +3887,7 @@ public class CollectionManager
+@@ -3844,6 +3918,7 @@ public class CollectionManager
  		m_collectionLoaded = false;
  		m_duelsSessionInfoLoaded = false;
  		HearthstoneApplication.Get().WillReset -= s_instance.WillReset;
@@ -50890,7 +50890,7 @@ index 73f47e3..c4d40e8 100644
  		NetCache.Get().FavoriteBattlegroundsGuideSkinChanged -= s_instance.OnFavoriteBattlegroundsGuideSkinChanged;
  		NetCache.Get().RemoveUpdatedListener(typeof(NetCache.NetCacheDecks), s_instance.NetCache_OnDecksReceived);
  		if (HearthstoneApplication.IsInternal())
-@@ -6174,8 +6249,81 @@ public class CollectionManager
+@@ -6205,8 +6280,81 @@ public class CollectionManager
  					break;
  				}
  			}
@@ -50973,7 +50973,7 @@ index 73f47e3..c4d40e8 100644
 +
  }
 diff --git a/Assembly-CSharp/CollectionManagerDisplay.cs b/Assembly-CSharp/CollectionManagerDisplay.cs
-index 0eb24e0..b7927f6 100644
+index a581957..917b03e 100644
 --- a/Assembly-CSharp/CollectionManagerDisplay.cs
 +++ b/Assembly-CSharp/CollectionManagerDisplay.cs
 @@ -12,6 +12,7 @@ using Hearthstone;
@@ -59737,7 +59737,7 @@ index 5a8ef51..f68e90f 100644
 +		#endregion
  }
 diff --git a/Assembly-CSharp/DeckPickerTrayDisplay.cs b/Assembly-CSharp/DeckPickerTrayDisplay.cs
-index 38da359..1256e26 100644
+index b508aab..d45ed5d 100644
 --- a/Assembly-CSharp/DeckPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/DeckPickerTrayDisplay.cs
 @@ -4,6 +4,7 @@ using System.Collections.Generic;
@@ -62988,7 +62988,7 @@ index 0e5ba67..103dd85 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/DeckTrayDeckListContent.cs b/Assembly-CSharp/DeckTrayDeckListContent.cs
-index fd093ec..eb8f058 100644
+index 20f25d8..c975e0e 100644
 --- a/Assembly-CSharp/DeckTrayDeckListContent.cs
 +++ b/Assembly-CSharp/DeckTrayDeckListContent.cs
 @@ -7,6 +7,7 @@ using Hearthstone;
@@ -69838,7 +69838,7 @@ index dcc4e28..fc57fee 100644
  	public class Info
  	{
 diff --git a/Assembly-CSharp/FriendChallengeMgr.cs b/Assembly-CSharp/FriendChallengeMgr.cs
-index 87aea24..61bdb84 100644
+index bcd6c47..fce62b2 100644
 --- a/Assembly-CSharp/FriendChallengeMgr.cs
 +++ b/Assembly-CSharp/FriendChallengeMgr.cs
 @@ -1,3 +1,4 @@
@@ -74839,7 +74839,7 @@ index 31009f7..7da312e 100644
  		bool flag = GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.FTUE_SHOULD_SEE_SOLO_ADVENTURES_MOVED_POPUP, out value) && value == 0;
  		GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.HAS_SEEN_ALL_CLASSES_UNLOCKED_MESSAGE, out long value2);
 diff --git a/Assembly-CSharp/GameState.cs b/Assembly-CSharp/GameState.cs
-index 731e24e..4c5e50d 100644
+index fc2be48..32244bf 100644
 --- a/Assembly-CSharp/GameState.cs
 +++ b/Assembly-CSharp/GameState.cs
 @@ -11,6 +11,7 @@ using Blizzard.T5.Core;
@@ -82236,7 +82236,7 @@ index f93b75f..589977f 100644
  			if (IsPipelinePortNeeded())
  			{
 diff --git a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
-index dac4749..969329e 100644
+index 37450d4..b9bc36a 100644
 --- a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 +++ b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 @@ -1,5 +1,6 @@
@@ -82305,7 +82305,7 @@ index dac4749..969329e 100644
  		}
  
 diff --git a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
-index 2e08e77..0043293 100644
+index 26c4ede..4d06d33 100644
 --- a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 +++ b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 @@ -5,6 +5,7 @@ using System.IO;
@@ -82363,7 +82363,7 @@ index 2e08e77..0043293 100644
 +			// ExceptionReporterControl.Get().ExceptionReportInitialize(); // Remove so we don't send Blizzard exceptions that may be caused by us
 +			ExceptionReporterControl.Get().ExceptionReportInitializeDebug();
  			TelemetryManager.Client().SendSystemDetail(TelemetryUtil.GetUnitySystemInfo());
- 			HearthstonePerformance.Initialize(TestType, 3536710.ToString(), 183876);
+ 			HearthstonePerformance.Initialize(TestType, 3564888.ToString(), 185054);
  			HearthstonePerformance.Get()?.CaptureAppStartTime();
 @@ -278,6 +283,8 @@ namespace Hearthstone
  
@@ -82372,7 +82372,7 @@ index 2e08e77..0043293 100644
 +			AccessibleHearthstoneApplication.OnClosing();
 +			AccessibilityMgr.Shutdown();
  			IsHearthstoneClosing = true;
- 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 183876, Log.UberText);
+ 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 185054, Log.UberText);
  			if (this.OnShutdown != null)
 @@ -508,7 +515,7 @@ namespace Hearthstone
  
@@ -82411,7 +82411,7 @@ index 2e08e77..0043293 100644
 +			jobDefinition.AddJobFinishedEventListener(OnGameStringsLoaded);
 +			Processor.QueueJob("HearthstoneApplication.InitializeMode", Job_InitializeMode(), Array.Empty<IJobDependency>());
  			Processor.QueueJob(jobDefinition);
- 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 183876, Log.UberText));
+ 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 185054, Log.UberText));
  			Processor.QueueJob(HearthstoneJobs.CreateJobFromAction("HearthstoneApplication.SetWindowText", SetWindowText, jobDefinition.CreateDependency()));
 @@ -673,7 +681,12 @@ namespace Hearthstone
  			yield break;
@@ -84707,7 +84707,7 @@ index 16ed295..ff0f3b5 100644
  		private WidgetTemplate m_parentWidgetTemplate;
  
 diff --git a/Assembly-CSharp/HearthstoneCheckout.cs b/Assembly-CSharp/HearthstoneCheckout.cs
-index 6b4aebb..20ac256 100644
+index 7a92867..3584b08 100644
 --- a/Assembly-CSharp/HearthstoneCheckout.cs
 +++ b/Assembly-CSharp/HearthstoneCheckout.cs
 @@ -184,14 +184,7 @@ public class HearthstoneCheckout : blz_commerce_log_hook, ISceneEventObserver, I
@@ -89370,7 +89370,7 @@ index 1c6e040..274a56d 100644
  			{
  				item = new CollectionManager.CardModification
 diff --git a/Assembly-CSharp/Network.cs b/Assembly-CSharp/Network.cs
-index 133c58f..16cebd4 100644
+index c028ad5..293515b 100644
 --- a/Assembly-CSharp/Network.cs
 +++ b/Assembly-CSharp/Network.cs
 @@ -36,6 +36,7 @@ using PegasusUtil;
@@ -90393,7 +90393,7 @@ index 441ecb9..b94dc0e 100644
  			Option.DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
  			false
 diff --git a/Assembly-CSharp/OptionsMenu.cs b/Assembly-CSharp/OptionsMenu.cs
-index 2ef6eef..dd3e819 100644
+index 1de09d4..2d7e04c 100644
 --- a/Assembly-CSharp/OptionsMenu.cs
 +++ b/Assembly-CSharp/OptionsMenu.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
