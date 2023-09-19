@@ -17464,10 +17464,10 @@ index 0000000..20d9067
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 0000000..ed3e434
+index 0000000..c1c2d0f
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1596 @@
+@@ -0,0 +1,1607 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -17993,8 +17993,19 @@ index 0000000..ed3e434
 +                return null;
 +            }
 +
-+            var entityDef = DefLoader.Get().GetEntityDef(anomalyId);
-+            return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY, entityDef.GetName(), entityDef.GetCardTextInHand());
++            if (GameState.Get().IsMulliganManagerActive())
++            {
++                var entityDef = DefLoader.Get().GetEntityDef(anomalyId);
++                return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY, entityDef.GetName(), entityDef.GetCardTextInHand());
++            }
++
++            var anomalyCard = ZoneMgr.Get().FindZoneOfType<ZoneBattlegroundAnomaly>(Player.Side.NEUTRAL)?.GetFirstCard();
++            if (anomalyCard == null)
++            {
++                return null;
++            }
++
++            return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY, anomalyCard.GetEntity().GetName(), anomalyCard.GetEntity().GetCardTextInHand());
 +        }
 +
 +		private void HandleGeneralShopPhaseInput()
