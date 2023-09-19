@@ -3819,10 +3819,10 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..3679916
+index 0000000..03c7e24
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2877 @@
+@@ -0,0 +1,2880 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -5253,7 +5253,10 @@ index 0000000..3679916
 +
 +        protected virtual void HandleCheckStatusKeys()
 +        {
++            if (!AccessibleGameplayUtils.IsPlayingBattlegrounds())
++            {
 +            HandleReadAnomaliesKey();
++            }
 +
 +            if (AccessibleKey.SEE_PLAYER_MANA.IsPressed())
 +            {
