@@ -2427,10 +2427,10 @@ index 0000000..e49aefb
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs b/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs
 new file mode 100644
-index 0000000..726b5ec
+index 0000000..07c3710
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs
-@@ -0,0 +1,427 @@
+@@ -0,0 +1,433 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -2855,6 +2855,12 @@ index 0000000..726b5ec
 +        internal static bool IsArmorHidden(Card card)
 +        {
 +            return AreStatsHidden(card);
++        }
++
++        internal static string GetAnomalyText(int anomalyId)
++        {
++            var entityDef = DefLoader.Get().GetEntityDef(anomalyId);
++            return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY, entityDef.GetName(), entityDef.GetCardTextInHand());
 +        }
 +    }
 +}
@@ -3813,12 +3819,13 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..88890ec
+index 0000000..3679916
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2844 @@
+@@ -0,0 +1,2877 @@
 +﻿using System;
 +using System.Collections.Generic;
++using System.Linq;
 +using System.Text;
 +using UnityEngine;
 +
@@ -4213,6 +4220,8 @@ index 0000000..88890ec
 +            {
 +                m_justReconnected = false;
 +            }
++
++            HandleReadAnomaliesKey();
 +
 +            if (AccessibleKey.MULLIGAN_MARK_CARD.IsPressed())
 +            {
@@ -5244,6 +5253,8 @@ index 0000000..88890ec
 +
 +        protected virtual void HandleCheckStatusKeys()
 +        {
++            HandleReadAnomaliesKey();
++
 +            if (AccessibleKey.SEE_PLAYER_MANA.IsPressed())
 +            {
 +                ReadPlayerResources();
@@ -5263,6 +5274,14 @@ index 0000000..88890ec
 +            else if (AccessibleKey.SEE_OPPONENT_HAND.IsPressed())
 +            {
 +                ReadOpponentHand();
++            }
++        }
++
++        protected void HandleReadAnomaliesKey()
++        {
++            if (AccessibleKey.READ_ANOMALIES.IsPressed())
++            {
++                ReadAnomalies();
 +            }
 +        }
 +
@@ -5555,6 +5574,26 @@ index 0000000..88890ec
 +                else
 +                {
 +                    AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.GAMEPLAY_READ_CORPSES, corpses));
++                }
++            }
++        }
++
++        internal void ReadAnomalies(bool addToHistory = false)
++        {
++            var anomalyIds = MulliganManager.GetAnomalies();
++            if (anomalyIds.Count == 0)
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_NO_ANOMELIES));
++                return;
++            }
++
++            foreach (var anomalyId in anomalyIds.Select((entityId) => GameUtils.TranslateCardIdToDbId(GameState.Get().GetEntity(entityId).GetCardId())))
++            {
++                string text = AccessibleCardUtils.GetAnomalyText(anomalyId);
++                AccessibilityMgr.Output(this, text);
++                if (addToHistory)
++                {
++                    AccessibleHistoryMgr.Get().AddEntry(text);
 +                }
 +            }
 +        }
@@ -11326,10 +11365,10 @@ index 0000000..8815132
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleKey.cs b/Assembly-CSharp/Accessibility/AccessibleKey.cs
 new file mode 100644
-index 0000000..2943fd9
+index 0000000..e4f3f11
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleKey.cs
-@@ -0,0 +1,421 @@
+@@ -0,0 +1,422 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using UnityEngine;
@@ -11437,6 +11476,7 @@ index 0000000..2943fd9
 +        public static AccessibleKey READ_TOOLTIP = CreateKey(KeyCode.I);
 +        public static AccessibleKey READ_ORIGINAL_CARD_STATS = CreateKey(KeyCode.K);
 +        public static AccessibleKey TRADE_CARD = CreateKey(KeyCode.T);
++        public static AccessibleKey READ_ANOMALIES = CreateKey(KeyCode.O);
 +		#endregion
 +
 +		#region Battlegrounds-specific Keys
@@ -17535,10 +17575,10 @@ index 0000000..20d9067
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 0000000..c1c2d0f
+index 0000000..712823e
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1607 @@
+@@ -0,0 +1,1606 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -18066,8 +18106,7 @@ index 0000000..c1c2d0f
 +
 +            if (GameState.Get().IsMulliganManagerActive())
 +            {
-+                var entityDef = DefLoader.Get().GetEntityDef(anomalyId);
-+                return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY, entityDef.GetName(), entityDef.GetCardTextInHand());
++                return AccessibleCardUtils.GetAnomalyText(anomalyId);
 +            }
 +
 +            var anomalyCard = ZoneMgr.Get().FindZoneOfType<ZoneBattlegroundAnomaly>(Player.Side.NEUTRAL)?.GetFirstCard();
@@ -24816,10 +24855,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..64b400d
+index 0000000..39346b2
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1121 @@
+@@ -0,0 +1,1122 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25073,6 +25112,7 @@ index 0000000..64b400d
 +    public static LocalizationKey GAMEPLAY_READ_PLAYER_DECK = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_PLAYER_DECK");
 +    public static LocalizationKey GAMEPLAY_READ_OPPONENT_DECK = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_OPPONENT_DECK");
 +    public static LocalizationKey GAMEPLAY_NO_VALID_PLAYS = CreateKey("ACCESSIBILITY_GAMEPLAY_NO_VALID_PLAYS");
++    public static LocalizationKey GAMEPLAY_NO_ANOMELIES = CreateKey("ACCESSIBILITY_GAMEPLAY_NO_ANOMALIES");
 +    public static LocalizationKey GAMEPLAY_READ_PLAYER_OVERLOADED_MANA = CreateKey("GAMEPLAY_TOOLTIP_MANA_OVERLOAD_DESCRIPTION");
 +    public static LocalizationKey GAMEPLAY_READ_PLAYER_LOCKED_MANA = CreateKey("GAMEPLAY_TOOLTIP_MANA_LOCKED_DESCRIPTION");
 +    public static LocalizationKey GAMEPLAY_READ_OPPONENT_OVERLOADED_MANA = CreateKey("GAMEPLAY_TOOLTIP_ENEMYOVERLOAD_DESC");
@@ -38030,6 +38070,26 @@ index 175179e..504baf9 100644
 +	}
 +
 +	#endregion
+ }
+diff --git a/Assembly-CSharp/Banner.cs b/Assembly-CSharp/Banner.cs
+index 07af09b..ae7c7e1 100644
+--- a/Assembly-CSharp/Banner.cs
++++ b/Assembly-CSharp/Banner.cs
+@@ -1,6 +1,7 @@
+ using System.Collections;
+ using System.Collections.Generic;
+ using UnityEngine;
++using Accessibility;
+ 
+ public class Banner : MonoBehaviour
+ {
+@@ -296,5 +297,7 @@ public class Banner : MonoBehaviour
+ 			yield return null;
+ 		}
+ 		m_medallionHearthstoneAnomaly.SetAnimating(isAnimating: false);
++
++		AccessibleGameplay.Get().ReadAnomalies(true);
+ 	}
  }
 diff --git a/Assembly-CSharp/BannerPopup.cs b/Assembly-CSharp/BannerPopup.cs
 index 0c2aa7b..9743962 100644
@@ -89529,7 +89589,7 @@ index de87265..e26110e 100644
  
  	public MountType Mount { get; set; }
 diff --git a/Assembly-CSharp/MulliganManager.cs b/Assembly-CSharp/MulliganManager.cs
-index b141b70..3e05b24 100644
+index b141b70..18ee4be 100644
 --- a/Assembly-CSharp/MulliganManager.cs
 +++ b/Assembly-CSharp/MulliganManager.cs
 @@ -1,6 +1,7 @@
@@ -89816,7 +89876,7 @@ index b141b70..3e05b24 100644
  	}
  
 -	private List<int> GetAnomalies()
-+	internal List<int> GetAnomalies()
++	internal static List<int> GetAnomalies()
  	{
  		List<int> list = new List<int>();
  		GameEntity gameEntity = GameState.Get().GetGameEntity();
