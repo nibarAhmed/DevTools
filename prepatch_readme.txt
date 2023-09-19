@@ -172,6 +172,10 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2023-09-19 (2)
+
+- Fixed a regression in Battlegrounds where pressing the O key would erroniously announce that there are no anomalies (contributed by Endefx)
+
 ### 2023-09-19
 
 - Updated to Hearthstone version 27.4.0.185749 (contributed by Endefx)
