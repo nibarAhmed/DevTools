@@ -2966,18 +2966,20 @@ index 0000000..38de124
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCollectibleCard.cs b/Assembly-CSharp/Accessibility/AccessibleCollectibleCard.cs
 new file mode 100644
-index 0000000..6802162
+index 0000000..a426041
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCollectibleCard.cs
-@@ -0,0 +1,288 @@
+@@ -0,0 +1,348 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
 +namespace Accessibility
 +{
-+    class AccessibleCollectibleCard : AccessibleItem
++    class AccessibleCollectibleCard : AccessibleCollectible
 +    {
 +        private readonly CollectibleCard m_card;
++
++        private readonly CollectionCardActors m_actors;
 +
 +        private bool m_readCount;
 +
@@ -2990,13 +2992,15 @@ index 0000000..6802162
 +
 +        private bool m_readFavorites; // Used to read things like "favorite rogue" when reading hero skins or "favorite" when reading card backs
 +
-+        internal AccessibleCollectibleCard(AccessibleComponent parent, CollectibleCard card, bool readCount=true, bool readClass=false, bool readOwned=false, bool readFavorites=false) : base(parent)
++        internal AccessibleCollectibleCard(AccessibleComponent parent, CollectibleCard card, bool readCount=true, bool readClass=false, bool readOwned=false, bool readFavorites=false, CollectionCardActors actors = null) : base(parent)
 +        {
 +            m_card = card;
 +            m_readCount = readCount;
 +            m_readClass = readClass;
 +            m_readOwned = readOwned;
 +            m_readFavorites = readFavorites;
++
++            m_actors = actors;
 +        }
 +
 +        // Used for listing cards in e.g. deck building where the card count is not necessarily the owned count
@@ -3034,7 +3038,18 @@ index 0000000..6802162
 +        {
 +            if (m_card.IsHeroSkin)
 +            {
-+                return GetLinesForHeroSkin();
++                if (m_card.GetEntityDef().HasTag(GAME_TAG.BACON_SKIN))
++                {
++                    return GetLinesForBattlegroundsHeroSkin();
++                }
++                else if (m_card.GetEntityDef().HasTag(GAME_TAG.BACON_BOB_SKIN))
++                {
++                    return GetLinesForBattlegroundsGuideSkin();
++                }
++                else
++                {
++                    return GetLinesForTraditionalHeroSkin();
++                }
 +            }
 +            else if (m_card.GetEntityDef().GetArmor() > 0) // TODO: Figure out how we can differentiate this as this is a wild guess
 +            {
@@ -3094,7 +3109,7 @@ index 0000000..6802162
 +            return GameStrings.GetClassName(m_card.GetEntityDef().GetClass());
 +        }
 +
-+        private List<string> GetLinesForHeroSkin()
++        private List<string> GetLinesForTraditionalHeroSkin()
 +        {
 +            var lines = new List<string>();
 +            lines.Add(GetName());
@@ -3110,6 +3125,34 @@ index 0000000..6802162
 +
 +            AddOwnedIfNeeded(lines);
 +
++            return lines;
++        }
++
++        private List<string> GetLinesForBattlegroundsHeroSkin()
++        {
++            var lines = new List<string>();
++            lines.Add(GetName());
++            if (m_readFavorites && BaconHeroSkinUtils.IsBattlegroundsHeroSkinFavorited(m_card.GetEntityDef()))
++            {
++                lines.Add(GameStrings.Get("GLUE_BACON_COLLECTION_FAVORITE"));
++            }
++
++            AddOwnedIfNeeded(lines);
++            lines.Add(GetRarity());
++            return lines;
++        }
++
++        private List<string> GetLinesForBattlegroundsGuideSkin()
++        {
++            var lines = new List<string>();
++            lines.Add(GetName());
++            if (m_readFavorites && BaconHeroSkinUtils.IsBattlegroundsGuideSkinFavorited(m_card.GetEntityDef()))
++            {
++                lines.Add(GameStrings.Get("GLUE_BACON_COLLECTION_FAVORITE_GUIDE"));
++            }
++
++            AddOwnedIfNeeded(lines);
++            lines.Add(GetRarity());
 +            return lines;
 +        }
 +
@@ -3244,7 +3287,7 @@ index 0000000..6802162
 +            return AccessibleCardUtils.GetResourcesForEntityDef(m_card.GetEntityDef());
 +        }
 +
-+        internal string GetName()
++        internal override string GetName()
 +        {
 +            if(IsCoin()) {
 +                var coinRecord = CoinManager.Get()?.GetCoinRecord(m_card);
@@ -3255,6 +3298,23 @@ index 0000000..6802162
 +                }
 +            }
 +        return AccessibleCardUtils.GetNameWithPremium(m_card.Name, m_card.PremiumType);
++        }
++
++        internal override void Activate()
++        {
++            if (AccessibleCollectionManager.Get().IsInEditDeckMode())
++            {
++                AccessibleInputMgr.ClickLeftMouseButton();
++            }
++            else
++            {
++                AccessibleInputMgr.ClickRightMouseButton();
++            }
++        }
++
++        internal override void UpdateMouse()
++        {
++            AccessibleInputMgr.MoveMouseTo(m_actors.GetPreferredActor());
 +        }
 +    }
 +}
@@ -11682,7 +11742,7 @@ index 0000000..2943fd9
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleListOfItems.cs b/Assembly-CSharp/Accessibility/AccessibleListOfItems.cs
 new file mode 100644
-index 0000000..77123b4
+index 0000000..5da0181
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleListOfItems.cs
 @@ -0,0 +1,303 @@
@@ -11923,7 +11983,7 @@ index 0000000..77123b4
 +
 +        internal T GetItemBeingRead()
 +        {
-+            return m_items[m_curItemIdx];
++            return m_curItemIdx < m_items.Count ? m_items[m_curItemIdx] : null;
 +        }
 +
 +        internal int GetItemBeingReadIndex()
@@ -20341,52 +20401,152 @@ index 0000000..6885dec
 +		}
 +    }
 +}
-diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollection.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollection.cs
+diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectible.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectible.cs
 new file mode 100644
-index 0000000..98f65b1
+index 0000000..06d94ee
 --- /dev/null
-+++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollection.cs
-@@ -0,0 +1,28 @@
-+﻿using System.Collections.Generic;
++++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectible.cs
+@@ -0,0 +1,13 @@
++namespace Accessibility
++{
++abstract class AccessibleCollectible : AccessibleItem
++{
++        protected AccessibleCollectible(AccessibleComponent parent) : base(parent)
++        {
++        }
++
++        internal abstract void Activate();
++        internal abstract void UpdateMouse();
++        internal abstract string GetName();
++}
++}
+\ No newline at end of file
+diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectibleBattlegroundsFinisher.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectibleBattlegroundsFinisher.cs
+new file mode 100644
+index 0000000..3357dc3
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectibleBattlegroundsFinisher.cs
+@@ -0,0 +1,63 @@
++using System;
++using System.Collections.Generic;
++using Hearthstone.DataModels;
 +
 +namespace Accessibility
 +{
-+    class AccessibleCollectionDeckTrayButton : AccessibleItem
++    class AccessibleCollectibleBattlegroundsFinisher : AccessibleCollectible
 +    {
-+        private readonly CollectionDeckTrayButton m_button;
++        private CollectibleBattlegroundsFinisher m_finisher;
 +
-+        internal AccessibleCollectionDeckTrayButton(AccessibleComponent parent, CollectionDeckTrayButton button) : base(parent)
++        internal AccessibleCollectibleBattlegroundsFinisher(AccessibleComponent parent, CollectibleBattlegroundsFinisher finisher) : base(parent)
 +        {
-+            m_button = button;
++            m_finisher = finisher;
++        }
++
++        internal override void Activate()
++        {
++            var curPage = AccessibleCollectionManager.Get().GetBattlegroundsPageManager().GetCurrentPage() as BaconCollectionPageDisplay;
++            var pageDataModel = curPage.GetOrCreateFinisherCollectionPageDataModel();
++            BattlegroundsFinisherDataModel finisherDataModel = null;
++            foreach (var dataModel in pageDataModel.FinisherList)
++            {
++                if (dataModel.FinisherDbiId == m_finisher.DbfRecord.ID)
++                {
++                    finisherDataModel = dataModel;
++                }
++            }
++
++            if (finisherDataModel == null)
++            {
++                AccessibilityUtils.LogFatalError("AccessibleCollectibleBattlegroundsFinisher.Activate: Could not find an appropriate finisher data model on the current page, the details display will not behave correctly.");
++                finisherDataModel = m_finisher.CreateFinisherDataModel();
++            }
++
++            curPage.OnFinisherClicked(finisherDataModel);
 +        }
 +
 +        internal override List<string> GetLines()
 +        {
-+            var ret = new List<string>();
++            var lines = new List<string>();
++            lines.Add(GetName());
++            if (CollectionManager.Get().IsFavoriteBattlegroundsFinisher(m_finisher.FinisherId))
++            {
++                lines.Add(GameStrings.Get("GLUE_BACON_COLLECTION_FAVORITE_FINISHER"));
++            }
 +
-+            ret.Add(m_button.m_buttonText.Text);
++            AccessibleCardUtils.AddOwnedLine(lines, m_finisher.OwnedCount);
++            AccessibleCardUtils.AddLineIfExists(GameStrings.GetRarityText((TAG_RARITY)m_finisher.DbfRecord.Rarity), lines);
 +
-+            return ret;
++            return lines;
 +        }
 +
-+        internal CollectionDeckTrayButton GetCollectionDeckTrayButton()
++        internal override string GetName()
 +        {
-+            return m_button;
++            return m_finisher.DbfRecord.CollectionName;
++        }
++
++        internal override void UpdateMouse()
++        {
++            // This would be very complicated, and since we don't click with the mouse to activate we don't care.
 +        }
 +    }
 +}
+\ No newline at end of file
+diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectibleFactory.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectibleFactory.cs
+new file mode 100644
+index 0000000..8a79476
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectibleFactory.cs
+@@ -0,0 +1,37 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++
++namespace Accessibility
++{
++    static class AccessibleCollectibleFactory
++    {
++        internal static List<AccessibleCollectible> MakeAccessibleCollectibles<TCollectible>(ICollection<TCollectible> collectibles, List<CollectionCardActors> cardActors, bool readOwned, bool readFavorites) where TCollectible : ICollectible
++        {
++            switch (collectibles)
++            {
++                case List<CollectibleCard> cards:
++                return MakeAccessibleCollectibleCards(cards, cardActors, readOwned, readFavorites);
++                case List<CollectibleBattlegroundsFinisher> finishers:
++                return MakeAccessibleCollectibleBattlegroundsFinishers(finishers);
++                default:
++                return null;
++            }
++        }
++
++        private static List<AccessibleCollectible> MakeAccessibleCollectibleCards(List<CollectibleCard> cards, List<CollectionCardActors> cardActors, bool readOwned, bool readFavorites)
++        {
++            var accessibleCards = new List<AccessibleCollectible>(cards.Count);
++            for (int i = 0; i < cards.Count(); i++)
++            {
++                accessibleCards.Add(new AccessibleCollectibleCard(AccessibleCollectionManager.Get(), cards[i], true, false, readOwned, readFavorites, cardActors[i]));
++            }
++            return accessibleCards;
++        }
++
++        private static List<AccessibleCollectible> MakeAccessibleCollectibleBattlegroundsFinishers(List<CollectibleBattlegroundsFinisher> finishers)
++        {
++            return finishers.Select((finisher) => new AccessibleCollectibleBattlegroundsFinisher(AccessibleCollectionManager.Get(), finisher) as AccessibleCollectible).ToList();
++        }
++    }
++}
+\ No newline at end of file
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionCardBack.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionCardBack.cs
 new file mode 100644
-index 0000000..58fb5b1
+index 0000000..b2631d1
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionCardBack.cs
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,56 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
 +namespace Accessibility
 +{
-+    class AccessibleCollectionCardBack : AccessibleItem
++    class AccessibleCollectionCardBack : AccessibleCollectible
 +    {
 +        private readonly CollectionCardBack m_cardBack;
 +
@@ -20399,7 +20559,7 @@ index 0000000..58fb5b1
 +        {
 +            var ret = new List<string>();
 +
-+            ret.Add(m_cardBack.m_name.Text);
++            ret.Add(GetName());
 +
 +            if (m_cardBack.m_favoriteBanner?.activeInHierarchy ?? false)
 +			{
@@ -20420,6 +20580,21 @@ index 0000000..58fb5b1
 +		{
 +            return m_cardBack.GetCardBackId();
 +		}
++
++        internal override void Activate()
++        {
++            AccessibleInputMgr.ClickRightMouseButton();
++        }
++
++        internal override void UpdateMouse()
++        {
++            AccessibleInputMgr.MoveMouseTo(m_cardBack.GetComponent<Actor>());
++        }
++
++        internal override string GetName()
++        {
++            return m_cardBack.m_name.Text;
++        }
 +    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
@@ -20537,10 +20712,10 @@ index 0000000..9d84d65
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..5f04288
+index 0000000..e7363ca
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2175 @@
+@@ -0,0 +1,2337 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -20583,6 +20758,10 @@ index 0000000..5f04288
 +            VIEW_CARD_READ_CARD,
 +            VIEW_CARD_VIEW_RELATED_CARDS,
 +            VIEW_CARD_CRAFTING,
++            BATTLEGROUNDS_MAIN_MENU,
++            BATTLEGROUNDS_BROWSING_HERO_SKINS,
++            BATTLEGROUNDS_BROWSING_GUIDE_SKINS,
++            BATTLEGROUNDS_BROWSING_FINISHERS,
 +        };
 +
 +        private State m_curState;
@@ -20602,13 +20781,13 @@ index 0000000..5f04288
 +        private AccessibleMenu m_editDeckMenu;
 +
 +        // Collection book stuff
-+        private TAG_CLASS m_curClassContext;
-+        private AccessibleListOfItems<AccessibleCollectibleCard> m_curPageCards;
++        private TAG_CLASS? m_curClassContext;
++        private AccessibleListOfItems<AccessibleCollectible> m_curPageCollectibles;
 +        private AccessibleListOfItems<AccessibleCollectionCardBack> m_curPageCardBacks; // Card backs code is different than everything else
 +        private AccessibleListOfItems<AccessibleCollectionHeroPickerButton> m_heroPickerClassButtons; // Hero skins are grouped by classes now
-+        private List<CollectionCardActors> m_curPageCardActors;
 +        private bool m_justPressedLeft;
 +        private int m_curPageNum;
++        private bool m_shouldAnnounceBattlegroundsHeroSkinFilterMode;
 +
 +        // Crafting
 +        private AccessibleMenu m_craftingMenu;
@@ -20640,7 +20819,7 @@ index 0000000..5f04288
 +        internal void OnCollectionManagerOpened()
 +        {
 +            SetMode();
-+            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.EMBEDDED)
++            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.EMBEDDED && m_curMode != Mode.BACON)
 +            {
 +                return;
 +            }
@@ -20650,9 +20829,10 @@ index 0000000..5f04288
 +            m_waitingForServerResponse = false;
 +            m_justCanceledDisenchantPopup = false;
 +            m_willEditDeck = false;
++            m_shouldAnnounceBattlegroundsHeroSkinFilterMode = true;
 +
 +            AccessibilityUtils.LogDebug("CM OnCollectionManagerOpened");
-+            if (m_curMode == Mode.TRADITIONAL)
++            if (m_curMode == Mode.TRADITIONAL || m_curMode == Mode.BACON)
 +            {
 +                AccessibilityMgr.SetScreen(this);
 +            }
@@ -20670,6 +20850,7 @@ index 0000000..5f04288
 +                m_curMode = Mode.EMBEDDED;
 +                break;
 +                case SceneMgr.Mode.BACON_COLLECTION:
++                case SceneMgr.Mode.BACON:
 +                m_curMode = Mode.BACON;
 +                break;
 +                case SceneMgr.Mode.LETTUCE_COLLECTION:
@@ -20683,7 +20864,7 @@ index 0000000..5f04288
 +
 +        private void HandlePageInput()
 +        {
-+            HandlePageInput(m_curPageCards);
++            HandlePageInput(m_curPageCollectibles);
 +        }
 +
 +        private void HandleCardBacksPageInput()
@@ -20697,22 +20878,22 @@ index 0000000..5f04288
 +            {
 +                if (AccessibleKey.READ_NEXT_PAGE.IsPressed())
 +                {
-+                    GetCollectionPageManager().m_pageRightClickableRegion.TriggerRelease();
++                    GetPageManager().m_pageRightClickableRegion.TriggerRelease();
 +                }
 +                else if (AccessibleKey.READ_PREV_PAGE.IsPressed())
 +                {
-+                    GetCollectionPageManager().m_pageLeftClickableRegion.TriggerRelease();
++                    GetPageManager().m_pageLeftClickableRegion.TriggerRelease();
 +                }
 +                else if (!items.HandleAccessibleInput())
 +                {
 +                    if (AccessibleKey.READ_PREV_ITEM.IsPressed())
 +                    {
 +                        m_justPressedLeft = true;
-+                        GetCollectionPageManager().m_pageLeftClickableRegion.TriggerRelease();
++                        GetPageManager().m_pageLeftClickableRegion.TriggerRelease();
 +                    }
 +                    else if (AccessibleKey.READ_NEXT_ITEM.IsPressed())
 +                    {
-+                        GetCollectionPageManager().m_pageRightClickableRegion.TriggerRelease();
++                        GetPageManager().m_pageRightClickableRegion.TriggerRelease();
 +                    }
 +                }
 +                else
@@ -20722,19 +20903,40 @@ index 0000000..5f04288
 +            }
 +        }
 +
-+        private CollectionManagerDisplay GetCollectionManagerDisplay()
++        private CollectibleDisplay GetCollectibleDisplay()
 +        {
-+            return CollectionManager.Get().GetCollectibleDisplay() as CollectionManagerDisplay;
++            return CollectionManager.Get().GetCollectibleDisplay();
 +        }
++
++        private CollectionManagerDisplay GetTraditionalCollectibleDisplay()
++        {
++            return GetCollectibleDisplay() as CollectionManagerDisplay;
++        }
++
++        private BaconCollectionDisplay GetBattlegroundsCollectibleDisplay()
++        {
++            return GetCollectibleDisplay() as BaconCollectionDisplay;
++        }
++
 +
 +        private ManaFilterTabManager GetManaFilterTabManager()
 +        {
-+            return GetCollectionManagerDisplay().m_manaTabManager;
++            return GetTraditionalCollectibleDisplay()?.m_manaTabManager;
 +        }
 +
-+        private CollectionPageManager GetCollectionPageManager()
++        private BookPageManager GetPageManager()
 +        {
-+            return GetCollectionManagerDisplay().m_pageManager;
++            return GetCollectibleDisplay().GetPageManager();
++        }
++
++        private CollectionPageManager GetTraditionalPageManager()
++        {
++            return GetPageManager() as CollectionPageManager;
++        }
++
++        internal BaconCollectionPageManager GetBattlegroundsPageManager()
++        {
++            return GetPageManager() as BaconCollectionPageManager;
 +        }
 +
 +        internal void OnCancelDisenchantPopup()
@@ -20749,65 +20951,60 @@ index 0000000..5f04288
 +
 +        internal void OnPageChanged<TCollectible>(int curPageNum, ICollection<TCollectible> collectiblesToDisplay, List<CollectionCardActors> cardActors) where TCollectible : ICollectible
 +        {
-+            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.EMBEDDED)
++            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.EMBEDDED && m_curMode != Mode.BACON)
 +            {
-+                return;
-+            }
-+
-+            List<CollectibleCard> cardsToDisplay = collectiblesToDisplay as List<CollectibleCard>;
-+
-+            if (cardsToDisplay == null)
-+            {
-+                // TODO: Battlegrounds skin
 +                return;
 +            }
 +
 +            AccessibilityUtils.LogDebug("CM OnPageChanged");
 +            AccessibilityUtils.LogDebug($"CM curPageNum {curPageNum}");
-+            AccessibilityUtils.LogDebug($"CM cardsToDisplay {cardsToDisplay.Count}");
 +
-+            foreach (var card in cardsToDisplay)
-+            {
-+                AccessibilityUtils.LogDebug($"CM -- {card.Name}");
-+            }
-+
-+            var classContext = GetCollectionPageManager().m_currentClassContext;
++            var classContext = m_curMode == Mode.TRADITIONAL ? GetTraditionalPageManager().m_currentClassContext as CollectionTabInfo? : null;
 +
 +            AccessibilityUtils.LogDebug($"CM classContext={classContext} | m_curClassContext={m_curClassContext}");
++
++            if (m_curState == State.BATTLEGROUNDS_BROWSING_HERO_SKINS && m_shouldAnnounceBattlegroundsHeroSkinFilterMode)
++            {
++                ReadBattlegroundsHeroSkinFilterMode();
++            }
 +
 +            if (curPageNum != m_curPageNum && IsBrowsingCards())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, curPageNum));
-+                AccessibilityMgr.Output(this, GameStrings.GetClassName(classContext.tagClass));
++                AccessibilityMgr.Output(this, classContext == null ? null : GameStrings.GetClassName((classContext?.tagClass) ?? TAG_CLASS.NEUTRAL));
 +            }
 +            else if (curPageNum != m_curPageNum && IsBrowsingOtherCollectibles())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, curPageNum));
 +            }
 +
-+            var readOwned = IsBrowsingOtherCollectibles() || IsCrafting();
-+            var readFavorites = m_curState == State.BROWSING_HERO_SKIN_CLASSES || m_curState == State.BROWSING_HERO_SKINS || m_curState == State.BROWSING_COINS;
++            var readOwned = IsBrowsingOtherCollectibles() || IsCrafting() || m_curMode == Mode.BACON;
++            var readFavorites = m_curState == State.BROWSING_HERO_SKIN_CLASSES || m_curState == State.BROWSING_HERO_SKINS || m_curState == State.BROWSING_COINS || m_curMode == Mode.BACON;
 +
-+            var accessibleCards = new List<AccessibleCollectibleCard>(cardsToDisplay.Count);
-+            cardsToDisplay.ForEach(c => accessibleCards.Add(new AccessibleCollectibleCard(this, c, true, false, readOwned, readFavorites)));
++            var accessibleCollectibles = AccessibleCollectibleFactory.MakeAccessibleCollectibles(collectiblesToDisplay, cardActors, readOwned, readFavorites);
 +
-+            var curPageCards = new AccessibleListOfItems<AccessibleCollectibleCard>(this, accessibleCards);
++            if (accessibleCollectibles == null)
++            {
++                return;
++            }
++
++            var curPageCards = new AccessibleListOfItems<AccessibleCollectible>(this, accessibleCollectibles);
 +
 +            if (IsWaitingForServerResponse() && (m_stateBeforeViewCard == State.CRAFTING_SEE_COLLECTION || m_stateBeforeViewCard == State.BROWSING_CARDS))
 +            {
 +                OnServerResponse();
 +
-+                var prevIndex = m_curPageCards.GetItemBeingReadIndex();
++                var prevIndex = m_curPageCollectibles.GetItemBeingReadIndex();
 +                var readFromIndex = Math.Min(prevIndex, curPageCards.Count);
 +
-+                if (m_curClassContext != classContext.tagClass || m_curPageNum != curPageNum)
++                if (m_curClassContext != classContext?.tagClass || m_curPageNum != curPageNum)
 +                {
 +                    readFromIndex = 0;
 +                }
 +
 +                curPageCards.StartReadingFromIndex(readFromIndex);
 +            }
-+            else if (m_curPageCards == null || !SameCards(curPageCards.Items, m_curPageCards.Items))
++            else if (m_curPageCollectibles == null || !SameCards(curPageCards.Items, m_curPageCollectibles.Items))
 +            {
 +                if (IsBrowsingCards() || IsBrowsingOtherCollectibles())
 +                {
@@ -20822,9 +21019,8 @@ index 0000000..5f04288
 +                }
 +            }
 +
-+            m_curPageCards = curPageCards;
-+            m_curPageCardActors = cardActors;
-+            m_curClassContext = classContext.tagClass;
++            m_curPageCollectibles = curPageCards;
++            m_curClassContext = classContext?.tagClass;
 +            m_curPageNum = curPageNum;
 +            m_justPressedLeft = false;
 +        }
@@ -20866,7 +21062,6 @@ index 0000000..5f04288
 +            }
 +
 +            m_curPageCardBacks = curPageCardBacks;
-+            m_curPageCardActors = cardActors;
 +            m_curClassContext = TAG_CLASS.NEUTRAL;
 +            m_curPageNum = curPageNum;
 +            m_justPressedLeft = false;
@@ -20874,17 +21069,17 @@ index 0000000..5f04288
 +
 +        internal void OnShowNoMatchesFound(string key)
 +        {
-+            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.EMBEDDED)
++            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.EMBEDDED && m_curMode != Mode.BACON)
 +            {
 +                return;
 +            }
 +
 +            var text = GameStrings.Get(key);
-+            m_curPageCards = new AccessibleListOfItems<AccessibleCollectibleCard>(this, new List<AccessibleCollectibleCard>(), text);
-+            m_curPageCards.StartReading();
++            m_curPageCollectibles = new AccessibleListOfItems<AccessibleCollectible>(this, new List<AccessibleCollectible>(), text);
++            m_curPageCollectibles.StartReading();
 +        }
 +
-+        private bool SameCards(List<AccessibleCollectibleCard> l1, List<AccessibleCollectibleCard> l2)
++        private bool SameCards(List<AccessibleCollectible> l1, List<AccessibleCollectible> l2)
 +        {
 +            if (l1.Count != l2.Count)
 +            {
@@ -20940,6 +21135,10 @@ index 0000000..5f04288
 +            {
 +                SetupMainMenu();
 +            }
++            else if (m_curMode == Mode.BACON)
++            {
++                SetupBattlegroundsMainMenu();
++            }
 +        }
 +
 +        internal void OnChangeViewMode(CollectionUtils.ViewMode prevMode, CollectionUtils.ViewMode curMode)
@@ -20955,6 +21154,92 @@ index 0000000..5f04288
 +            }
 +        }
 +
++        #region Battlegrounds
++        private AccessibleMenu m_BattlegroundsMainMenu;
++
++        private void SetupBattlegroundsMainMenu()
++        {
++            m_BattlegroundsMainMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.GLOBAL_MY_COLLECTION), () => Navigation.GoBack());
++            m_BattlegroundsMainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_HERO_SKINS), BattlegroundsBrowseHeroSkins);
++            m_BattlegroundsMainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_GUIDE_SKINS), BattlegroundsBrowseGuideSkins);
++            m_BattlegroundsMainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_FINISHERS), BattlegroundsBrowseFinishers);
++
++            ReadBattlegroundsMainMenu();
++        }
++
++        private void ReadBattlegroundsMainMenu(bool readMenuName=true)
++        {
++            m_BattlegroundsMainMenu.StartReading(readMenuName);
++            m_curState = State.BATTLEGROUNDS_MAIN_MENU;
++        }
++
++        private void RereadBattlegroundsMainMenu()
++        {
++            ReadBattlegroundsMainMenu(false);
++        }
++
++
++        private void BattlegroundsBrowseHeroSkins()
++        {
++            m_curState = State.BATTLEGROUNDS_BROWSING_HERO_SKINS;
++            var heroSkinsTab = GetBattlegroundsPageManager().m_heroSkinsTab;
++            if (heroSkinsTab.IsSelected())
++            {
++                ReadBattlegroundsHeroSkinFilterMode();
++                StartReadingCurrentPage(m_curPageCollectibles);
++            }
++            else
++            {
++                ChangeToTab(heroSkinsTab);
++            }
++        }
++
++        private void BattlegroundsBrowseGuideSkins()
++        {
++            m_curState = State.BATTLEGROUNDS_BROWSING_GUIDE_SKINS;
++            var guideSkinsTab = GetBattlegroundsPageManager().m_guideSkinsTab;
++            if (guideSkinsTab.IsSelected())
++            {
++                StartReadingCurrentPage(m_curPageCollectibles);
++            }
++            else
++            {
++                ChangeToTab(guideSkinsTab);
++            }
++        }
++
++        private void BattlegroundsBrowseFinishers()
++        {
++            m_curState = State.BATTLEGROUNDS_BROWSING_FINISHERS;
++            var finishersTab = GetBattlegroundsPageManager().m_finishersTab;
++            if (finishersTab.IsSelected())
++            {
++                StartReadingCurrentPage(m_curPageCollectibles);
++            }
++            else
++            {
++                ChangeToTab(finishersTab);
++            }
++        }
++
++        private void ReadBattlegroundsHeroSkinFilterMode()
++        {
++            m_shouldAnnounceBattlegroundsHeroSkinFilterMode = false;
++            var currentFilterMode = GetBattlegroundsCollectibleDisplay().GetHeroSkinFilterMode();
++            switch (currentFilterMode)
++            {
++                case CollectionUtils.BattlegroundsHeroSkinFilterMode.DEFAULT:
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_HERO_SKIN_FILTER_MODE_OWNED));
++                break;
++                case CollectionUtils.BattlegroundsHeroSkinFilterMode.ALL:
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_HERO_SKIN_FILTER_MODE_ALL));
++                break;
++            }
++        }
++
++
++        #endregion
++
 +        #region Input
 +
 +        public void HandleInput()
@@ -20963,6 +21248,9 @@ index 0000000..5f04288
 +            {
 +                case State.BROWSING_CARDS:
 +                case State.BROWSING_COINS:
++                case State.BATTLEGROUNDS_BROWSING_FINISHERS:
++                case State.BATTLEGROUNDS_BROWSING_GUIDE_SKINS:
++                case State.BATTLEGROUNDS_BROWSING_HERO_SKINS:
 +                    HandleBrowsingCollectionInput();
 +                    break;
 +                case State.BROWSING_HERO_SKINS:
@@ -20985,6 +21273,9 @@ index 0000000..5f04288
 +                    break;
 +                case State.MAIN_MENU:
 +                    m_mainMenu?.HandleAccessibleInput();
++                    break;
++                    case State.BATTLEGROUNDS_MAIN_MENU:
++                    m_BattlegroundsMainMenu?.HandleAccessibleInput();
 +                    break;
 +                case State.BROWSE_COLLECTION_MENU:
 +                    m_browseCollectionMenu?.HandleAccessibleInput();
@@ -21025,6 +21316,15 @@ index 0000000..5f04288
 +        {
 +            UpdateMouseWhenBrowsingCollection();
 +
++            if (AccessibleKey.GLOBAL_FIND.IsPressed())
++            {
++                var collectionSearch = GetCollectibleDisplay().m_search;
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_SEARCH_PROMPT));
++                collectionSearch.m_background.TriggerRelease();
++                collectionSearch.ClearFilter(false);
++                return;
++            }
++
 +            if (IsBrowsingCards())
 +            {
 +                HandleCommonBrowsingCardsInput();
@@ -21037,15 +21337,6 @@ index 0000000..5f04288
 +
 +        private void HandleCommonBrowsingCardsInput()
 +        {
-+            if (AccessibleKey.GLOBAL_FIND.IsPressed())
-+            {
-+                var collectionSearch = GetCollectionManagerDisplay().m_search;
-+                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_SEARCH_PROMPT));
-+                collectionSearch.m_background.TriggerRelease();
-+                collectionSearch.ClearFilter(false);
-+                return;
-+            }
-+
 +            HandleManaFiltersInput();
 +            if (!HandleClassTabsInput())
 +            {
@@ -21065,7 +21356,7 @@ index 0000000..5f04288
 +
 +        private bool IsBrowsingOtherCollectibles()
 +        {
-+            return m_curState == State.BROWSING_HERO_SKIN_CLASSES || m_curState == State.BROWSING_HERO_SKINS || m_curState == State.BROWSING_CARD_BACKS || m_curState == State.BROWSING_COINS;
++            return m_curState == State.BROWSING_HERO_SKIN_CLASSES || m_curState == State.BROWSING_HERO_SKINS || m_curState == State.BROWSING_CARD_BACKS || m_curState == State.BROWSING_COINS || m_curState == State.BATTLEGROUNDS_BROWSING_FINISHERS || m_curState == State.BATTLEGROUNDS_BROWSING_GUIDE_SKINS || m_curState == State.BATTLEGROUNDS_BROWSING_HERO_SKINS;
 +        }
 +
 +        private bool IsCrafting()
@@ -21075,6 +21366,13 @@ index 0000000..5f04288
 +
 +        private void HandleBrowsingCollectionInput(bool heroSkins = false)
 +        {
++            if (m_curState == State.BATTLEGROUNDS_BROWSING_HERO_SKINS && (AccessibleKey.READ_NEXT_VALID_ITEM.IsPressed() || AccessibleKey.READ_PREV_VALID_ITEM.IsPressed()))
++            {
++                m_shouldAnnounceBattlegroundsHeroSkinFilterMode = true;
++                GetBattlegroundsCollectibleDisplay().ToggleHeroSkinFilterMode();
++                return;
++            }
++
 +            HandleCommonBrowseCollectionInput();
 +
 +            if (AccessibleKey.BACK.IsPressed())
@@ -21085,13 +21383,20 @@ index 0000000..5f04288
 +                }
 +                else
 +                {
-+                    RereadMainMenu();
++                    if (m_curMode == Mode.TRADITIONAL)
++                    {
++                        RereadMainMenu();
++                    }
++                    else if (m_curMode == Mode.BACON)
++                    {
++                        RereadBattlegroundsMainMenu();
++                    }
 +                    RemoveFiltersIfNecessary();
 +                }
 +            }
 +            else if (AccessibleKey.CONFIRM.IsPressed())
 +            {
-+                AccessibleInputMgr.ClickRightMouseButton();
++                m_curPageCollectibles.GetItemBeingRead()?.Activate();
 +            }
 +        }
 +
@@ -21107,18 +21412,16 @@ index 0000000..5f04288
 +            }
 +            else if (AccessibleKey.CONFIRM.IsPressed())
 +            {
-+                AccessibleInputMgr.ClickRightMouseButton();
++                m_curPageCardBacks.GetItemBeingRead()?.Activate();
 +            }
 +        }
 +
 +        private void HandleBrowsingHeroSkinClassesInput()
 +        {
-+            UpdateMouseWhenBrowsingItems(m_heroPickerClassButtons);
-+
 +            if (AccessibleKey.BACK.IsPressed())
 +            {
 +                RereadMainMenu();
-+                GetCollectionManagerDisplay().SetViewMode(CollectionUtils.ViewMode.CARDS);
++                GetCollectibleDisplay().SetViewMode(CollectionUtils.ViewMode.CARDS);
 +                RemoveFiltersIfNecessary();
 +            }
 +            else if (AccessibleKey.CONFIRM.IsPressed())
@@ -21145,7 +21448,9 @@ index 0000000..5f04288
 +
 +        private void RemoveFiltersIfNecessary()
 +        {
-+            var collectionSearch = GetCollectionManagerDisplay()?.m_search;
++            m_shouldAnnounceBattlegroundsHeroSkinFilterMode = true;
++
++            var collectionSearch = GetCollectibleDisplay()?.m_search;
 +            collectionSearch?.ClearFilter(true);
 +
 +            var filterTabManager = GetManaFilterTabManager();
@@ -21167,7 +21472,7 @@ index 0000000..5f04288
 +            }
 +            else if (AccessibleKey.CONFIRM.IsPressed())
 +            {
-+                AccessibleInputMgr.ClickLeftMouseButton();
++                m_curPageCollectibles.GetItemBeingRead()?.Activate();
 +            }
 +            else
 +            {
@@ -21186,7 +21491,7 @@ index 0000000..5f04288
 +            }
 +            else if (AccessibleKey.CONFIRM.IsPressed())
 +            {
-+                AccessibleInputMgr.ClickRightMouseButton();
++                m_curPageCollectibles.GetItemBeingRead()?.Activate();
 +            }
 +        }
 +
@@ -21233,30 +21538,29 @@ index 0000000..5f04288
 +            }
 +        }
 +
++        internal bool IsInEditDeckMode()
++        {
++            return m_curState == State.EDIT_DECK_MENU || m_curState == State.EDIT_DECK_RENAME_DECK || m_curState == State.EDIT_DECK_SEE_COLLECTION || m_curState == State.EDIT_DECK_SEE_DECK;
++        }
++
 +        private void UpdateMouseWhenBrowsingCollection()
 +        {
-+            UpdateMouseWhenBrowsingItems(m_curPageCards);
++            UpdateMouseWhenBrowsingCollectibles(m_curPageCollectibles);
 +        }
 +
 +        private void UpdateMouseWhenBrowsingCardBacks()
 +        {
-+            UpdateMouseWhenBrowsingItems(m_curPageCardBacks);
++            UpdateMouseWhenBrowsingCollectibles(m_curPageCardBacks);
 +        }
 +
-+        private void UpdateMouseWhenBrowsingItems<T>(AccessibleListOfItems<T> items) where T : AccessibleItem
++        private void UpdateMouseWhenBrowsingCollectibles<T>(AccessibleListOfItems<T> items) where T : AccessibleCollectible
 +        {
 +            if (items == null || items.Count == 0)
 +            {
 +                return;
 +            }
 +
-+            var idx = items.GetItemBeingReadIndex();
-+
-+            if (m_curPageCardActors != null && idx < m_curPageCardActors.Count)
-+            {
-+                var actor = m_curPageCardActors[idx].GetPreferredActor(); // Only 1 in this scenario. Crafting would be different though
-+                AccessibleInputMgr.MoveMouseTo(actor);
-+            }
++            items.GetItemBeingRead()?.UpdateMouse();
 +        }
 +
 +        private AccessibleEditingDeckCard m_prevCardBeingRead;
@@ -21376,7 +21680,7 @@ index 0000000..5f04288
 +
 +        private void FlipToFirstClassTab()
 +        {
-+            var classTabs = GetCollectionPageManager().m_classTabs.FindAll(t => t.IsVisible()); // Show only visible tabs due to filters
++            var classTabs = GetTraditionalPageManager().m_classTabs.FindAll(t => t.IsVisible()); // Show only visible tabs due to filters
 +
 +            if (classTabs.Count > 0)
 +            {
@@ -21388,7 +21692,7 @@ index 0000000..5f04288
 +        {
 +            m_justPressedLeft = false;
 +
-+            var classTabs = GetCollectionPageManager().m_classTabs.FindAll(t => t.IsVisible()); // Show only visible tabs due to filters
++            var classTabs = GetTraditionalPageManager().m_classTabs.FindAll(t => t.IsVisible()); // Show only visible tabs due to filters
 +
 +            var curClassTab = 0;
 +            for (int i = 0; i < classTabs.Count; i++)
@@ -21436,17 +21740,17 @@ index 0000000..5f04288
 +
 +            m_browseCollectionMenu.AddOption(LocalizedText.GLOBAL_CARD_PLURAL, OnBrowseCards);
 +
-+            if (GetCollectionPageManager().m_heroSkinsTab.IsVisible())
++            if (GetTraditionalPageManager().m_heroSkinsTab.IsVisible())
 +            {
 +                m_browseCollectionMenu.AddOption(GameStrings.Get("GLUE_COLLECTION_MANAGER_HERO_SKINS_TITLE"), OnBrowseHeroSkins);
 +            }
 +
-+            if (GetCollectionPageManager().m_cardBacksTab.IsVisible())
++            if (GetTraditionalPageManager().m_cardBacksTab.IsVisible())
 +            {
 +                m_browseCollectionMenu.AddOption(GameStrings.Get("GLUE_COLLECTION_MANAGER_CARD_BACKS_TITLE"), OnBrowseCardBacks);
 +            }
 +
-+            if (GetCollectionPageManager().m_coinsTab.IsVisible())
++            if (GetTraditionalPageManager().m_coinsTab.IsVisible())
 +            {
 +                m_browseCollectionMenu.AddOption(GameStrings.Get("GLUE_COLLECTION_MANAGER_COINS_TITLE"), OnBrowseCoins);
 +            }
@@ -21459,7 +21763,7 @@ index 0000000..5f04288
 +        {
 +            m_curState = State.LOADING;
 +
-+            var heroSkinsTab = GetCollectionPageManager().m_heroSkinsTab;
++            var heroSkinsTab = GetTraditionalPageManager().m_heroSkinsTab;
 +            if (heroSkinsTab.IsSelected())
 +            {
 +                m_heroPickerClassButtons.StartReading();
@@ -21475,7 +21779,7 @@ index 0000000..5f04288
 +        {
 +            m_curState = State.BROWSING_CARD_BACKS;
 +
-+            var cardBacksTab = GetCollectionPageManager().m_cardBacksTab;
++            var cardBacksTab = GetTraditionalPageManager().m_cardBacksTab;
 +            if (cardBacksTab.IsSelected())
 +            {
 +                StartReadingCurrentPage(m_curPageCardBacks);
@@ -21488,9 +21792,8 @@ index 0000000..5f04288
 +
 +        private void ResetBook()
 +        {
-+            m_curPageCards = null;
++            m_curPageCollectibles = null;
 +            m_curPageCardBacks = null;
-+            m_curPageCardActors = null;
 +            m_curPageNum = 0;
 +            m_justPressedLeft = false;
 +            m_curClassContext = TAG_CLASS.NEUTRAL;
@@ -21506,10 +21809,10 @@ index 0000000..5f04288
 +        {
 +            m_curState = State.BROWSING_COINS;
 +
-+            var coinsTab = GetCollectionPageManager().m_coinsTab;
++            var coinsTab = GetTraditionalPageManager().m_coinsTab;
 +            if (coinsTab.IsSelected())
 +            {
-+                StartReadingCurrentPage(m_curPageCards);
++                StartReadingCurrentPage(m_curPageCollectibles);
 +            }
 +            else
 +            {
@@ -21539,8 +21842,8 @@ index 0000000..5f04288
 +            FlipToFirstClassTab();
 +            OutputFilter();
 +            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, m_curPageNum));
-+            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext));
-+            m_curPageCards.StartReading();
++            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext ?? TAG_CLASS.NEUTRAL));
++            m_curPageCollectibles.StartReading();
 +            m_curState = State.BROWSING_CARDS;
 +        }
 +
@@ -21861,8 +22164,8 @@ index 0000000..5f04288
 +        private void EditDeckAddCards()
 +        {
 +            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, m_curPageNum));
-+            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext));
-+            m_curPageCards.StartReading();
++            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext ?? TAG_CLASS.NEUTRAL));
++            m_curPageCollectibles.StartReading();
 +            m_curState = State.EDIT_DECK_SEE_COLLECTION;
 +        }
 +
@@ -22019,8 +22322,8 @@ index 0000000..5f04288
 +            FlipToFirstClassTab();
 +            OutputFilter();
 +            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, m_curPageNum));
-+            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext));
-+            m_curPageCards.StartReading();
++            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext ?? TAG_CLASS.NEUTRAL));
++            m_curPageCollectibles.StartReading();
 +            m_curState = State.CRAFTING_SEE_COLLECTION;
 +        }
 +
@@ -22028,13 +22331,13 @@ index 0000000..5f04288
 +        {
 +            if (CollectionManagerDisplay.ShouldSeeFilterButton())
 +            {
-+                menu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CHANGE_SET), GetCollectionManagerDisplay().m_setFilterTray.m_toggleButton.TriggerPress);
++                menu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CHANGE_SET), GetCollectibleDisplay().m_setFilterTray.m_toggleButton.TriggerPress);
 +            }
 +        }
 +
 +        private void OutputFilter()
 +        {
-+            var filterTray = GetCollectionManagerDisplay().m_setFilterTray;
++            var filterTray = GetCollectibleDisplay().m_setFilterTray;
 +
 +            //if (filterTray?.HasActiveFilter() ?? false)
 +            if (filterTray?.m_selected != null)
@@ -22051,7 +22354,7 @@ index 0000000..5f04288
 +
 +        private void ClickCraftingButton()
 +        {
-+            GetCollectionManagerDisplay().m_craftingModeButton.TriggerRelease();
++            GetCollectibleDisplay().m_craftingModeButton.TriggerRelease();
 +        }
 +
 +        internal void OnCraftingTrayOpened()
@@ -22373,12 +22676,12 @@ index 0000000..5f04288
 +
 +            if (m_stateBeforeViewCard == State.BROWSING_CARDS)
 +            {
-+                m_curPageCards.StartReading();
++                m_curPageCollectibles.StartReading();
 +                m_curState = State.BROWSING_CARDS;
 +            }
 +            else if (m_stateBeforeViewCard == State.CRAFTING_SEE_COLLECTION)
 +            {
-+                m_curPageCards.StartReading();
++                m_curPageCollectibles.StartReading();
 +                m_curState = State.CRAFTING_SEE_COLLECTION;
 +            }
 +            else if (m_stateBeforeViewCard == State.EDIT_DECK_SEE_DECK)
@@ -22395,7 +22698,7 @@ index 0000000..5f04288
 +
 +        public void OnGainedFocus()
 +        {
-+            if (m_curMode != Mode.TRADITIONAL)
++            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.BACON)
 +            {
 +                return;
 +            }
@@ -22423,9 +22726,9 @@ index 0000000..5f04288
 +            {
 +                m_craftingMenu?.StartReading();
 +            }
-+            else if (m_curState == State.BROWSING_CARDS || m_curState == State.CRAFTING_SEE_COLLECTION || m_curState == State.BROWSING_HERO_SKINS || m_curState == State.BROWSING_COINS)
++            else if (m_curState == State.BROWSING_CARDS || m_curState == State.CRAFTING_SEE_COLLECTION || m_curState == State.BROWSING_HERO_SKINS || m_curState == State.BROWSING_COINS || m_curState == State.BATTLEGROUNDS_BROWSING_FINISHERS || m_curState == State.BATTLEGROUNDS_BROWSING_GUIDE_SKINS || m_curState == State.BATTLEGROUNDS_BROWSING_HERO_SKINS)
 +            {
-+                RereadIfPossible(m_curPageCards);
++                RereadIfPossible(m_curPageCollectibles);
 +            }
 +            else if (m_curState == State.BROWSING_CARD_BACKS)
 +            {
@@ -22498,6 +22801,13 @@ index 0000000..5f04288
 +                    return m_relatedCards?.GetHelp(true);
 +                case State.VIEW_CARD_CRAFTING:
 +                    return m_viewCardCraftingMenu?.GetHelp();
++                case State.BATTLEGROUNDS_MAIN_MENU:
++                    return m_BattlegroundsMainMenu?.GetHelp();
++                case State.BATTLEGROUNDS_BROWSING_FINISHERS:
++                case State.BATTLEGROUNDS_BROWSING_GUIDE_SKINS:
++                    return m_curPageCollectibles?.GetHelp(true);
++                case State.BATTLEGROUNDS_BROWSING_HERO_SKINS:
++                    return GetHelpForBrowsingBattlegroundsHeroSkins();
 +            }
 +
 +            return "";
@@ -22541,6 +22851,11 @@ index 0000000..5f04288
 +        private string GetHelpForBrowsingHeroSkins()
 +        {
 +            return LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_READ_HERO_SKINS_HELP, AccessibleKey.CONFIRM);
++        }
++
++                private string GetHelpForBrowsingBattlegroundsHeroSkins()
++        {
++            return LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_READ_BATTLEGROUNDS_HERO_SKINS_HELP, AccessibleKey.CONFIRM);
 +        }
 +
 +        internal void OnDeleteDeckCanceled()
@@ -22628,13 +22943,35 @@ index 0000000..5f04288
 +
 +        internal void OnFavoriteHeroSkinChanged()
 +        {
-+            if (m_curMode != Mode.TRADITIONAL)
++            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.BACON)
 +            {
 +                return;
 +            }
 +
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_FAVORITE_HERO_SKIN_SET));
-+            RereadAfterServerResponse(m_curPageCards);
++            RereadAfterServerResponse(m_curPageCollectibles);
++        }
++
++        internal void OnFavoriteBattlegroundsGuideSkinChanged()
++        {
++            if (m_curMode != Mode.BACON)
++            {
++                return;
++            }
++
++            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_FAVORITE_BATTLEGROUNDS_GUIDE_SKIN_SET));
++            RereadAfterServerResponse(m_curPageCollectibles);
++        }
++
++        internal void OnFavoriteBattlegroundsFinisherChanged()
++        {
++            if (m_curMode != Mode.BACON)
++            {
++                return;
++            }
++
++            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_FAVORITE_BATTLEGROUNDS_FINISHER_SET));
++            RereadAfterServerResponse(m_curPageCollectibles);
 +        }
 +
 +        internal void OnFavoriteCardBackChanged(bool isFavorite)
@@ -22656,14 +22993,14 @@ index 0000000..5f04288
 +            }
 +
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_FAVORITE_COIN_SET));
-+            RereadAfterServerResponse(m_curPageCards);
++            RereadAfterServerResponse(m_curPageCollectibles);
 +        }
 +
 +        #endregion
 +
 +        internal void WaitingForServerResponse()
 +        {
-+            if (m_curMode != Mode.TRADITIONAL)
++            if (m_curMode != Mode.TRADITIONAL && m_curMode != Mode.BACON)
 +            {
 +                return;
 +            }
@@ -22691,7 +23028,7 @@ index 0000000..5f04288
 +                return;
 +            }
 +
-+            var collectionPageDisplay = GetCollectionPageManager().GetCollectionPageDisplay();
++            var collectionPageDisplay = GetTraditionalPageManager().GetCollectionPageDisplay();
 +            var heroPickerButtons = collectionPageDisplay.GetCollectionHeroPickerButtons();
 +
 +            var accessibleHeroPickerButtons = new List<AccessibleCollectionHeroPickerButton>();
@@ -24468,10 +24805,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..5848884
+index 0000000..64b400d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1111 @@
+@@ -0,0 +1,1121 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25264,6 +25601,7 @@ index 0000000..5848884
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_READ_COINS_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_READ_COINS_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_READ_CARD_BACKS_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_READ_CARD_BACKS_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_READ_HERO_SKINS_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_READ_HERO_SKINS_HELP");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_READ_BATTLEGROUNDS_HERO_SKINS_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_READ_BATTLEGROUNDS_HERO_SKINS_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_ADD_CARD_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_ADD_CARD_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_REMOVE_CARD_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_REMOVE_CARD_HELP");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_CRAFT_CARD_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_CRAFT_CARD_HELP");
@@ -25273,6 +25611,8 @@ index 0000000..5848884
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_MANA_FILTER_OFF = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_MANA_FILTER_OFF");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CHANGE_SET = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CHANGE_SET");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_FAVORITE_HERO_SKIN_SET = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_FAVORITE_HERO_SKIN_SET");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_FAVORITE_BATTLEGROUNDS_GUIDE_SKIN_SET = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_FAVORITE_BATTLEGROUNDS_GUIDE_SKIN_SET");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_FAVORITE_BATTLEGROUNDS_FINISHER_SET = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_FAVORITE_BATTLEGROUNDS_FINISHER_SET");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_FAVORITE_CARD_BACK_SET = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_FAVORITE_CARD_BACK_SET");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_FAVORITE_COIN_SET = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_FAVORITE_COIN_SET");
 +
@@ -25289,6 +25629,13 @@ index 0000000..5848884
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_ERROR_CARD_LIMIT_REACHED = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_ERROR_CARD_LIMIT_REACHED");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_DONE = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_CRAFT_CARD_DONE");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_CRAFTING_DISENCHANT_DONE = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_CRAFTING_DISENCHANT_DONE");
++
++    // Battlegrounds collection
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_HERO_SKINS = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_HERO_SKINS");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_GUIDE_SKINS = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_GUIDE_SKINS");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_FINISHERS = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_BROWSE_FINISHERS");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_HERO_SKIN_FILTER_MODE_OWNED = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_HERO_SKIN_FILTER_MODE_OWNED");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_HERO_SKIN_FILTER_MODE_ALL = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_BATTLEGROUNDS_HERO_SKIN_FILTER_MODE_ALL");
 +
 +    // Pack opening screen
 +    public static LocalizationKey SCREEN_PACK_OPENING_OPEN_CARDS_HELP = CreateKey("ACCESSIBILITY_SCREEN_PACK_OPENING_OPEN_CARDS_HELP");
@@ -36779,10 +37126,18 @@ index 2c7fcae..5e8134c 100644
  		{
  			StopCoroutine(m_finisherTrackingCoroutine);
 diff --git a/Assembly-CSharp/BaconCollectionDisplay.cs b/Assembly-CSharp/BaconCollectionDisplay.cs
-index 1308db7..b46ff52 100644
+index 1308db7..5859304 100644
 --- a/Assembly-CSharp/BaconCollectionDisplay.cs
 +++ b/Assembly-CSharp/BaconCollectionDisplay.cs
-@@ -175,7 +175,7 @@ public class BaconCollectionDisplay : CollectibleDisplay
+@@ -8,6 +8,7 @@ using Hearthstone.Progression;
+ using Hearthstone.UI;
+ using PegasusShared;
+ using UnityEngine;
++using Accessibility;
+ 
+ [CustomEditClass]
+ public class BaconCollectionDisplay : CollectibleDisplay
+@@ -175,7 +176,7 @@ public class BaconCollectionDisplay : CollectibleDisplay
  
  	protected override void OnDestroy()
  	{
@@ -36791,8 +37146,149 @@ index 1308db7..b46ff52 100644
  		base.OnDestroy();
  	}
  
+@@ -310,6 +311,8 @@ public class BaconCollectionDisplay : CollectibleDisplay
+ 			}
+ 			callback?.Invoke(m_cardActors, list, callbackData);
+ 		}
++
++		AccessibleCollectionManager.Get().OnPageChanged(m_pageManager.CurrentPageNum, collectiblesToDisplay, m_cardActors);
+ 	}
+ 
+ 	private bool OnBackOutOfCollectionScreen()
+@@ -566,6 +569,8 @@ public class BaconCollectionDisplay : CollectibleDisplay
+ 			yield return null;
+ 		}
+ 		m_isReady = true;
++
++		AccessibleCollectionManager.Get().OnCollectibleDisplayReady();
+ 	}
+ 
+ 	private IEnumerator InitCollectionWhenReady()
+diff --git a/Assembly-CSharp/BaconCollectionPageDisplay.cs b/Assembly-CSharp/BaconCollectionPageDisplay.cs
+index eae75ce..efaf917 100644
+--- a/Assembly-CSharp/BaconCollectionPageDisplay.cs
++++ b/Assembly-CSharp/BaconCollectionPageDisplay.cs
+@@ -1,5 +1,6 @@
+ using System.Collections;
+ using System.Collections.Generic;
++using Accessibility;
+ using Hearthstone;
+ using Hearthstone.DataModels;
+ using Hearthstone.UI;
+@@ -211,7 +212,7 @@ public class BaconCollectionPageDisplay : CollectiblePageDisplay
+ 		return model as BattlegroundsBoardSkinCollectionPageDataModel;
+ 	}
+ 
+-	private BattlegroundsFinisherCollectionPageDataModel GetOrCreateFinisherCollectionPageDataModel()
++	internal BattlegroundsFinisherCollectionPageDataModel GetOrCreateFinisherCollectionPageDataModel()
+ 	{
+ 		if (!m_FinishersWidget.GetDataModel(568, out var model))
+ 		{
+@@ -424,6 +425,11 @@ public class BaconCollectionPageDisplay : CollectiblePageDisplay
+ 		m_noMatchFoundObject.SetActive(show);
+ 		string key = "GLUE_COLLECTION_NO_RESULTS";
+ 		m_noMatchExplanationText.Text = GameStrings.Get(key);
++
++		if (show)
++		{
++			AccessibleCollectionManager.Get().OnShowNoMatchesFound(m_noMatchExplanationText.Text);
++		}
+ 	}
+ 
+ 	public override void SetPageType(FormatType inputFormatType)
+@@ -512,23 +518,8 @@ public class BaconCollectionPageDisplay : CollectiblePageDisplay
+ 			}
+ 			return;
+ 		}
+-		BattlegroundsFinisherCollectionPageDataModel orCreateFinisherCollectionPageDataModel = GetOrCreateFinisherCollectionPageDataModel();
+-		BaconCollectionDisplay baconCollectionDisplay = CollectionManager.Get().GetCollectibleDisplay() as BaconCollectionDisplay;
+-		if (baconCollectionDisplay == null)
+-		{
+-			Log.CollectionManager.PrintError("BaconCollectionPageDisplay.FINISHER_clicked - BaconCollectionDisplay is null!");
+-			return;
+-		}
+-		if (!string.IsNullOrEmpty(battlegroundsFinisherDataModel.DetailsRenderConfig))
+-		{
+-			baconCollectionDisplay.ShowFinisherDetailsRendered(battlegroundsFinisherDataModel, orCreateFinisherCollectionPageDataModel);
+-		}
+-		else
+-		{
+-			TelemetryManager.Client()?.SendCosmeticsRenderingFallback($"BaconCollectionPageDisplay::Finisher[{battlegroundsFinisherDataModel.FinisherDbiId}]");
+-			baconCollectionDisplay.ShowFinisherDetailsDisplay(battlegroundsFinisherDataModel, orCreateFinisherCollectionPageDataModel);
+-		}
+-		MarkFinisherSeen(battlegroundsFinisherDataModel);
++
++		OnFinisherClicked(battlegroundsFinisherDataModel);
+ 	}
+ 
+ 	private void EmoteDisplayEventListener(string eventName)
+@@ -762,4 +753,27 @@ public class BaconCollectionPageDisplay : CollectiblePageDisplay
+ 			CollectiblePageDisplay.SetPageFlavorTextures(header, new UnityEngine.Vector2(x, y));
+ 		}
+ 	}
++
++	#region Accessibility
++	internal void OnFinisherClicked(BattlegroundsFinisherDataModel battlegroundsFinisherDataModel)
++	{
++		BattlegroundsFinisherCollectionPageDataModel orCreateFinisherCollectionPageDataModel = GetOrCreateFinisherCollectionPageDataModel();
++		BaconCollectionDisplay baconCollectionDisplay = CollectionManager.Get().GetCollectibleDisplay() as BaconCollectionDisplay;
++		if (baconCollectionDisplay == null)
++		{
++			Log.CollectionManager.PrintError("BaconCollectionPageDisplay.FINISHER_clicked - BaconCollectionDisplay is null!");
++			return;
++		}
++		if (!string.IsNullOrEmpty(battlegroundsFinisherDataModel.DetailsRenderConfig))
++		{
++			baconCollectionDisplay.ShowFinisherDetailsRendered(battlegroundsFinisherDataModel, orCreateFinisherCollectionPageDataModel);
++		}
++		else
++		{
++			TelemetryManager.Client()?.SendCosmeticsRenderingFallback($"BaconCollectionPageDisplay::Finisher[{battlegroundsFinisherDataModel.FinisherDbiId}]");
++			baconCollectionDisplay.ShowFinisherDetailsDisplay(battlegroundsFinisherDataModel, orCreateFinisherCollectionPageDataModel);
++		}
++		MarkFinisherSeen(battlegroundsFinisherDataModel);
++	}
++	#endregion
+ }
+diff --git a/Assembly-CSharp/BaconCollectionPageManager.cs b/Assembly-CSharp/BaconCollectionPageManager.cs
+index 0ace424..ff73d4a 100644
+--- a/Assembly-CSharp/BaconCollectionPageManager.cs
++++ b/Assembly-CSharp/BaconCollectionPageManager.cs
+@@ -1,6 +1,7 @@
+ using System.Collections;
+ using System.Collections.Generic;
+ using System.Linq;
++using Accessibility;
+ using Hearthstone;
+ using UnityEngine;
+ 
+@@ -709,11 +710,15 @@ public class BaconCollectionPageManager : CollectiblePageManager
+ 	public void OnFavoriteBattlegroundsHeroSkinChanged(int baseSkinId, BattlegroundsHeroSkinId? newFavoriteBattlegroundsHeroSkin)
+ 	{
+ 		PageAsCollectionPage(GetCurrentPage()).UpdateFavoriteHeroSkins(CollectionManager.Get().GetCollectibleDisplay().GetViewMode());
++
++		AccessibleCollectionManager.Get().OnFavoriteHeroSkinChanged();
+ 	}
+ 
+ 	public void OnFavoriteBattlegroundsGuideSkinChanged(BattlegroundsGuideSkinId? newFavoriteBattlegroundsGuideSkin)
+ 	{
+ 		PageAsCollectionPage(GetCurrentPage()).UpdateFavoriteGuideSkins(CollectionManager.Get().GetCollectibleDisplay().GetViewMode());
++
++		AccessibleCollectionManager.Get().OnFavoriteBattlegroundsGuideSkinChanged();
+ 	}
+ 
+ 	public void OnFavoriteBattlegroundsBoardSkinChanged(BattlegroundsBoardSkinId? newFavoriteBattlegroundsBoardSkin)
+@@ -724,6 +729,8 @@ public class BaconCollectionPageManager : CollectiblePageManager
+ 	public void OnFavoriteBattlegroundsFinisherChanged(BattlegroundsFinisherId? newFavoriteBattlegroundsFinisher)
+ 	{
+ 		PageAsCollectionPage(GetCurrentPage()).UpdateFavoriteFinisherSkins(CollectionManager.Get().GetCollectibleDisplay().GetViewMode());
++
++		AccessibleCollectionManager.Get().OnFavoriteBattlegroundsFinisherChanged();
+ 	}
+ 
+ 	public void SetEmoteEquippedState(BattlegroundsEmoteId emoteId, bool isEquipped)
 diff --git a/Assembly-CSharp/BaconDisplay.cs b/Assembly-CSharp/BaconDisplay.cs
-index 3122b8a..853ef10 100644
+index 3122b8a..f6acbc9 100644
 --- a/Assembly-CSharp/BaconDisplay.cs
 +++ b/Assembly-CSharp/BaconDisplay.cs
 @@ -65,7 +65,7 @@ public class BaconDisplay : AbsSceneDisplay
@@ -36874,6 +37370,164 @@ index 3122b8a..853ef10 100644
  		Shop shop = Shop.Get();
  		if (shop != null)
  		{
+@@ -1284,7 +1292,7 @@ public class BaconDisplay : AbsSceneDisplay
+ 		}
+ 	}
+ 
+-	private void OpenBattlegroundsCollection()
++	internal void OpenBattlegroundsCollection()
+ 	{
+ 		CollectionManager.Get().NotifyOfBoxTransitionStart();
+ 		SceneMgr.Get().SetNextMode(SceneMgr.Mode.BACON_COLLECTION);
+diff --git a/Assembly-CSharp/BaconFinisherCollectionDetails.cs b/Assembly-CSharp/BaconFinisherCollectionDetails.cs
+index 2f66275..9e2e941 100644
+--- a/Assembly-CSharp/BaconFinisherCollectionDetails.cs
++++ b/Assembly-CSharp/BaconFinisherCollectionDetails.cs
+@@ -2,8 +2,9 @@ using Hearthstone;
+ using Hearthstone.DataModels;
+ using Hearthstone.UI;
+ using UnityEngine;
++using Accessibility;
+ 
+-public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails
++public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails, AccessibleUI
+ {
+ 	[SerializeField]
+ 	private VisualController m_favoriteButtonController;
+@@ -27,6 +28,8 @@ public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails
+ 	{
+ 		base.Show();
+ 		ToggleFavoriteButton();
++
++		ReadMenu();
+ 	}
+ 
+ 	public override void Hide()
+@@ -37,6 +40,10 @@ public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails
+ 		{
+ 			Captions.OnClose();
+ 		}
++
++		GetComponent<Widget>()?.TriggerEvent("StopCosmetic");
++
++		AccessibilityMgr.HideUI(this);
+ 	}
+ 
+ 	private void ToggleFavoriteButton()
+@@ -60,7 +67,7 @@ public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails
+ 		{
+ 			return;
+ 		}
+-		if (m_dataModel.IsFavorite || !m_dataModel.IsOwned)
++		if (!CanMakeFavorite())
+ 		{
+ 			Error.AddDevFatal("BaconFinisherCollectionDetails.MakeFavorite: Should not have been called for already-favorite or un-owned finisher");
+ 			return;
+@@ -73,10 +80,14 @@ public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails
+ 		{
+ 			Network.Get().SetBattlegroundsFavoriteFinisher(BattlegroundsFinisherId.FromTrustedValue(m_dataModel.FinisherDbiId));
+ 		}
++		AccessibleCollectionManager.Get().WaitingForServerResponse();
++
+ 		foreach (BattlegroundsFinisherDataModel finisher in m_pageDataModel.FinisherList)
+ 		{
+ 			finisher.IsFavorite = finisher == m_dataModel;
+ 		}
++
++		Hide();
+ 	}
+ 
+ 	protected override bool ValidateDataModels(IDataModel dataModel, IDataModel pageDataModel)
+@@ -112,4 +123,37 @@ public class BaconFinisherCollectionDetails : BaconVideoCollectionDetails
+ 			Hide();
+ 		}
+ 	}
++
++	#region Accessibility
++
++	private AccessibleMenu m_accessibleMenu;
++
++	private bool CanMakeFavorite()
++	{
++		return !m_dataModel.IsFavorite && m_dataModel.IsOwned;
++	}
++
++	private void ReadMenu()
++	{
++		m_accessibleMenu = new AccessibleMenu(this, m_dataModel.DetailsDisplayName, Hide);
++		m_accessibleMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_READ_FLAVOR), () => AccessibilityMgr.Output(this, m_dataModel.Description));
++		if (CanMakeFavorite())
++		{
++			m_accessibleMenu.AddOption(GameStrings.Get("GLUE_COLLECTION_MANAGER_FAVORITE_BUTTON"), MakeFavorite);
++		}
++
++		AccessibilityMgr.ShowUI(this);
++		m_accessibleMenu.StartReading();
++	}
++
++    public void HandleAccessibleInput()
++    {
++        m_accessibleMenu.HandleAccessibleInput();
++    }
++
++    public string GetAccessibleHelp()
++    {
++        return m_accessibleMenu.GetHelp();
++    }
++	#endregion
+ }
+diff --git a/Assembly-CSharp/BaconGuideSkinInfoManager.cs b/Assembly-CSharp/BaconGuideSkinInfoManager.cs
+index 0c24536..6a82464 100644
+--- a/Assembly-CSharp/BaconGuideSkinInfoManager.cs
++++ b/Assembly-CSharp/BaconGuideSkinInfoManager.cs
+@@ -1,5 +1,6 @@
+ using System.Collections;
+ using System.Text;
++using Accessibility;
+ using Blizzard.T5.AssetManager;
+ using Hearthstone.UI;
+ using UnityEngine;
+@@ -164,11 +165,14 @@ public class BaconGuideSkinInfoManager : BaconBaseSkinInfoManager
+ 			if (CollectionManager.Get().OwnsBattlegroundsGuideSkin(skinCardId))
+ 			{
+ 				Network.Get().SetBattlegroundsFavoriteGuideSkin(skinId);
++
++				AccessibleCollectionManager.Get().WaitingForServerResponse();
+ 			}
+ 		}
+ 		else
+ 		{
+ 			Network.Get().ClearBattlegroundsFavoriteGuideSkin();
++			AccessibleCollectionManager.Get().WaitingForServerResponse();
+ 		}
+ 	}
+ 
+diff --git a/Assembly-CSharp/BaconHeroSkinInfoManager.cs b/Assembly-CSharp/BaconHeroSkinInfoManager.cs
+index 80e8100..9000593 100644
+--- a/Assembly-CSharp/BaconHeroSkinInfoManager.cs
++++ b/Assembly-CSharp/BaconHeroSkinInfoManager.cs
+@@ -1,5 +1,6 @@
+ using System.Collections;
+ using System.Text;
++using Accessibility;
+ using Blizzard.T5.AssetManager;
+ using Hearthstone.UI;
+ using UnityEngine;
+@@ -276,10 +277,14 @@ public class BaconHeroSkinInfoManager : BaconBaseSkinInfoManager
+ 		if (CollectionManager.Get().IsBattlegroundsBaseHeroCardWithSkin(num) && CollectionManager.Get().GetFavoriteBattlegroundsHeroSkin(num, out var favoriteSkinId))
+ 		{
+ 			Network.Get().ClearBattlegroundsFavoriteHeroSkin(favoriteSkinId);
++
++			AccessibleCollectionManager.Get().WaitingForServerResponse();
+ 		}
+ 		if (CollectionManager.Get().IsBattlegroundsHeroSkinCard(num) && CollectionManager.Get().GetBattlegroundsHeroSkinIdForSkinCardId(num, out var skinId))
+ 		{
+ 			Network.Get().SetBattlegroundsFavoriteHeroSkin(skinId);
++
++			AccessibleCollectionManager.Get().WaitingForServerResponse();
+ 		}
+ 	}
+ 
 diff --git a/Assembly-CSharp/BaconParty.cs b/Assembly-CSharp/BaconParty.cs
 index 5ec0033..540faa4 100644
 --- a/Assembly-CSharp/BaconParty.cs
@@ -37073,7 +37727,7 @@ index 5ec0033..540faa4 100644
 +	}
 +
 diff --git a/Assembly-CSharp/BaconScene.cs b/Assembly-CSharp/BaconScene.cs
-index 5c3aee3..5f325b8 100644
+index 5c3aee3..f6db847 100644
 --- a/Assembly-CSharp/BaconScene.cs
 +++ b/Assembly-CSharp/BaconScene.cs
 @@ -1,9 +1,11 @@
@@ -37089,7 +37743,7 @@ index 5c3aee3..5f325b8 100644
  {
  	private bool m_ratingInfoReceived;
  
-@@ -52,6 +54,168 @@ public class BaconScene : BasicScene
+@@ -52,6 +54,169 @@ public class BaconScene : BasicScene
  		{
  			yield return null;
  		}
@@ -37125,6 +37779,7 @@ index 5c3aee3..5f325b8 100644
 +		m_curMenu.AddOption(GameStrings.Get("GLOBAL_OPTIONS"), OnClickOptions);
 +		if (!PartyManager.Get().IsInBattlegroundsParty())
 +		{
++			m_curMenu.AddOption(LocalizedText.HUB_MY_COLLECTION_OPTION, GetBaconDisplay().OpenBattlegroundsCollection);
 +			m_curMenu.AddOption(GameStrings.Get("GLUE_BACON_INFO_POPUP_PLAY_TUTORIAL"), GetBaconDisplay().PlayBaconTutorial);
 +		}
 +
@@ -37426,12 +38081,18 @@ index 0c2aa7b..9743962 100644
 +    #endregion
  }
 diff --git a/Assembly-CSharp/BaseHeroSkinInfoManager.cs b/Assembly-CSharp/BaseHeroSkinInfoManager.cs
-index 3d7914d..73f9da8 100644
+index 3d7914d..48df6f4 100644
 --- a/Assembly-CSharp/BaseHeroSkinInfoManager.cs
 +++ b/Assembly-CSharp/BaseHeroSkinInfoManager.cs
-@@ -11,354 +11,357 @@ using UnityEngine;
+@@ -7,358 +7,362 @@ using Hearthstone.DataModels;
+ using Hearthstone.Store;
+ using Hearthstone.UI;
+ using UnityEngine;
++using Accessibility;
+ 
  [CustomEditClass]
- public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore
+-public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore
++public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore, AccessibleUI
  {
 -	protected const string STATE_SHOW_VANILLA_HERO = "SHOW_VANILLA_HERO";
 +    protected const string STATE_SHOW_VANILLA_HERO = "SHOW_VANILLA_HERO";
@@ -38058,7 +38719,7 @@ index 3d7914d..73f9da8 100644
  	}
  
  	protected virtual void OnFinishedClosing(Vector3 originalScale)
-@@ -377,308 +380,309 @@ public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore
+@@ -377,308 +381,309 @@ public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore
  		m_previewEmoteCardSoundSpell = null;
  	}
  
@@ -38666,7 +39327,7 @@ index 3d7914d..73f9da8 100644
  
  	private void ClearCustomFrame()
  	{
-@@ -697,143 +701,166 @@ public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore
+@@ -697,143 +702,216 @@ public abstract class BaseHeroSkinInfoManager : MonoBehaviour, IStore
  		}
  	}
  
@@ -38944,6 +39605,8 @@ index 3d7914d..73f9da8 100644
 +
 +    #region Accessibility
 +
++protected AccessibleMenu m_accessibleMenu;
++
 +    protected UIBButton GetDesiredFavoriteButton()
 +    {
 +        return ((m_desiredVisibilityState == "SHOW_VANILLA_HERO") ? m_vanillaHeroFavoriteButton : m_newHeroFavoriteButton);
@@ -38956,11 +39619,59 @@ index 3d7914d..73f9da8 100644
 +
 +    protected virtual void ReadHeroSkinPreview()
 +    {
++        AccessibilityMgr.ShowUI(this);
++
++        m_accessibleMenu = new AccessibleMenu(this, m_currentEntityDef.GetName(), CancelPreview);
++        m_accessibleMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_READ_FLAVOR), () => AccessibilityMgr.Output(this, m_currentHeroRecord.Description));
++
++        AddFavoriteAndBuyButtons(m_accessibleMenu);
++
++        m_accessibleMenu.StartReading();
++    }
++
++    protected void AddFavoriteAndBuyButtons(AccessibleMenu menu)
++    {
++        // The logic around favorite and buy buttons is pretty tangled so there's no great way of doing this. This is covered by tests anyways so should be fine
++        if (CanToggleFavorite())
++        {
++            AddButton(menu, GetDesiredFavoriteButton());
++        }
++
++        var buyBtn = GetDesiredBuyButton();
++
++        if (m_userActionVisualController.State == INSUFFICIENT_CURRENCY_STATE)
++        {
++            menu.AddOption(FormatBuyMessage(buyBtn), () => AccessibilityMgr.Output(this, GameStrings.Get("GAMEPLAY_PlayErrors_REQ_ENOUGH_COIN")));
++        }
++        else if (m_userActionVisualController.State == SUFFICIENT_CURRENCY_STATE)
++        {
++            menu.AddOption(FormatBuyMessage(buyBtn), buyBtn.TriggerRelease);
++        }
++    }
++
++    protected string FormatBuyMessage(UIBButton btn)
++    {
++        return LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_GOLD, btn.GetText());
++    }
++
++    protected void AddButton(AccessibleMenu menu, UIBButton btn)
++    {
++        menu.AddOption(btn.GetText(), btn.TriggerRelease);
++    }
++
++    public void HandleAccessibleInput()
++    {
++        m_accessibleMenu?.HandleAccessibleInput();
++    }
++
++    public string GetAccessibleHelp()
++    {
++        return m_accessibleMenu?.GetHelp();
 +    }
 +
 +    protected virtual void HideThis()
 +    {
-+
++        AccessibilityMgr.HideUI(this);
 +    }
 +
 +    #endregion
@@ -40391,6 +41102,19 @@ index 69216d5..4cec181 100644
  
  	public BonusChallengeUnlockData()
  		: this("", "Card_DungeonCrawl_Boss.prefab:c7f700bb034424e46a7c2321e4621965")
+diff --git a/Assembly-CSharp/BookPageManager.cs b/Assembly-CSharp/BookPageManager.cs
+index 10f2d0a..ec84a92 100644
+--- a/Assembly-CSharp/BookPageManager.cs
++++ b/Assembly-CSharp/BookPageManager.cs
+@@ -197,7 +197,7 @@ public abstract class BookPageManager : MonoBehaviour
+ 		m_currentPageIsPageA = !m_currentPageIsPageA;
+ 	}
+ 
+-	protected BookPageDisplay GetCurrentPage()
++	internal BookPageDisplay GetCurrentPage()
+ 	{
+ 		if (!m_currentPageIsPageA)
+ 		{
 diff --git a/Assembly-CSharp/BookTab.cs b/Assembly-CSharp/BookTab.cs
 index e9ae9ee..c2f3de4 100644
 --- a/Assembly-CSharp/BookTab.cs
@@ -84773,7 +85497,7 @@ index 0c27a48..dd0694c 100644
  public class HeroPickerDisplay : MonoBehaviour
  {
 diff --git a/Assembly-CSharp/HeroSkinInfoManager.cs b/Assembly-CSharp/HeroSkinInfoManager.cs
-index f487c26..2b7260b 100644
+index f487c26..518dec8 100644
 --- a/Assembly-CSharp/HeroSkinInfoManager.cs
 +++ b/Assembly-CSharp/HeroSkinInfoManager.cs
 @@ -1,9 +1,11 @@
@@ -84800,73 +85524,11 @@ index f487c26..2b7260b 100644
  	}
  
  	protected override bool CanToggleFavorite()
-@@ -136,4 +142,67 @@ public class HeroSkinInfoManager : BaseHeroSkinInfoManager
+@@ -136,4 +142,5 @@ public class HeroSkinInfoManager : BaseHeroSkinInfoManager
  			BnetBar.Get()?.RefreshCurrency();
  		}
  	}
 +
-+	#region Accessibility
-+
-+	private AccessibleMenu m_accessibleMenu;
-+
-+	protected override void ReadHeroSkinPreview()
-+	{
-+		AccessibilityMgr.ShowUI(this);
-+
-+		m_accessibleMenu = new AccessibleMenu(this, m_currentEntityDef.GetName(), CancelPreview);
-+		m_accessibleMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_CRAFTING_READ_FLAVOR), () => AccessibilityMgr.Output(this, m_currentHeroRecord.Description));
-+
-+		AddFavoriteAndBuyButtons(m_accessibleMenu);
-+
-+		m_accessibleMenu.StartReading();
-+	}
-+
-+	private void AddFavoriteAndBuyButtons(AccessibleMenu menu)
-+	{
-+		// The logic around favorite and buy buttons is pretty tangled so there's no great way of doing this. This is covered by tests anyways so should be fine
-+		if (CanToggleFavorite())
-+		{
-+			AddButton(menu, GetDesiredFavoriteButton());
-+		}
-+
-+		var buyBtn = GetDesiredBuyButton();
-+
-+		if (m_userActionVisualController.State == INSUFFICIENT_CURRENCY_STATE)
-+		{
-+			menu.AddOption(FormatBuyMessage(buyBtn), () => AccessibilityMgr.Output(this, GameStrings.Get("GAMEPLAY_PlayErrors_REQ_ENOUGH_COIN")));
-+		}
-+		else if (m_userActionVisualController.State == SUFFICIENT_CURRENCY_STATE)
-+		{
-+			menu.AddOption(FormatBuyMessage(buyBtn), buyBtn.TriggerRelease);
-+		}
-+	}
-+
-+	private string FormatBuyMessage(UIBButton btn)
-+	{
-+		return LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_GOLD, btn.GetText());
-+	}
-+
-+	private void AddButton(AccessibleMenu menu, UIBButton btn)
-+	{
-+		menu.AddOption(btn.GetText(), btn.TriggerRelease);
-+	}
-+
-+	public void HandleAccessibleInput()
-+	{
-+		m_accessibleMenu?.HandleAccessibleInput();
-+	}
-+
-+	public string GetAccessibleHelp()
-+	{
-+		return m_accessibleMenu?.GetHelp();
-+	}
-+
-+	protected override void HideThis()
-+	{
-+		AccessibilityMgr.HideUI(this);
-+	}
-+
-+	#endregion
  }
 diff --git a/Assembly-CSharp/HeroSkinUtils.cs b/Assembly-CSharp/HeroSkinUtils.cs
 index efcf6c9..03c9e7a 100644
