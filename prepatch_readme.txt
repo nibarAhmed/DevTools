@@ -172,6 +172,12 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2023-09-19
+
+- Updated to Hearthstone version 27.4.0.185749 (contributed by Endefx)
+- Added support for anomalies in traditional Hearthstone modes. The O key can be used to read them during gameplay. (contributed by Endefx)
+- Added accessibility for the Battlegrounds collection manager. This currently supports hero skins, bartenders and strikes. (contributed by Endefx)
+
 ### 2023-09-06
 
 - Updated to Hearthstone version 27.2.2.185054
