@@ -16618,10 +16618,10 @@ index 0000000..a8b8819
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleTutorialProgressScreen.cs b/Assembly-CSharp/Accessibility/AccessibleTutorialProgressScreen.cs
 new file mode 100644
-index 0000000..0e6862a
+index 0000000..4725c51
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleTutorialProgressScreen.cs
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,89 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -16655,7 +16655,7 @@ index 0000000..0e6862a
 +                case TutorialProgress.GARROSH_COMPLETE:
 +                return (LocalizationUtils.Get(LocalizationKey.NEW_TUTORIAL_DEFEATED_GARROSH), LocalizationUtils.Get(LocalizationKey.NEW_TUTORIAL_NEXT_LICH_KING));
 +                case TutorialProgress.LICH_KING_COMPLETE:
-+                return (LocalizationUtils.Get(LocalizationKey.NEW_TUTORIAL_DEFEATED_LICH_KING), LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_CONTINUE, AccessibleKey.CONFIRM));
++                return (LocalizationUtils.Get(LocalizationKey.NEW_TUTORIAL_DEFEATED_LICH_KING), "");
 +                default:
 +                AccessibilityUtils.LogFatalError("Tutorial progress screen encountered an unknown tutorial progress state: " + Enum.GetName(typeof(TutorialProgress), progress));
 +                return ("", "");
@@ -16676,6 +16676,7 @@ index 0000000..0e6862a
 +            var msg = GetProgressMessage(progress);
 +            AccessibilityMgr.Output(this, msg.Item1);
 +            AccessibilityMgr.Output(this, msg.Item2);
++            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_CONTINUE, AccessibleKey.CONFIRM));
 +            m_curState = (progress == TutorialProgress.LICH_KING_COMPLETE) ? AccessibleTutorialProgressScreenState.REWARD_CHEST_SHOWN : AccessibleTutorialProgressScreenState.READY_TO_START;
 +        }
 +
@@ -16697,6 +16698,8 @@ index 0000000..0e6862a
 +            {
 +                case AccessibleTutorialProgressScreenState.READY_TO_START:
 +                    return AccessibleSpeech.PRESS_ENTER_TO_START;
++                case AccessibleTutorialProgressScreenState.REWARD_CHEST_SHOWN:
++                return LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_CONTINUE, AccessibleKey.CONFIRM);
 +                default:
 +                    return "";
 +            }
