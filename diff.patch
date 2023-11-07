@@ -3851,10 +3851,10 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..d50ffa6
+index 0000000..865f973
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2880 @@
+@@ -0,0 +1,2889 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -5605,8 +5605,17 @@ index 0000000..d50ffa6
 +        {
 +            var opponent = GameState.Get().GetOpposingSidePlayer();
 +
++            int availableMana = opponent.GetNumAvailableResources();
 +            int totalMana = opponent.GetTag(GAME_TAG.RESOURCES);
-+            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.GAMEPLAY_READ_OPPONENT_MANA, totalMana));
++            if (availableMana != totalMana)
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.GAMEPLAY_READ_OPPONENT_MANA_CURRENT_AND_TOTAL, availableMana, totalMana));
++            }
++            else
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.GAMEPLAY_READ_OPPONENT_MANA, availableMana));
++            }
++
 +
 +            // Overloaded crystals this turn
 +            var overloadedMana = opponent.GetTag(GAME_TAG.OVERLOAD_OWED);
@@ -24834,10 +24843,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..2f0aeaf
+index 0000000..d405333
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1146 @@
+@@ -0,0 +1,1147 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25084,6 +25093,7 @@ index 0000000..2f0aeaf
 +    public static LocalizationKey GAMEPLAY_SEE_ZONE_OPPONENT_WEAPON_EMPTY = CreateKey("ACCESSIBILITY_GAMEPLAY_SEE_ZONE_OPPONENT_WEAPON_EMPTY");
 +    public static LocalizationKey GAMEPLAY_READ_PLAYER_MANA_CURRENT_AND_TOTAL = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_PLAYER_MANA_CURRENT_AND_TOTAL");
 +    public static LocalizationKey GAMEPLAY_READ_PLAYER_MANA = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_PLAYER_MANA");
++    public static LocalizationKey GAMEPLAY_READ_OPPONENT_MANA_CURRENT_AND_TOTAL = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_OPPONENT_MANA_CURRENT_AND_TOTAL");
 +    public static LocalizationKey GAMEPLAY_READ_OPPONENT_MANA = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_OPPONENT_MANA");
 +    public static LocalizationKey GAMEPLAY_READ_CORPSES = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_CORPSES");
 +    public static LocalizationKey GAMEPLAY_READ_CORPSES_EMPTY = CreateKey("ACCESSIBILITY_GAMEPLAY_READ_CORPSES_EMPTY");
