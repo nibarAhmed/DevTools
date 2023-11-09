@@ -23537,10 +23537,10 @@ index 0000000..15674a5
 +}
 diff --git a/Assembly-CSharp/Accessibility/HSADevTools.cs b/Assembly-CSharp/Accessibility/HSADevTools.cs
 new file mode 100644
-index 0000000..5ec75bc
+index 0000000..9c7d6ed
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/HSADevTools.cs
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,271 @@
 +﻿using Blizzard.T5.Configuration;
 +using PegasusShared;
 +using System;
@@ -23584,6 +23584,8 @@ index 0000000..5ec75bc
 +            //SetNotReturningPlayer(); // Ran into something weird here and had to fix it -- TODO: Rethink this
 +
 +            //SetReturningPlayer(); // Done via method -- TODO: Rethink this
++
++            // DumpAchievementsWithCustomVisuals();
 +        }
 +
 +        private static void ResetRotationTutorial()
@@ -23796,6 +23798,18 @@ index 0000000..5ec75bc
 +
 +            SceneMgr.Get().GoToFatalErrorScreen(fatalErrorMessage);
 +        }
++
++        private static void DumpAchievementsWithCustomVisuals()
++        {
++            var lines = new List<string>();
++            foreach (var record in GameDbf.Achieve.GetRecords().Where((r) => r.CustomVisualWidget != ""))
++            {
++                lines.Add($"{record.ID}, {record.Name.GetString()}, {record.CustomVisualWidget}");
++            }
++            AccessibilityUtils.LogDebug("Dumping all achievements with a custom reward widget:");
++            AccessibilityUtils.LogDebug(AccessibleSpeechUtils.CombineLines(lines));
++        }
++
 +    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/HSASpeech.cs b/Assembly-CSharp/Accessibility/HSASpeech.cs
@@ -91404,10 +91418,32 @@ index b8ebb9f..dde6cae 100644
  					NotificationManager.Get().CreateInnkeeperQuote(UserAttentionBlocker.NONE, new Vector3(155.3f, 0f, 34.5f), GameStrings.Get("VO_INNKEEPER_OUT_OF_QUESTS"), "VO_INNKEEPER_OUT_OF_QUESTS.prefab:b0073c56bf38c664dab532ad92f3baf9");
  					Options.Get().SetBool(Option.HAS_RUN_OUT_OF_QUESTS, val: true);
 diff --git a/Assembly-CSharp/QuestPopups.cs b/Assembly-CSharp/QuestPopups.cs
-index b0abda1..92b812f 100644
+index b0abda1..a87219e 100644
 --- a/Assembly-CSharp/QuestPopups.cs
 +++ b/Assembly-CSharp/QuestPopups.cs
-@@ -124,7 +124,7 @@ public class QuestPopups : IDisposable
+@@ -1,5 +1,6 @@
+ using System;
+ using System.Collections.Generic;
++using Accessibility;
+ using Assets;
+ using Hearthstone.Progression;
+ using UnityEngine;
+@@ -74,6 +75,14 @@ public class QuestPopups : IDisposable
+ 		}
+ 		if (AssetLoader.Get() != null && !string.IsNullOrEmpty(completedAchieve.CustomVisualWidget))
+ 		{
++			// These would require a custom accessibility implementation for each possible widget. At the time of writing there are just three of these.
++			// TODO: since there aren't that many, maybe we can do it. New ones should be suppressed by default though.
++			Log.Accessibility.PrintWarning("Suppressing the showing of a custom reward widget for achievement with id {0}. Object prefab is {1}", completedAchieve.ID, completedAchieve.CustomVisualWidget);
++			completedAchieves.Remove(completedAchieve);
++			completedAchieve.AckCurrentProgressAndRewardNotices();
++			SetIsShowing?.Invoke(false);
++			return true;
++
+ 			AssetLoader.Get().InstantiatePrefab(completedAchieve.CustomVisualWidget, ONAssetLoad);
+ 		}
+ 		else if (!completedAchieve.UseGenericRewardVisual)
+@@ -124,7 +133,7 @@ public class QuestPopups : IDisposable
  
  	public void ShowQuestProgressToasts(List<Achievement> progressedAchieves)
  	{
