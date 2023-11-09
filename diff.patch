@@ -72351,7 +72351,7 @@ index e0c4fe4..5a1383c 100644
  	public static bool ShouldRailroadToPractice()
  	{
 diff --git a/Assembly-CSharp/GameState.cs b/Assembly-CSharp/GameState.cs
-index 9c652fc..3f16744 100644
+index 218ff89..a8aa41c 100644
 --- a/Assembly-CSharp/GameState.cs
 +++ b/Assembly-CSharp/GameState.cs
 @@ -11,6 +11,7 @@ using Blizzard.T5.Core;
@@ -79933,7 +79933,7 @@ index f93b75f..589977f 100644
  			if (IsPipelinePortNeeded())
  			{
 diff --git a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
-index b00f5e6..fa6b894 100644
+index d230c9a..a61a2d7 100644
 --- a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 +++ b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 @@ -1,5 +1,6 @@
@@ -79982,7 +79982,7 @@ index b00f5e6..fa6b894 100644
  		{
  			if (PlatformSettings.IsMobileRuntimeOS && (on ^ m_ANRMonitorOn))
 diff --git a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
-index 367795d..7f61c41 100644
+index 8e2b58e..4b2113d 100644
 --- a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 +++ b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 @@ -5,6 +5,7 @@ using System.IO;
@@ -80040,7 +80040,7 @@ index 367795d..7f61c41 100644
 +			// ExceptionReporterControl.Get().ExceptionReportInitialize(); // Remove so we don't send Blizzard exceptions that may be caused by us
 +			ExceptionReporterControl.Get().ExceptionReportInitializeDebug();
  			TelemetryManager.Client().SendSystemDetail(TelemetryUtil.GetUnitySystemInfo());
- 			HearthstonePerformance.Initialize(TestType, 3637247.ToString(), 189017);
+ 			HearthstonePerformance.Initialize(TestType, 3641226.ToString(), 189384);
  			HearthstonePerformance.Get()?.CaptureAppStartTime();
 @@ -278,6 +283,8 @@ namespace Hearthstone
  
@@ -80049,7 +80049,7 @@ index 367795d..7f61c41 100644
 +			AccessibleHearthstoneApplication.OnClosing();
 +			AccessibilityMgr.Shutdown();
  			IsHearthstoneClosing = true;
- 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 189017, Log.UberText);
+ 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 189384, Log.UberText);
  			if (this.OnShutdown != null)
 @@ -513,7 +520,7 @@ namespace Hearthstone
  
@@ -80088,7 +80088,7 @@ index 367795d..7f61c41 100644
 +			jobDefinition.AddJobFinishedEventListener(OnGameStringsLoaded);
 +			Processor.QueueJob("HearthstoneApplication.InitializeMode", Job_InitializeMode(), Array.Empty<IJobDependency>());
  			Processor.QueueJob(jobDefinition);
- 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 189017, Log.UberText));
+ 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 189384, Log.UberText));
  			Processor.QueueJob(HearthstoneJobs.CreateJobFromAction("HearthstoneApplication.SetWindowText", SetWindowText, jobDefinition.CreateDependency()));
 @@ -691,7 +699,12 @@ namespace Hearthstone
  			}
@@ -82453,7 +82453,7 @@ index 645926f..96e4be5 100644
  		private WidgetTemplate m_parentWidgetTemplate;
  
 diff --git a/Assembly-CSharp/HearthstoneCheckout.cs b/Assembly-CSharp/HearthstoneCheckout.cs
-index fd96aeb..f5d31ad 100644
+index a9959a6..d1b2258 100644
 --- a/Assembly-CSharp/HearthstoneCheckout.cs
 +++ b/Assembly-CSharp/HearthstoneCheckout.cs
 @@ -233,14 +233,7 @@ public class HearthstoneCheckout : blz_commerce_log_hook, ISceneEventObserver, I
@@ -87332,7 +87332,7 @@ index ed36006..f30d147 100644
  	private void OnBattlegroundsFinishersResponse()
  	{
 diff --git a/Assembly-CSharp/Network.cs b/Assembly-CSharp/Network.cs
-index 415210d..c3ee4c1 100644
+index fa08b23..741f202 100644
 --- a/Assembly-CSharp/Network.cs
 +++ b/Assembly-CSharp/Network.cs
 @@ -36,6 +36,7 @@ using PegasusUtil;
@@ -88384,7 +88384,7 @@ index d7422c8..f2e49aa 100644
  			Option.DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
  			false
 diff --git a/Assembly-CSharp/OptionsMenu.cs b/Assembly-CSharp/OptionsMenu.cs
-index 30238f4..0063d3a 100644
+index 87338c9..0370b7c 100644
 --- a/Assembly-CSharp/OptionsMenu.cs
 +++ b/Assembly-CSharp/OptionsMenu.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
