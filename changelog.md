@@ -1,3 +1,23 @@
+### 2023-11-13
+
+- Implemented the mass pack opening feature. To start, select a pack on the pack opening screen and press space. (contributed by Endefx)
+- Fixed an issue where trying to open a pack that is locked, for example when it is part of a preorder, would cause a nonsensical string to be spoken (contributed by Endefx)
+- The pack opening screen will once again automatically close after all packs have been opened (contributed by Endefx)
+
+
+### 2023-11-09 (2)
+
+- Updated to Hearthstone version 28.0.0.189384 (contributed by Endefx)
+
+### 2023-11-09
+
+- Disabled an inaccessible class unlock popup that recently started appearing for some players (contributed by Endefx)
+
+### 2023-11-07
+
+- Updated to Hearthstone version 28.0.0.189017 (contributed by Endefx)
+- When reading your opponent's mana during gameplay, their current mana count will now be read along with the total amount (contributed by KeyWasFull)
+
 ### 2023-10-30
 
 - Added accessibility for the new Hearthstone tutorial (contributed by Endefx)
