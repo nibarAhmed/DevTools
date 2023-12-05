@@ -3864,7 +3864,7 @@ index 0000000..5131daf
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..865f973
+index 0000000..3e594f0
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 @@ -0,0 +1,2889 @@
@@ -3906,7 +3906,7 @@ index 0000000..865f973
 +            MINION_TO_FACE,
 +
 +            // Battlegrounds-only
-+            BUYING_MINION,
++            BUYING_CARD,
 +            SELLING_MINION,
 +            MOVING_MINION,
 +            READING_LEADERBOARD,
@@ -6759,7 +6759,7 @@ index 0000000..865f973
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplayUtils.cs b/Assembly-CSharp/Accessibility/AccessibleGameplayUtils.cs
 new file mode 100644
-index 0000000..d631b18
+index 0000000..ed56a2d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplayUtils.cs
 @@ -0,0 +1,79 @@
@@ -6813,7 +6813,7 @@ index 0000000..d631b18
 +		{
 +			"TB_BaconShopTechUp02_Button", "TB_BaconShopTechUp03_Button", "TB_BaconShopTechUp04_Button", "TB_BaconShopTechUp05_Button", "TB_BaconShopTechUp06_Button",
 +			"TB_BaconShopLockAll_Button", "TB_BaconShop_DragBuy", "TB_BaconShop_DragSell",
-+			"TB_BaconShop_1p_Reroll_Button", "TB_BaconShop_8p_Reroll_Button", // TODO: Check if there's others
++			"TB_BaconShop_1p_Reroll_Button", "TB_BaconShop_8p_Reroll_Button", "TB_BaconShop_DragBuy_Spell", // TODO: Check if there's others
 +		};
 +
 +		internal static bool IsBattlegroundsSpecialCard(Entity card)
@@ -17193,10 +17193,10 @@ index 0000000..2189930
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs
 new file mode 100644
-index 0000000..dd8de9d
+index 0000000..2e5cc8b
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs
-@@ -0,0 +1,329 @@
+@@ -0,0 +1,330 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -17235,7 +17235,7 @@ index 0000000..dd8de9d
 +					return GetLinesForOpponentSecret();
 +				}
 +			}
-+            else if (m_card.GetEntity().IsSpell())
++            else if (m_card.GetEntity().IsSpell() || m_card.GetEntity().GetCardType() == TAG_CARDTYPE.BATTLEGROUND_SPELL)
 +			{
 +                return GetLinesForSpell();
 +			}
@@ -17280,6 +17280,7 @@ index 0000000..dd8de9d
 +
 +            AccessibleCardUtils.AddLineIfExists(GetCardType(), lines);
 +            AccessibleCardUtils.AddLineIfExists(GetRace(), lines); // Handles spell school as well
++            lines.Add(GetTier());
 +
 +            return lines;
 +		}
@@ -17580,10 +17581,10 @@ index 0000000..20d9067
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 0000000..712823e
+index 0000000..e76fb65
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1606 @@
+@@ -0,0 +1,1615 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -17608,7 +17609,7 @@ index 0000000..712823e
 +        private bool m_movingMinion;
 +        private bool m_movingMinionWaitingForHold; // Used to prevent "Sell?" while we wait for the minion to be held
 +
-+        private bool m_buyingMinion;
++        private bool m_buyingCard;
 +        private bool m_sellingMinion;
 +
 +        private bool m_isShopPhase;
@@ -17826,7 +17827,7 @@ index 0000000..712823e
 +            m_upgradingTavern = false;
 +            m_movingMinion = false;
 +            m_movingMinionWaitingForHold = false;
-+            m_buyingMinion = false;
++            m_buyingCard = false;
 +            m_sellingMinion = false;
 +		}
 +
@@ -18011,9 +18012,9 @@ index 0000000..712823e
 +                    HandleSummoningMinion();
 +                    // TODO: Check base file to see what this is HandleTradeCardWhenHoldingCardInput();
 +                    return;
-+                case AccessibleGameState.BUYING_MINION:
++                case AccessibleGameState.BUYING_CARD:
 +                    HandleCheckStatusKeys();
-+                    HandleBuyingMinion();
++                    HandleBuyingCard();
 +                    return;
 +                case AccessibleGameState.SELLING_MINION:
 +                    HandleCheckStatusKeys();
@@ -18136,7 +18137,7 @@ index 0000000..712823e
 +			}
 +		}
 +
-+		private void HandleBuyingMinion()
++		private void HandleBuyingCard()
 +		{
 +            AccessibleInputMgr.MoveMouseTo(GameState.Get().GetFriendlySidePlayer().GetHeroCard());
 +
@@ -18283,7 +18284,16 @@ index 0000000..712823e
 +            }
 +            else if (m_heldCard != null)
 +            {
-+                if (m_heldCard.GetEntity().IsMinion())
++                if (m_heldCard.GetEntity().GetCardType() == TAG_CARDTYPE.BATTLEGROUND_SPELL && m_heldCard.GetEntity().GetZone() == TAG_ZONE.PLAY && m_heldCard.GetEntity().IsControlledByOpposingSidePlayer())
++                {
++                    m_curState = AccessibleGameState.BUYING_CARD;
++                    if (m_curState != m_prevState)
++                    {
++                        var spellName = AccessibleSpeechUtils.GetEntityName(m_heldCard.GetEntity());
++                        AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_QUERY_BUY_MINION, spellName));
++                    }
++                }
++                else if (m_heldCard.GetEntity().IsMinion())
 +                {
 +                    var entity = m_heldCard.GetEntity();
 +                    var zone = entity.GetZone();
@@ -18304,9 +18314,9 @@ index 0000000..712823e
 +								AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_QUERY_SELL_MINION, minionName));
 +							}
 +						}
-+                        else if (m_buyingMinion)
++                        else if (m_buyingCard)
 +						{
-+							m_curState = AccessibleGameState.BUYING_MINION;
++							m_curState = AccessibleGameState.BUYING_CARD;
 +
 +                            if (m_curState != m_prevState)
 +							{
@@ -18515,7 +18525,7 @@ index 0000000..712823e
 +				}
 +                else
 +				{
-+					m_buyingMinion = true;
++					m_buyingCard = true;
 +				}
 +			}
 +
