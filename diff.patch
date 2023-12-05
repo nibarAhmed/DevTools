@@ -1307,10 +1307,10 @@ index 0000000..48f7eac
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibilityUtils.cs b/Assembly-CSharp/Accessibility/AccessibilityUtils.cs
 new file mode 100644
-index 0000000..667696c
+index 0000000..9ed790f
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibilityUtils.cs
-@@ -0,0 +1,491 @@
+@@ -0,0 +1,493 @@
 +﻿using Assets;
 +using Hearthstone.UI;
 +using System;
@@ -1421,6 +1421,8 @@ index 0000000..667696c
 +
 +        internal static bool CanSeeShop()
 +        {
++            // The shop is temporarily inaccessible after 28.2 redesign.
++            return false;
 +            return ShopUtils.GetVirtualCurrencyMode() != VirtualCurrencyMode.China;
 +        }
 +
