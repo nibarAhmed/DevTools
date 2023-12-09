@@ -94242,7 +94242,7 @@ index 6eb9268..2897a04 100644
  	}
 -}
 diff --git a/Assembly-CSharp/StorePurchaseAuth.cs b/Assembly-CSharp/StorePurchaseAuth.cs
-index 3673a9b..4a7a854 100644
+index 3673a9b..e28ce16 100644
 --- a/Assembly-CSharp/StorePurchaseAuth.cs
 +++ b/Assembly-CSharp/StorePurchaseAuth.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
@@ -94349,7 +94349,7 @@ index 3673a9b..4a7a854 100644
 +		}
 +
 +		AccessibilityMgr.HideUI(this);
-+		Shop.Get()?.ProductPageController.CurrentProductPage.OnStorePurchaseAuthClosed(m_showingSuccess);
++		Shop.Get()?.ProductPageController?.CurrentProductPage?.OnStorePurchaseAuthClosed(m_showingSuccess);
 +
 +		// Unblock interface since we're shortcutting a lot of stuff
 +		StoreManager.Get()?.SetCanTapOutConfirmationUI(closeConfirmationUI: true);
