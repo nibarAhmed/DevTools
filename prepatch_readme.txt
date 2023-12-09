@@ -172,6 +172,18 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2023-12-09
+
+- Updated the shop implementation for Hearthstone 28.2. Note that the shop layout has been completely redesigned, and now reflects the tabbed structure shown on- screen. (contributed by Endefx)
+
+### 2023-12-06
+
+- Updated to Hearthstone version 28.2.0.190416 (contributed by Endefx)
+- Added support for the tavern spells mechanic in Battlegrounds (contributed by Endefx)
+
+Warning! This update has introduced several major changes to the game. As a result, the shop will be temporarily inaccessible until we can account for the redesign.
+In addition, the new player experience has been completely revamped. If you are still in the apprentice ranks, we recommend not to install this mod version as none of the new ui is accessible at this time.
+
 ### 2023-11-13
 
 - Implemented the mass pack opening feature. To start, select a pack on the pack opening screen and press space. (contributed by Endefx)
