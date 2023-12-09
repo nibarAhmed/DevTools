@@ -1307,10 +1307,10 @@ index 0000000..48f7eac
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibilityUtils.cs b/Assembly-CSharp/Accessibility/AccessibilityUtils.cs
 new file mode 100644
-index 0000000..9ed790f
+index 0000000..667696c
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibilityUtils.cs
-@@ -0,0 +1,493 @@
+@@ -0,0 +1,491 @@
 +﻿using Assets;
 +using Hearthstone.UI;
 +using System;
@@ -1421,8 +1421,6 @@ index 0000000..9ed790f
 +
 +        internal static bool CanSeeShop()
 +        {
-+            // The shop is temporarily inaccessible after 28.2 redesign.
-+            return false;
 +            return ShopUtils.GetVirtualCurrencyMode() != VirtualCurrencyMode.China;
 +        }
 +
@@ -26799,7 +26797,7 @@ index 0000000..7422d75
 +}
 diff --git a/Assembly-CSharp/Accessibility/Shop/AccessibleShopUtils.cs b/Assembly-CSharp/Accessibility/Shop/AccessibleShopUtils.cs
 new file mode 100644
-index 0000000..b510a58
+index 0000000..142ebaf
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Shop/AccessibleShopUtils.cs
 @@ -0,0 +1,358 @@
@@ -26853,7 +26851,7 @@ index 0000000..b510a58
 +				return false;
 +			}
 +
-+			var dataModel = slot.BrowserButtonDataModel.DisplayProduct;
++			var dataModel = slot.BrowserButtonDataModel?.DisplayProduct;
 +
 +			if (dataModel == null)
 +			{
@@ -88348,7 +88346,7 @@ index aeb9add..9aba3c6 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/ProductPageContainer.cs b/Assembly-CSharp/ProductPageContainer.cs
-index 12335fc..29c0671 100644
+index 12335fc..c0321df 100644
 --- a/Assembly-CSharp/ProductPageContainer.cs
 +++ b/Assembly-CSharp/ProductPageContainer.cs
 @@ -7,8 +7,9 @@ using Hearthstone.DataModels;
@@ -88384,9 +88382,9 @@ index 12335fc..29c0671 100644
  	}
  
 -	public void Close()
-+	public void Close(bool goBackToMainMenu=false)
++	public void Close(bool regenerateMenu=false)
  	{
-+		HideThis(goBackToMainMenu);
++		HideThis(regenerateMenu);
 +
  		if (!IsOpen)
  		{
@@ -88434,7 +88432,7 @@ index 12335fc..29c0671 100644
 +		AccessibilityMgr.ShowUI(this);
 +	}
 +
-+	private void HideThis(bool goBackToMainMenu=false)
++	private void HideThis(bool regenerateMenu=false)
 +	{
 +		if (!AccessibilityUtils.CanSeeShop())
 +		{
@@ -88442,7 +88440,7 @@ index 12335fc..29c0671 100644
 +		}
 +
 +		AccessibilityMgr.HideUI(this);
-+		Shop.Get()?.m_browser?.OnProductPageClosed(goBackToMainMenu);
++		Shop.Get()?.OnProductPageClosed(regenerateMenu);
 +	}
 +
 +	private void ReadProductPage()
@@ -92801,18 +92799,19 @@ index ac066ae..fac8653 100644
  	public LettuceTeam Team { get; set; }
  
 diff --git a/Assembly-CSharp/Shop.cs b/Assembly-CSharp/Shop.cs
-index c577113..8e0dc7a 100644
+index c577113..cdb55d9 100644
 --- a/Assembly-CSharp/Shop.cs
 +++ b/Assembly-CSharp/Shop.cs
-@@ -9,6 +9,7 @@ using Hearthstone.DataModels;
+@@ -9,14 +9,15 @@ using Hearthstone.DataModels;
  using Hearthstone.Store;
  using Hearthstone.UI;
  using UnityEngine;
 +using Accessibility;
  
- public class Shop : MonoBehaviour, IStore
+-public class Shop : MonoBehaviour, IStore
++public class Shop : MonoBehaviour, IStore, AccessibleUI
  {
-@@ -16,7 +17,7 @@ public class Shop : MonoBehaviour, IStore
+ 	[SerializeField]
  	private Widget m_widget;
  
  	[SerializeField]
@@ -92839,26 +92838,35 @@ index c577113..8e0dc7a 100644
  				return m_browser.IsReady();
  			}
  			return false;
-@@ -155,6 +156,8 @@ public class Shop : MonoBehaviour, IStore
+@@ -150,11 +151,15 @@ public class Shop : MonoBehaviour, IStore
+ 				UpdateScrollerEnabled();
+ 				m_shopTabController.RegisterTabChangedListener(OnTabChanged);
+ 				m_shopTabController.ResetTabKnowledge();
++				m_curTabIdx = 0;
++				m_curSubTabIdx = 0;
+ 				m_shopTabController.SelectTab(0, 0, instant: true);
+ 				StartCoroutine(SendShopVisitTelemetryCoroutine());
  			}
  			m_productPageController.HandleShopOpen();
  			this.OnOpened?.Invoke();
 +
-+			m_browser.OnShopOpened();
++			StartCoroutine(OnShopOpened());
  		}
  	}
  
-@@ -197,8 +200,8 @@ public class Shop : MonoBehaviour, IStore
+@@ -197,8 +202,10 @@ public class Shop : MonoBehaviour, IStore
  			DontFullyOpenShop = false;
  			UpdateScrollerEnabled();
  			this.OnClosed?.Invoke(new StoreClosedArgs());
++
++			AccessibilityMgr.HideUI(this);
 +			}
  		}
 -	}
  
  	public void BlockInterface(bool blocked)
  	{
-@@ -359,18 +362,18 @@ public class Shop : MonoBehaviour, IStore
+@@ -359,18 +366,18 @@ public class Shop : MonoBehaviour, IStore
  			{
  				StopCoroutine(m_moveToProductCoroutine);
  				m_moveToProductCoroutine = null;
@@ -92882,7 +92890,7 @@ index c577113..8e0dc7a 100644
  		mainTabId = string.Empty;
  		subTabId = string.Empty;
  		if (m_shopData != null && m_shopData.CurrentTab != null)
-@@ -379,8 +382,8 @@ public class Shop : MonoBehaviour, IStore
+@@ -379,8 +386,8 @@ public class Shop : MonoBehaviour, IStore
  			if (m_shopData.CurrentSubTab != null)
  			{
  				subTabId = m_shopData.CurrentSubTab.Id;
@@ -92893,7 +92901,7 @@ index c577113..8e0dc7a 100644
  		}
  		return false;
  	}
-@@ -498,7 +501,7 @@ public class Shop : MonoBehaviour, IStore
+@@ -498,7 +505,7 @@ public class Shop : MonoBehaviour, IStore
  	{
  		OverlayUI overlayUI = OverlayUI.Get();
  		if ((bool)overlayUI && (bool)m_widget && !overlayUI.HasObject(m_widget.gameObject))
@@ -92902,7 +92910,7 @@ index c577113..8e0dc7a 100644
  			overlayUI.AddGameObject(m_widget.gameObject);
  		}
  	}
-@@ -508,11 +511,11 @@ public class Shop : MonoBehaviour, IStore
+@@ -508,11 +515,11 @@ public class Shop : MonoBehaviour, IStore
  		if (ServiceManager.TryGet<CurrencyManager>(out var service))
  		{
  			if (ShopUtils.TryGetMainVirtualCurrencyType(out var currencyType))
@@ -92918,7 +92926,7 @@ index c577113..8e0dc7a 100644
  				m_shopData.VirtualCurrencyBalance = service.GetPriceDataModel(CurrencyType.NONE);
  			}
  			if (ShopUtils.TryGetBoosterVirtualCurrencyType(out var currencyType2))
-@@ -520,11 +523,11 @@ public class Shop : MonoBehaviour, IStore
+@@ -520,11 +527,11 @@ public class Shop : MonoBehaviour, IStore
  				m_shopData.BoosterCurrencyBalance = service.GetPriceDataModel(currencyType2);
  			}
  			else
@@ -92932,7 +92940,25 @@ index c577113..8e0dc7a 100644
  
  	private void OnPageOpening(ProductPage page)
  	{
-@@ -569,10 +572,10 @@ public class Shop : MonoBehaviour, IStore
+@@ -535,6 +542,8 @@ public class Shop : MonoBehaviour, IStore
+ 	private void OnPageOpened(ProductPage page)
+ 	{
+ 		UpdateScrollerEnabled();
++
++		m_productPageOpened = true;
+ 	}
+ 
+ 	private void OnPageClosed(ProductPage page)
+@@ -550,6 +559,8 @@ public class Shop : MonoBehaviour, IStore
+ 	private void OnTabChanged(int tabIndex, int subTabIndex)
+ 	{
+ 		RefreshContent(tabIndex, subTabIndex);
++
++		StartCoroutine(A11yOnTabChanged(tabIndex, subTabIndex));
+ 	}
+ 
+ 	private bool OnNavigateBack()
+@@ -569,10 +580,10 @@ public class Shop : MonoBehaviour, IStore
  		this.OnOpenCompleted?.Invoke();
  		UpdateScrollerEnabled();
  		MusicManager.Get().StartPlaylist(MusicPlaylistType.UI_Store);
@@ -92945,7 +92971,7 @@ index c577113..8e0dc7a 100644
  		m_isAnimatingOpenOrClose = false;
  		this.OnCloseCompleted?.Invoke();
  		UpdateScrollerEnabled();
-@@ -593,10 +596,10 @@ public class Shop : MonoBehaviour, IStore
+@@ -593,10 +604,10 @@ public class Shop : MonoBehaviour, IStore
  		if (ServiceManager.TryGet<IProductDataService>(out var service) && service.TryGetSubTabFromProductId(product.PmtId, out var parentTab, out var subTab))
  		{
  			if (!parentTab.Enabled || parentTab.Locked || !subTab.Enabled || subTab.Locked)
@@ -92959,7 +92985,7 @@ index c577113..8e0dc7a 100644
  			m_shopTabController.SelectTab(parentTab.Id, subTab.Id, instant: true);
  		}
  		ShopSlot shopSlot = null;
-@@ -607,11 +610,11 @@ public class Shop : MonoBehaviour, IStore
+@@ -607,11 +618,11 @@ public class Shop : MonoBehaviour, IStore
  				if (activeSlot.HasProduct(product))
  				{
  					shopSlot = activeSlot;
@@ -92974,20 +93000,239 @@ index c577113..8e0dc7a 100644
  				break;
  			}
  		}
+@@ -647,4 +658,219 @@ public class Shop : MonoBehaviour, IStore
+ 		}
+ 		TelemetryManager.Client().SendShopVisit(m_browser.GetShopCardTelemetry(), StoreManager.Get().CurrentShopType.ToString(), m_shopData.CurrentTab.Id, m_shopData.CurrentSubTab.Id);
+ 	}
++
++	#region Accessibility
++	private enum AccessibleState
++	{
++		LOADING,
++		MAIN_MENU,
++		SUB_TAB_MENU,
++		PRODUCT_MENU
++	}
++
++	private AccessibleState m_curState;
++	private AccessibleMenu m_mainMenu;
++	private AccessibleMenu m_subTabMenu;
++	private AccessibleMenu m_productMenu;
++
++	private int m_curTabIdx, m_curSubTabIdx;
++	private bool m_productPageOpened;
++
++	private IEnumerator OnShopOpened()
++	{
++		AccessibilityMgr.ShowUI(this);
++		AccessibilityMgr.Output(this, LocalizedText.GLOBAL_LOADING);
++		AccessibilityMgr.Output(this, LocalizedText.GLOBAL_PLEASE_WAIT);
++		m_curState = AccessibleState.LOADING;
++		yield return WaitForBrowser();
++
++		ReadShop();
++	}
++
++	private IEnumerator WaitForBrowser()
++	{
++		while (!m_browser.IsReady() || m_browser.IsDirty())
++		{
++			yield return null;
++		}
++	}
++
++	private void ReadShop()
++    {
++        m_mainMenu = new AccessibleMenu(this, "", () => Close(true));
++        m_mainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_READ_GOLD), () => AccessibleShopUtils.ReadGold(this));
++        m_mainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_READ_RUNESTONES), () => AccessibleShopUtils.ReadRunestones(this));
++
++        foreach (var tab in m_shopTabController.m_tabs)
++        {
++            if (tab.CurrentData.Id != ShopTabController.GetVcTabId())
++            {
++                m_mainMenu.AddOption(GameStrings.Get(tab.CurrentData.Name), () => TryActivateTab(tab));
++            }
++        }
++
++        ReadMainMenu();
++    }
++
++    private void ReadMainMenu()
++    {
++        m_curState = AccessibleState.MAIN_MENU;
++        m_mainMenu.StartReading();
++    }
++
++    private void TryActivateTab(ShopTab tab)
++	{
++		if (tab.CurrentData.Id == m_shopData.CurrentTab.Id)
++		{
++			ReadCurrentTab();
++		}
++		else if (tab.CurrentData.Locked)
++		{
++			tab.GetBlockedReasonText(out var title, out var body);
++			AccessibilityMgr.Output(this, body);
++		}
++		else
++        {
++            ActivateTab(tab);
++        }
++    }
++
++	private void TryActivateSubTab(ShopSubTab tab)
++	{
++		if (tab.CurrentData.Id == m_shopData.CurrentSubTab.Id)
++		{
++			ReadProducts();
++		}
++		else
++		{
++			ActivateTab(tab);
++		}
++	}
++
++    private static void ActivateTab(ShopTabBase tab)
++    {
++        Clickable clickable = tab.GetComponentInChildren<Clickable>();
++        clickable.GetPegUIElement().TriggerPress();
++        clickable.GetPegUIElement().TriggerRelease();
++    }
++
++    private void ReadCurrentTab()
++	{
++		if (m_shopTabController.GetNumberOfActiveSubTabs() > 1)
++		{
++			ReadSubTabs();
++		}
++		else
++		{
++			ReadProducts();
++		}
++	}
++
++	private void ReadSubTabs()
++    {
++        m_subTabMenu = new AccessibleMenu(this, "", ReadMainMenu);
++        for (int i = 0; i < m_shopTabController.GetNumberOfActiveSubTabs(); i++)
++        {
++            var tab = m_shopTabController.m_subTabs[i];
++            m_subTabMenu.AddOption(tab.CurrentData.Name, () => TryActivateSubTab(tab));
++        }
++        ReadSubTabMenu();
++    }
++
++    private void ReadSubTabMenu()
++    {
++        m_curState = AccessibleState.SUB_TAB_MENU;
++        m_subTabMenu.StartReading();
++    }
++
++	private void ReadProducts()
++	{
++		var slots = new List<ShopSlot>();
++		foreach (var section in m_browser.GetActiveSections())
++		{
++			slots.AddRange(section.GetActiveSlots());
++		}
++		slots = AccessibleShopUtils.FilterSlotsWhichCanBeBoughtWithGoldOrRunestones(slots);
++
++		m_productMenu = new AccessibleMenu(this, "", BackFromProductMenu);
++		foreach (var slot in slots)
++		{
++			m_productMenu.AddOption(slot.BrowserButtonDataModel.DisplayText, slot.ClickOpen);
++		}
++		m_curState = AccessibleState.PRODUCT_MENU;
++		m_productMenu.StartReading();
++	}
++
++	private void BackFromProductMenu()
++	{
++		if (m_shopTabController.GetNumberOfActiveSubTabs() <= 1)
++		{
++			ReadMainMenu();
++		}
++		else
++		{
++			ReadSubTabMenu();
++		}
++	}
++
++	private IEnumerator A11yOnTabChanged(int tabIdx, int subTabIdx)
++	{
++		if (!AccessibilityMgr.IsCurrentlyFocused(this))
++		{
++			yield break;
++		}
++		m_curState = AccessibleState.LOADING;
++		yield return WaitForBrowser();
++		if (m_curTabIdx != tabIdx)
++		{
++			ReadCurrentTab();
++		}
++		else if (m_curSubTabIdx != subTabIdx)
++		{
++			ReadProducts();
++		}
++		m_curTabIdx = tabIdx;
++		m_curSubTabIdx = subTabIdx;
++	}
++
++	internal void OnProductPageClosed(bool regenerateMenu)
++	{
++		if (!m_productPageOpened)
++		{
++			return;
++		}
++		m_productPageOpened = false;
++		if (regenerateMenu)
++		{
++			ReadProducts();
++		}
++		else
++		{
++			m_productMenu.StartReading();
++		}
++	}
++
++    public void HandleAccessibleInput()
++    {
++        switch (m_curState)
++		{
++			case AccessibleState.MAIN_MENU:
++			m_mainMenu.HandleAccessibleInput();
++			break;
++			case AccessibleState.SUB_TAB_MENU:
++			m_subTabMenu.HandleAccessibleInput();
++			break;
++			case AccessibleState.PRODUCT_MENU:
++			m_productMenu.HandleAccessibleInput();
++			break;
++			default:
++			return;
++		}
++    }
++
++    public string GetAccessibleHelp()
++    {
++        throw new NotImplementedException();
++    }
++	#endregion
+ }
 diff --git a/Assembly-CSharp/ShopBrowser.cs b/Assembly-CSharp/ShopBrowser.cs
-index d99ddb4..3f919d1 100644
+index d99ddb4..5d7c7d2 100644
 --- a/Assembly-CSharp/ShopBrowser.cs
 +++ b/Assembly-CSharp/ShopBrowser.cs
-@@ -10,20 +10,19 @@ using Hearthstone.UI;
+@@ -10,6 +10,7 @@ using Hearthstone.UI;
  using Hearthstone.UI.Core;
  using UnityEngine;
  using UnityEngine.Serialization;
 +using Accessibility;
  
--public class ShopBrowser : MonoBehaviour, IPopupRendering
-+public class ShopBrowser : MonoBehaviour, IPopupRendering, AccessibleUI
+ public class ShopBrowser : MonoBehaviour, IPopupRendering
  {
- 	private struct BufferedSection
+@@ -17,13 +18,11 @@ public class ShopBrowser : MonoBehaviour, IPopupRendering
  	{
  		public ShopSection Section
  		{
@@ -93083,435 +93328,6 @@ index d99ddb4..3f919d1 100644
  			m_timeWhenSpinnerWasRequested = Time.realtimeSinceStartup;
  			SendEventUpwardStateAction.SendEventUpward(base.gameObject, "START_LOADING_VISUALS");
  		}
-@@ -707,4 +706,428 @@ public class ShopBrowser : MonoBehaviour, IPopupRendering
- 			coroutine = null;
- 		}
- 	}
-+
-+	#region Accessibility
-+	private enum State
-+	{
-+		LOADING,
-+		MAIN_MENU,
-+		BUY_PACKS_SELECT_FORMAT_MENU,
-+		BUY_PACKS_STANDARD_MENU,
-+		BUY_PACKS_WILD_MENU,
-+		BUY_PRODUCTS_MENU,
-+	}
-+
-+	private State m_curState;
-+
-+	private AccessibleMenu m_accessibleShopMenu;
-+
-+	private AccessibleMenu m_buyPacksSelectFormatMenu;
-+
-+	private AccessibleMenu m_buyPacksMenu;
-+
-+	private List<ShopSlot> m_availablePacks;
-+
-+	private AccessibleMenu m_buyProductsMenu;
-+
-+	private bool m_hasProductPageOpened;
-+
-+	internal void OnShopOpened()
-+	{
-+		if (!AccessibilityUtils.CanSeeShop())
-+		{
-+			return;
-+		}
-+
-+		AccessibilityMgr.ShowUI(this);
-+		AccessibilityMgr.Output(this, LocalizedText.GLOBAL_LOADING);
-+		AccessibilityMgr.Output(this, LocalizedText.GLOBAL_PLEASE_WAIT);
-+		m_curState = State.LOADING;
-+	}
-+
-+	private void ReadShop()
-+	{
-+		var slots = GetAllSlots();
-+		var slotsWhichCanBeBoughtWithGoldOrRunestones = AccessibleShopUtils.FilterSlotsWhichCanBeBoughtWithGoldOrRunestones(slots);
-+
-+		// Create categories for the main items
-+		m_availablePacks = GetCardPackSlots(slotsWhichCanBeBoughtWithGoldOrRunestones);
-+		var availableMiniSets = GetMiniSetSlots(slotsWhichCanBeBoughtWithGoldOrRunestones);
-+		var availableHeroSkins = GetHeroSkinSlots(slotsWhichCanBeBoughtWithGoldOrRunestones);
-+		var availableBundles = GetBundleSlots(slotsWhichCanBeBoughtWithGoldOrRunestones);
-+
-+		// Group everything else together in an "other" category
-+		var availableOthers = slotsWhichCanBeBoughtWithGoldOrRunestones;
-+		availableOthers.RemoveAll(m_availablePacks.Contains);
-+		availableOthers.RemoveAll(availableMiniSets.Contains);
-+		availableOthers.RemoveAll(availableHeroSkins.Contains);
-+		availableOthers.RemoveAll(availableBundles.Contains);
-+
-+		m_accessibleShopMenu = new AccessibleMenu(this, "", () => Shop.Get().Close(true));
-+		m_accessibleShopMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_READ_GOLD), ReadGold);
-+		m_accessibleShopMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_READ_RUNESTONES), ReadRunestones);
-+
-+		if (m_availablePacks.Count > 0)
-+		{
-+			m_accessibleShopMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_BUY_PACKS), BuyPacksSelectFormat);
-+		}
-+
-+		AddBuyProductsOptionIfNecessary(m_accessibleShopMenu, LocalizationKey.UI_SHOP_BUY_MINI_SETS, availableMiniSets);
-+		AddBuyProductsOptionIfNecessary(m_accessibleShopMenu, LocalizationKey.UI_SHOP_BUY_HERO_SKINS, availableHeroSkins);
-+		AddBuyProductsOptionIfNecessary(m_accessibleShopMenu, LocalizationKey.UI_SHOP_BUY_BUNDLES, availableBundles);
-+		AddBuyProductsOptionIfNecessary(m_accessibleShopMenu, LocalizationKey.UI_SHOP_BUY_OTHERS, availableOthers);
-+
-+		AccessibilityMgr.Output(this, GameStrings.Get("GLUE_STORE_HEADLINE"));
-+		ReadShopMainMenu();
-+	}
-+
-+	private void AddBuyProductsOptionIfNecessary(AccessibleMenu shopMenu, LocalizationKey optionKey, List<ShopSlot> slots)
-+	{
-+		if (slots.Count > 0)
-+		{
-+			shopMenu.AddOption(LocalizationUtils.Get(optionKey), () => BuyProducts(slots));
-+		}
-+	}
-+
-+	private void ReadShopMainMenu()
-+	{
-+		m_accessibleShopMenu.StartReading();
-+		m_curState = State.MAIN_MENU;
-+	}
-+
-+	private void BuyPacksSelectFormat()
-+	{
-+		m_buyPacksSelectFormatMenu = new AccessibleMenu(this, "", ReadShopMainMenu);
-+
-+		if (CanBuyStandardPacks())
-+		{
-+			m_buyPacksSelectFormatMenu.AddOption(LocalizationUtils.Get(LocalizationKey.GLOBAL_STANDARD), BuyPacksStandard);
-+		}
-+		if (CanBuyWildPacks())
-+		{
-+			m_buyPacksSelectFormatMenu.AddOption(LocalizationUtils.Get(LocalizationKey.GLOBAL_WILD), BuyPacksWild);
-+		}
-+
-+		ReadBuyPacksSelectFormatMenu();
-+	}
-+
-+	private void ReadBuyPacksSelectFormatMenu()
-+	{
-+		m_buyPacksSelectFormatMenu?.StartReading();
-+		m_curState = State.BUY_PACKS_SELECT_FORMAT_MENU;
-+	}
-+
-+	private void BuyPacksStandard()
-+	{
-+		var standardPacks = GetAvailableStandardPacks();
-+		m_buyPacksMenu = new AccessibleMenu(this, "", ReadBuyPacksSelectFormatMenu);
-+
-+		foreach (var pack in standardPacks)
-+		{
-+			m_buyPacksMenu.AddOption(GetPackName(pack), () => OpenShopSlot(pack), () => ScrollToShopSlot(pack));
-+		}
-+
-+		m_buyPacksMenu.StartReading();
-+		m_curState = State.BUY_PACKS_STANDARD_MENU;
-+	}
-+
-+	private void BuyPacksWild()
-+	{
-+		var wildPacks = GetAvailableWildPacks();
-+		m_buyPacksMenu = new AccessibleMenu(this, "", ReadBuyPacksSelectFormatMenu);
-+
-+		foreach (var pack in wildPacks)
-+		{
-+			m_buyPacksMenu.AddOption(GetPackName(pack), () => OpenShopSlot(pack), () => ScrollToShopSlot(pack));
-+		}
-+
-+		m_buyPacksMenu.StartReading();
-+		m_curState = State.BUY_PACKS_WILD_MENU;
-+	}
-+
-+	private string GetPackName(ShopSlot pack)
-+	{
-+		var packDataModel = GetPackDataModel(pack);
-+		return AccessibleCardUtils.GetCardPackName((int)packDataModel.Type);
-+	}
-+
-+	private List<ShopSlot> GetAvailableStandardPacks()
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var pack in m_availablePacks)
-+		{
-+			if (IsStandardPack(pack))
-+			{
-+				ret.Add(pack);
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private List<ShopSlot> GetAvailableWildPacks()
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var pack in m_availablePacks)
-+		{
-+			if (IsWildPack(pack))
-+			{
-+				ret.Add(pack);
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private bool CanBuyStandardPacks()
-+	{
-+		foreach (var pack in m_availablePacks)
-+		{
-+			if (IsStandardPack(pack))
-+			{
-+				return true;
-+			}
-+		}
-+
-+		return false;
-+	}
-+
-+	private bool CanBuyWildPacks()
-+	{
-+		foreach (var pack in m_availablePacks)
-+		{
-+			if (IsWildPack(pack))
-+			{
-+				return true;
-+			}
-+		}
-+
-+		return false;
-+	}
-+
-+	private bool IsStandardPack(ShopSlot pack)
-+	{
-+		return !IsWildPack(pack);
-+	}
-+
-+	private bool IsWildPack(ShopSlot pack)
-+	{
-+		return GameUtils.IsBoosterRotated(GetPackDataModel(pack).Type, DateTime.UtcNow);
-+	}
-+
-+	private void BuyProducts(List<ShopSlot> products)
-+	{
-+		m_buyProductsMenu = new AccessibleMenu(this, "", ReadShopMainMenu);
-+
-+		foreach (var product in products)
-+		{
-+			m_buyProductsMenu.AddOption(GetProductName(product), () => OpenShopSlot(product), () => ScrollToShopSlot(product));
-+		}
-+
-+		ReadBuyProductsMenu();
-+	}
-+
-+	private void ReadBuyProductsMenu()
-+	{
-+		m_buyProductsMenu.StartReading();
-+		m_curState = State.BUY_PRODUCTS_MENU;
-+	}
-+
-+	private string GetProductName(ShopSlot slot)
-+	{
-+		return slot.BrowserButtonDataModel.DisplayProduct.Name;
-+	}
-+
-+	private void ReadGold()
-+	{
-+		AccessibleShopUtils.ReadGold(this);
-+	}
-+
-+	private void ReadRunestones()
-+	{
-+		AccessibleShopUtils.ReadRunestones(this);
-+	}
-+
-+	private PackDataModel GetPackDataModel(ShopSlot pack)
-+	{
-+		var productDataModel = pack.BrowserButtonDataModel.DisplayProduct;
-+		var rewardItemDataModel = productDataModel.Items[0];
-+		return rewardItemDataModel.Booster;
-+	}
-+
-+	private List<ShopSlot> GetAllSlots()
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var section in m_sections)
-+		{
-+			if (section.isActiveAndEnabled)
-+			{
-+				var slots = section.GetActiveSlots();
-+
-+				foreach (var slot in slots)
-+				{
-+					ret.Add(slot);
-+				}
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private List<ShopSlot> GetCardPackSlots(List<ShopSlot> slots)
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var slot in slots)
-+		{
-+			if (AccessibleShopUtils.IsAvailable(slot) && AccessibleShopUtils.IsCardPackSlot(slot))
-+			{
-+				ret.Add(slot);
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private List<ShopSlot> GetMiniSetSlots(List<ShopSlot> slots)
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var slot in slots)
-+		{
-+			if (AccessibleShopUtils.IsAvailable(slot) && AccessibleShopUtils.IsMiniSetSlot(slot))
-+			{
-+				ret.Add(slot);
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private List<ShopSlot> GetHeroSkinSlots(List<ShopSlot> slots)
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var slot in slots)
-+		{
-+			if (AccessibleShopUtils.IsAvailable(slot) && AccessibleShopUtils.IsHeroSkinSlot(slot))
-+			{
-+				ret.Add(slot);
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private List<ShopSlot> GetBundleSlots(List<ShopSlot> slots)
-+	{
-+		var ret = new List<ShopSlot>();
-+
-+		foreach (var slot in slots)
-+		{
-+			if (AccessibleShopUtils.IsAvailable(slot) && AccessibleShopUtils.IsBundle(slot))
-+			{
-+				ret.Add(slot);
-+			}
-+		}
-+
-+		return ret;
-+	}
-+
-+	private void OpenShopSlot(ShopSlot slot)
-+	{
-+		m_hasProductPageOpened = true;
-+		slot.ClickOpen();
-+	}
-+
-+	private void ScrollToShopSlot(ShopSlot slot)
-+	{
-+		AccessibilityUtils.CenterScrollbarAroundObject(Shop.Get().m_browserScroller, slot.gameObject);
-+	}
-+
-+	internal void OnProductPageClosed(bool goBackToMainMenu)
-+	{
-+		if (!m_hasProductPageOpened)
-+		{
-+			return;
-+		}
-+
-+		m_hasProductPageOpened = false;
-+
-+		if (goBackToMainMenu)
-+		{
-+			ReadShop();
-+			return;
-+		}
-+
-+		if (m_curState == State.BUY_PACKS_STANDARD_MENU || m_curState == State.BUY_PACKS_WILD_MENU)
-+		{
-+			m_buyPacksMenu?.StartReading();
-+		}
-+		else if (m_curState == State.BUY_PRODUCTS_MENU)
-+		{
-+			m_buyProductsMenu?.StartReading();
-+		}
-+	}
-+
-+	internal void OnStorePurchaseAuthClosed(bool purchaseSuccess)
-+	{
-+		Shop.Get()?.ProductPageController.CurrentProductPage?.OnStorePurchaseAuthClosed(purchaseSuccess);
-+	}
-+
-+	public void HandleAccessibleInput()
-+	{
-+		if (m_curState == State.LOADING || m_hasProductPageOpened)
-+		{
-+			return;
-+		}
-+
-+		if (m_curState == State.MAIN_MENU)
-+		{
-+			m_accessibleShopMenu?.HandleAccessibleInput();
-+		}
-+		else if (m_curState == State.BUY_PACKS_SELECT_FORMAT_MENU)
-+		{
-+			m_buyPacksSelectFormatMenu?.HandleAccessibleInput();
-+		}
-+		else if (m_curState == State.BUY_PACKS_STANDARD_MENU || m_curState == State.BUY_PACKS_WILD_MENU)
-+		{
-+			m_buyPacksMenu?.HandleAccessibleInput();
-+		}
-+		else if (m_curState == State.BUY_PRODUCTS_MENU)
-+		{
-+			m_buyProductsMenu?.HandleAccessibleInput();
-+		}
-+	}
-+
-+	public string GetAccessibleHelp()
-+	{
-+		if (m_curState == State.LOADING)
-+		{
-+			return LocalizedText.GLOBAL_LOADING;
-+		}
-+		else if (m_curState == State.MAIN_MENU)
-+		{
-+			return m_accessibleShopMenu?.GetHelp();
-+		}
-+		else if (m_curState == State.BUY_PACKS_SELECT_FORMAT_MENU)
-+		{
-+			return m_buyPacksSelectFormatMenu?.GetHelp();
-+		}
-+		else if (m_curState == State.BUY_PACKS_STANDARD_MENU || m_curState == State.BUY_PACKS_WILD_MENU)
-+		{
-+			return m_buyPacksMenu?.GetHelp();
-+		}
-+		else if (m_curState == State.BUY_PRODUCTS_MENU)
-+		{
-+			return m_buyProductsMenu?.GetHelp();
-+		}
-+
-+		return "";
-+	}
-+
-+	#endregion
- }
 diff --git a/Assembly-CSharp/ShopCardList.cs b/Assembly-CSharp/ShopCardList.cs
 index 8834f6b..3800f94 100644
 --- a/Assembly-CSharp/ShopCardList.cs
@@ -93617,6 +93433,83 @@ index 688958c..ab53ec3 100644
 +		component.GetPegUIElement()?.TriggerRelease();
 +	}
 +	#endregion
+ }
+diff --git a/Assembly-CSharp/ShopTab.cs b/Assembly-CSharp/ShopTab.cs
+index 0f6f173..0c78255 100644
+--- a/Assembly-CSharp/ShopTab.cs
++++ b/Assembly-CSharp/ShopTab.cs
+@@ -23,13 +23,7 @@ public class ShopTab : ShopTabBase
+ 
+ 	protected override void GetTooltipData(out string title, out string body)
+ 	{
+-		title = string.Empty;
+-		body = string.Empty;
+-		if (base.CurrentData != null && base.CurrentData.Locked && (base.CurrentData.LockedReason != 0 || base.CurrentData.LockedReason != IGamemodeAvailabilityService.Status.READY))
+-		{
+-			title = GameStrings.Get("GLUE_STORE_UNAVAILABLE_REASON_TITLE_LOCKED");
+-			body = GameStrings.Get(GetLocStrFromGamemodeStatus(base.CurrentData.LockedReason));
+-		}
++		GetBlockedReasonText(out title, out body);
+ 	}
+ 
+ 	private static string GetLocStrFromGamemodeStatus(IGamemodeAvailabilityService.Status status)
+@@ -47,4 +41,17 @@ public class ShopTab : ShopTabBase
+ 			return "GLUE_STORE_UNAVAILABLE_REASON_UNKNOWN";
+ 		}
+ 	}
++
++	#region Accessibility
++	internal void GetBlockedReasonText(out string title, out string body)
++	{
++		title = string.Empty;
++		body = string.Empty;
++		if (base.CurrentData != null && base.CurrentData.Locked && (base.CurrentData.LockedReason != 0 || base.CurrentData.LockedReason != IGamemodeAvailabilityService.Status.READY))
++		{
++			title = GameStrings.Get("GLUE_STORE_UNAVAILABLE_REASON_TITLE_LOCKED");
++			body = GameStrings.Get(GetLocStrFromGamemodeStatus(base.CurrentData.LockedReason));
++		}
++	}
++	#endregion
+ }
+diff --git a/Assembly-CSharp/ShopTabController.cs b/Assembly-CSharp/ShopTabController.cs
+index 8c90238..b80d4c8 100644
+--- a/Assembly-CSharp/ShopTabController.cs
++++ b/Assembly-CSharp/ShopTabController.cs
+@@ -23,12 +23,12 @@ public class ShopTabController : MonoBehaviour
+ 	[SerializeField]
+ 	private List<AsyncReference> m_tabRefs;
+ 
+-	private List<ShopTab> m_tabs = new List<ShopTab>();
++	internal List<ShopTab> m_tabs = new List<ShopTab>();
+ 
+ 	[SerializeField]
+ 	private List<AsyncReference> m_subTabRefs;
+ 
+-	private List<ShopSubTab> m_subTabs = new List<ShopSubTab>();
++	internal List<ShopSubTab> m_subTabs = new List<ShopSubTab>();
+ 
+ 	private List<TabData> m_tabDataModels = new List<TabData>();
+ 
+@@ -232,7 +232,7 @@ public class ShopTabController : MonoBehaviour
+ 		{
+ 			return;
+ 		}
+-		if (m_tabs[tabIndex].CurrentData.Id == "runestones")
++		if (m_tabs[tabIndex].CurrentData.Id == GetVcTabId())
+ 		{
+ 			m_vcPageTabIndex = tabIndex;
+ 			Shop.Get().ProductPageController.OpenVirtualCurrencyPurchase();
+@@ -540,4 +540,11 @@ public class ShopTabController : MonoBehaviour
+ 			m_vcPageTabIndex = -1;
+ 		}
+ 	}
++
++	#region Accessibility
++	internal static string GetVcTabId()
++	{
++		return "runestones";
++	}
++	#endregion;
  }
 diff --git a/Assembly-CSharp/ShopUtils.cs b/Assembly-CSharp/ShopUtils.cs
 index 882baa4..1dbed82 100644
@@ -94349,7 +94242,7 @@ index 6eb9268..2897a04 100644
  	}
 -}
 diff --git a/Assembly-CSharp/StorePurchaseAuth.cs b/Assembly-CSharp/StorePurchaseAuth.cs
-index 3673a9b..816570c 100644
+index 3673a9b..4a7a854 100644
 --- a/Assembly-CSharp/StorePurchaseAuth.cs
 +++ b/Assembly-CSharp/StorePurchaseAuth.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
@@ -94456,7 +94349,7 @@ index 3673a9b..816570c 100644
 +		}
 +
 +		AccessibilityMgr.HideUI(this);
-+		Shop.Get()?.m_browser?.OnStorePurchaseAuthClosed(m_showingSuccess);
++		Shop.Get()?.ProductPageController.CurrentProductPage.OnStorePurchaseAuthClosed(m_showingSuccess);
 +
 +		// Unblock interface since we're shortcutting a lot of stuff
 +		StoreManager.Get()?.SetCanTapOutConfirmationUI(closeConfirmationUI: true);
