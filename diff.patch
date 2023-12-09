@@ -64031,10 +64031,25 @@ index 1e2da78..d4613a7 100644
  		if (m_isInBattlegrounds)
  		{
 diff --git a/Assembly-CSharp/Entity.cs b/Assembly-CSharp/Entity.cs
-index 23792c6..19f6b86 100644
+index 23792c6..c96ce81 100644
 --- a/Assembly-CSharp/Entity.cs
 +++ b/Assembly-CSharp/Entity.cs
-@@ -801,8 +801,8 @@ public class Entity : EntityBase
+@@ -265,8 +265,14 @@ public class Entity : EntityBase
+ 		}, fromShowEntity: true);
+ 	}
+ 
++	#region Accessibility
++	private EntityDef m_entityDefBeforeHideEntity;
++	#endregion
++
+ 	public void OnHideEntity(Network.HistHideEntity hideEntity)
+ 	{
++		m_entityDefBeforeHideEntity = GetEntityDef();
++
+ 		m_dynamicEntityDef = null;
+ 		m_staticEntityDef = new EntityDef();
+ 		SetCardId(null);
+@@ -801,8 +807,8 @@ public class Entity : EntityBase
  				{
  					if (parentEntity.GetZone() != TAG_ZONE.PLAY)
  					{
@@ -64045,7 +64060,7 @@ index 23792c6..19f6b86 100644
  				}
  				else
  				{
-@@ -882,9 +882,9 @@ public class Entity : EntityBase
+@@ -882,9 +888,9 @@ public class Entity : EntityBase
  			{
  				break;
  			}
@@ -64058,7 +64073,7 @@ index 23792c6..19f6b86 100644
  			{
  				SpellUtils.ActivateBirthIfNecessary(actor3.GetLoadedSpell(SpellType.HERO_BUDDY_SINGLE));
  				HeroBuddyWidgetCoinBased component2 = actor3.GetComponent<HeroBuddyWidgetCoinBased>();
-@@ -893,18 +893,18 @@ public class Entity : EntityBase
+@@ -893,18 +899,18 @@ public class Entity : EntityBase
  					component2.EnterStage2();
  					heroBuddyCard.GetEntity()?.SetTagAndHandleChange(GAME_TAG.EXHAUSTED, 0);
  				}
@@ -64087,7 +64102,7 @@ index 23792c6..19f6b86 100644
  			break;
  		}
  		case 2713:
-@@ -1942,6 +1942,22 @@ public class Entity : EntityBase
+@@ -1942,6 +1948,22 @@ public class Entity : EntityBase
  		return entity;
  	}
  
@@ -64095,7 +64110,7 @@ index 23792c6..19f6b86 100644
 +	{
 +		Entity entity = new Entity();
 +		entity.m_duplicateForHistory = true;
-+		entity.m_staticEntityDef = GetEntityDef();
++		entity.m_staticEntityDef = GetEntityDefWhileCloningForAccessibility();
 +		entity.m_dynamicEntityDef = null;
 +		entity.m_card = m_card;
 +		entity.m_cardId = base.m_cardId;
@@ -64110,7 +64125,7 @@ index 23792c6..19f6b86 100644
  	public bool IsHistoryDupe()
  	{
  		return m_duplicateForHistory;
-@@ -2599,9 +2615,9 @@ public class Entity : EntityBase
+@@ -2599,9 +2621,9 @@ public class Entity : EntityBase
  				return SpellType.TRIGGER_UPBEAT;
  			}
  			if (gameState.IsUsingFastActorTriggers() && !IsHeroPower())
@@ -64123,6 +64138,25 @@ index 23792c6..19f6b86 100644
  		}
  		return SpellType.TRIGGER;
  	}
+@@ -2804,4 +2826,18 @@ public class Entity : EntityBase
+ 		}
+ 		return false;
+ 	}
++
++	#region Accessibility
++	private EntityDef GetEntityDefWhileCloningForAccessibility()
++	{
++		// In patch 28.2, It is possible for an entity to be both shown and hidden as part of the same power task list. Since we only snapshot when a ptl ends, we would normally miss the ShowEntity. Therefore, cache the old EntityDef during HideEntity and return it if the current one is unsuitable.
++
++		EntityDef entityDef = GetEntityDef();
++		if (!entityDef.HasValidDisplayName() && m_entityDefBeforeHideEntity != null)
++		{
++			return m_entityDefBeforeHideEntity;
++		}
++		return entityDef;
++	}
++	#endregion
+ }
 diff --git a/Assembly-CSharp/EntityBase.cs b/Assembly-CSharp/EntityBase.cs
 index 9a4caaf..4c81f89 100644
 --- a/Assembly-CSharp/EntityBase.cs
