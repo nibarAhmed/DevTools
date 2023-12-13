@@ -24882,10 +24882,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..65830a0
+index 0000000..fe66559
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1159 @@
+@@ -0,0 +1,1160 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25719,6 +25719,7 @@ index 0000000..65830a0
 +    // Pack opening screen
 +    public static LocalizationKey SCREEN_PACK_OPENING_OPEN_CARDS_HELP = CreateKey("ACCESSIBILITY_SCREEN_PACK_OPENING_OPEN_CARDS_HELP");
 +    public static LocalizationKey SCREEN_PACK_OPENING_MASS_PACK_OPENING_HELP = CreateKey("ACCESSIBILITY_SCREEN_PACK_OPENING_MASS_PACK_OPENING_HELP");
++    public static LocalizationKey SCREEN_PACK_OPENING_CATCHUP_PACK_OPENING_HELP = CreateKey("ACCESSIBILITY_SCREEN_PACK_OPENING_CATCHUP_PACK_OPENING_HELP");
 +    public static LocalizationKey SCREEN_PACK_OPENING_NO_CARD_PACKS = CreateKey("ACCESSIBILITY_SCREEN_PACK_OPENING_NO_CARD_PACKS");
 +
 +    // Mass pack opening
@@ -26340,10 +26341,10 @@ index 0000000..9c8179d
 +
 diff --git a/Assembly-CSharp/Accessibility/PackOpening/AccessiblePackOpeningCard.cs b/Assembly-CSharp/Accessibility/PackOpening/AccessiblePackOpeningCard.cs
 new file mode 100644
-index 0000000..6833ca0
+index 0000000..4685124
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/PackOpening/AccessiblePackOpeningCard.cs
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,73 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -26353,14 +26354,21 @@ index 0000000..6833ca0
 +    {
 +        private readonly PackOpeningCard m_card;
 +
++        private readonly NetCache.BoosterCard m_boosterCard;
++
 +        internal AccessiblePackOpeningCard(AccessibleComponent parent, PackOpeningCard card) : base(parent)
 +        {
 +            m_card = card;
 +        }
 +
++        internal AccessiblePackOpeningCard(AccessibleComponent parent, NetCache.BoosterCard boosterCard) : base(parent)
++        {
++            m_boosterCard = boosterCard;
++        }
++
 +        internal override List<string> GetLines()
 +        {
-+            if (m_card.IsRevealed())
++            if (m_boosterCard != null || (m_card?.IsRevealed() ?? false))
 +            {
 +                return GetLinesForRevealedCard();
 +            }
@@ -26373,10 +26381,11 @@ index 0000000..6833ca0
 +        private List<string> GetLinesForRevealedCard()
 +        {
 +            var ret = new List<string>();
++            var entityDef = GetEntityDef();
++            var premium = GetPremium();
++            ret.AddRange(AccessibleCardUtils.GetLinesForNormalEntityDef(entityDef, premium, PackOpeningCard.GetClassName(entityDef)));
 +
-+            ret.AddRange(AccessibleCardUtils.GetLinesForNormalEntityDef(m_card.GetEntityDef(), m_card.m_premium, m_card.GetClassName()));
-+
-+            if (m_card.m_isNew)
++            if (m_card != null && m_card.m_isNew)
 +            {
 +                ret.Add(LocalizedText.COLLECTION_CARD_NEW);
 +            }
@@ -26391,6 +26400,16 @@ index 0000000..6833ca0
 +            ret.Add(LocalizationUtils.Get(LocalizationKey.UI_REWARD_TYPE_ONE_CARD));
 +
 +            return ret;
++        }
++
++        private EntityDef GetEntityDef()
++        {
++            return m_card != null ? m_card.GetEntityDef() : DefLoader.Get().GetEntityDef(m_boosterCard.Def.Name);
++        }
++
++        private TAG_PREMIUM GetPremium()
++        {
++            return m_card != null ? m_card.GetPremium() : m_boosterCard.Def.Premium;
 +        }
 +
 +        public PackOpeningCard GetPackOpeningCard()
@@ -85616,7 +85635,7 @@ index 6744698..9d6a981 100644
 +
  }
 diff --git a/Assembly-CSharp/PackOpening.cs b/Assembly-CSharp/PackOpening.cs
-index 032d8d4..6a5ef91 100644
+index 032d8d4..7c296f8 100644
 --- a/Assembly-CSharp/PackOpening.cs
 +++ b/Assembly-CSharp/PackOpening.cs
 @@ -10,8 +10,9 @@ using Hearthstone.Progression;
@@ -85966,7 +85985,7 @@ index 032d8d4..6a5ef91 100644
  		else if (m_isAutoOpenPackMode)
  		{
  			SpaceToHoover(packToOpen);
-@@ -2393,4 +2414,183 @@ public class PackOpening : MonoBehaviour
+@@ -2393,4 +2414,184 @@ public class PackOpening : MonoBehaviour
  	{
  		GameSaveDataManager.Get().SaveSubkey(new GameSaveDataManager.SubkeySaveRequest(GameSaveKeyId.PLAYER_FLAGS, GameSaveKeySubkeyId.PLAYER_FLAGS_HAS_SEEN_MASS_PACK_OPENING_TOOLTIP, 1L));
  	}
@@ -85989,6 +86008,7 @@ index 032d8d4..6a5ef91 100644
 +		if (GetNumUnopenedPacks() == 0)
 +        {
 +			GoBack();
++			return;
 +        }
 +
 +		if (m_accessiblePacks != null && m_accessiblePacks.Count == GetNumUnopenedPacks())
@@ -86174,7 +86194,7 @@ index b9b0c5f..748eac9 100644
  		{
  			if (packs <= 0)
 diff --git a/Assembly-CSharp/PackOpeningCard.cs b/Assembly-CSharp/PackOpeningCard.cs
-index a46c028..95c8dd1 100644
+index a46c028..820e0f3 100644
 --- a/Assembly-CSharp/PackOpeningCard.cs
 +++ b/Assembly-CSharp/PackOpeningCard.cs
 @@ -39,13 +39,13 @@ public class PackOpeningCard : MonoBehaviour
@@ -86241,17 +86261,62 @@ index a46c028..95c8dd1 100644
  		if (component == null)
  		{
  			Debug.LogError($"PackOpeningCard.OnActorLoaded() - ERROR actor \"{base.name}\" has no Actor component");
-@@ -881,7 +881,7 @@ public class PackOpeningCard : MonoBehaviour
+@@ -860,7 +860,7 @@ public class PackOpeningCard : MonoBehaviour
+ 
+ 	private void ShowClassName()
+ 	{
+-		string className = GetClassName();
++		string className = GetClassName(m_entityDef);
+ 		UberText[] componentsInChildren = m_ClassNameSpell.GetComponentsInChildren<UberText>(includeInactive: true);
+ 		foreach (UberText uberText in componentsInChildren)
+ 		{
+@@ -881,12 +881,12 @@ public class PackOpeningCard : MonoBehaviour
  		}
  	}
  
 -	private string GetClassName()
-+	internal string GetClassName()
++	internal static string GetClassName(EntityDef entityDef)
  	{
- 		TAG_CLASS @class = m_entityDef.GetClass();
- 		if (m_entityDef.IsMultiClass())
+-		TAG_CLASS @class = m_entityDef.GetClass();
+-		if (m_entityDef.IsMultiClass())
++		TAG_CLASS @class = entityDef.GetClass();
++		if (entityDef.IsMultiClass())
+ 		{
+-			return GetFamilyClassNames();
++			return GetFamilyClassNames(entityDef);
+ 		}
+ 		if (@class == TAG_CLASS.NEUTRAL)
+ 		{
+@@ -895,22 +895,22 @@ public class PackOpeningCard : MonoBehaviour
+ 		return GameStrings.GetClassName(@class);
+ 	}
+ 
+-	private string GetFamilyClassNames()
++	private static string GetFamilyClassNames(EntityDef entityDef)
+ 	{
+-		if (m_entityDef.HasTag(GAME_TAG.GRIMY_GOONS))
++		if (entityDef.HasTag(GAME_TAG.GRIMY_GOONS))
+ 		{
+ 			return GameStrings.Get("GLUE_GOONS_CLASS_NAMES");
+ 		}
+-		if (m_entityDef.HasTag(GAME_TAG.JADE_LOTUS))
++		if (entityDef.HasTag(GAME_TAG.JADE_LOTUS))
+ 		{
+ 			return GameStrings.Get("GLUE_LOTUS_CLASS_NAMES");
+ 		}
+-		if (m_entityDef.HasTag(GAME_TAG.KABAL))
++		if (entityDef.HasTag(GAME_TAG.KABAL))
+ 		{
+ 			return GameStrings.Get("GLUE_KABAL_CLASS_NAMES");
+ 		}
+ 		List<TAG_CLASS> list = new List<TAG_CLASS>();
+-		m_entityDef.GetClasses(list);
++		entityDef.GetClasses(list);
+ 		if (list.Count() == 10)
+ 		{
+ 			return GameStrings.Get("GLUE_PACK_OPENING_ALL_CLASSES");
 diff --git a/Assembly-CSharp/PackOpeningDirector.cs b/Assembly-CSharp/PackOpeningDirector.cs
-index 8b508d5..6ada18c 100644
+index 8b508d5..a252de1 100644
 --- a/Assembly-CSharp/PackOpeningDirector.cs
 +++ b/Assembly-CSharp/PackOpeningDirector.cs
 @@ -13,9 +13,10 @@ using PegasusLettuce;
@@ -86309,7 +86374,16 @@ index 8b508d5..6ada18c 100644
  		else if (m_useCatchupPackOpeningFlow)
  		{
  			cards.Sort(delegate(NetCache.BoosterCard lhs, NetCache.BoosterCard rhs)
-@@ -291,11 +293,12 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -247,6 +249,8 @@ public class PackOpeningDirector : MonoBehaviour
+ 			SetupCatchupPackCardsFalling(cards);
+ 			SetupCatchupPackCarousel(cards);
+ 			SetupCatchupPackExpansionCollectionStats(cards);
++
++			m_sortedCatchupCards = cards;
+ 		}
+ 	}
+ 
+@@ -291,11 +295,12 @@ public class PackOpeningDirector : MonoBehaviour
  			}
  			else
  			{
@@ -86323,7 +86397,7 @@ index 8b508d5..6ada18c 100644
  	}
  
  	public void ForceRevealRandomCard()
-@@ -334,11 +337,11 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -334,11 +339,11 @@ public class PackOpeningDirector : MonoBehaviour
  		m_spellPlayMaker = m_activePackFxSpell.GetPlayMaker();
  		if (m_useMassPackOpeningFlow)
  		{
@@ -86340,7 +86414,7 @@ index 8b508d5..6ada18c 100644
  		}
  		else
  		{
-@@ -356,8 +359,13 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -356,8 +361,13 @@ public class PackOpeningDirector : MonoBehaviour
  			CreateSkipHelper.QueueSkipScreenAtBox();
  		}
  		float timeTillAnimationStart = Time.realtimeSinceStartup - m_initializePackOpeningAnimationStartTime;
@@ -86355,23 +86429,27 @@ index 8b508d5..6ada18c 100644
  		m_activePackFxSpell.ActivateState(SpellStateType.ACTION);
  		void Callback(AssetReference assetRef, GameObject go, object callbackData)
  		{
-@@ -389,10 +397,11 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -389,11 +399,16 @@ public class PackOpeningDirector : MonoBehaviour
  		}
  		else
  		{
 -			m_hiddenCards.SetInputEnabled(enable: true);
 -			m_hiddenCards.EnableReveal();
 -			AttachCardsToCarousel();
--		}
 +		m_hiddenCards.SetInputEnabled(enable: true);
 +		m_hiddenCards.EnableReveal();
 +		AttachCardsToCarousel();
-+		ReadCards();
-+	}
++
++		if (!m_useCatchupPackOpeningFlow)
++		{
++			ReadCards();
+ 		}
  	}
++	}
  
  	private IEnumerator DoMassPackOpeningInitialAnimations()
-@@ -405,6 +414,7 @@ public class PackOpeningDirector : MonoBehaviour
+ 	{
+@@ -405,6 +420,7 @@ public class PackOpeningDirector : MonoBehaviour
  				yield return null;
  			}
  			m_massPackOpeningHighlights.HideCardExplosionAnimation();
@@ -86379,7 +86457,7 @@ index 8b508d5..6ada18c 100644
  			ShowNextSetOfMassPackOpeningHighlights();
  		}
  	}
-@@ -565,6 +575,8 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -565,6 +581,8 @@ public class PackOpeningDirector : MonoBehaviour
  	private void OnDoneButtonShown(Spell spell, object userData)
  	{
  		m_doneButton.AddEventListener(UIEventType.RELEASE, OnDoneButtonPressed);
@@ -86388,7 +86466,7 @@ index 8b508d5..6ada18c 100644
  	}
  
  	private void HideDoneButton()
-@@ -575,7 +587,7 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -575,7 +593,7 @@ public class PackOpeningDirector : MonoBehaviour
  		Spell component = m_doneButton.m_button.GetComponent<Spell>();
  		if (!m_useMassPackOpeningFlow)
  		{
@@ -86397,7 +86475,7 @@ index 8b508d5..6ada18c 100644
  		}
  		component.ActivateState(SpellStateType.DEATH);
  	}
-@@ -591,8 +603,8 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -591,8 +609,8 @@ public class PackOpeningDirector : MonoBehaviour
  		HideKeywordTooltips();
  		if (!m_useMassPackOpeningFlow)
  		{
@@ -86408,7 +86486,7 @@ index 8b508d5..6ada18c 100644
  	}
  
  	private void HideKeywordTooltips()
-@@ -615,7 +627,7 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -615,7 +633,7 @@ public class PackOpeningDirector : MonoBehaviour
  		}
  		else
  		{
@@ -86417,7 +86495,7 @@ index 8b508d5..6ada18c 100644
  		}
  		TooltipPanelManager.Get().HideKeywordHelp();
  	}
-@@ -628,7 +640,7 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -628,7 +646,7 @@ public class PackOpeningDirector : MonoBehaviour
  	private void OnCardRevealed(object userData, EventArgs eventArgs)
  	{
  		PackOpeningCard packOpeningCard = (PackOpeningCard)userData;
@@ -86426,7 +86504,7 @@ index 8b508d5..6ada18c 100644
  		{
  			if (packOpeningCard.GetActor().GetPremium() == TAG_PREMIUM.GOLDEN)
  			{
-@@ -639,6 +651,11 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -639,6 +657,11 @@ public class PackOpeningDirector : MonoBehaviour
  				BnetPresenceMgr.Get().SetGameField(4u, packOpeningCard.GetCardId() + ",0");
  			}
  		}
@@ -86438,7 +86516,7 @@ index 8b508d5..6ada18c 100644
  		m_cardsPendingReveal--;
  		if (m_cardsPendingReveal > 0)
  		{
-@@ -649,6 +666,8 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -649,6 +672,8 @@ public class PackOpeningDirector : MonoBehaviour
  			if (m_massPackOpeningHighlights != null && m_massPackOpeningHiddenCards.AreAllCardsRevealed())
  			{
  				m_massPackOpeningHighlights.ShowContinueButton(show: true);
@@ -86447,7 +86525,7 @@ index 8b508d5..6ada18c 100644
  			}
  		}
  		else
-@@ -707,6 +726,8 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -707,6 +732,8 @@ public class PackOpeningDirector : MonoBehaviour
  		m_cardsPendingReveal = 5;
  		m_massPackOpeningHiddenCards.SetInputEnabled(enable: true);
  		m_massPackOpeningHiddenCards.EnableReveal();
@@ -86456,7 +86534,7 @@ index 8b508d5..6ada18c 100644
  	}
  
  	public void TriggerCardFlyIn()
-@@ -773,6 +794,7 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -773,6 +800,7 @@ public class PackOpeningDirector : MonoBehaviour
  	{
  		TooltipPanelManager.Get().HideTooltipPanels();
  		m_massPackOpeningHiddenCards.ResetCards();
@@ -86464,7 +86542,7 @@ index 8b508d5..6ada18c 100644
  		ShowNextSetOfMassPackOpeningHighlights();
  	}
  
-@@ -805,6 +827,7 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -805,6 +833,7 @@ public class PackOpeningDirector : MonoBehaviour
  				m_massPackOpeningSummaryWidget.BindDataModel(dataModel);
  			}
  			m_massPackOpeningSummaryWidget.Show();
@@ -86472,7 +86550,7 @@ index 8b508d5..6ada18c 100644
  		}
  	}
  
-@@ -875,6 +898,7 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -875,6 +904,7 @@ public class PackOpeningDirector : MonoBehaviour
  		else
  		{
  			m_massPackOpeningSummaryWidget.Hide();
@@ -86480,7 +86558,24 @@ index 8b508d5..6ada18c 100644
  			FinishMassPackOpen();
  		}
  	}
-@@ -1262,4 +1286,123 @@ public class PackOpeningDirector : MonoBehaviour
+@@ -1028,6 +1058,8 @@ public class PackOpeningDirector : MonoBehaviour
+ 				ApplySettingsToRenderers(m_catchupPackPileWidgetComponent.TitleBanner.transform, GameLayer.Default, m_catchupPackCardPileCustomPass.renderLayerMaskOverride);
+ 			}
+ 		}
++
++		ReadCards();
+ 	}
+ 
+ 	private void ApplySettingsToRenderers(Transform objectRoot, GameLayer layer, uint renderingLayerMask)
+@@ -1226,6 +1258,7 @@ public class PackOpeningDirector : MonoBehaviour
+ 
+ 	public void FinishCatchupPackOpen()
+ 	{
++		AccessibilityMgr.HideUI(this);
+ 		if (m_catchupPackCardPileCustomPass != null)
+ 		{
+ 			m_catchupPackCardPileCustomPass.Unschedule();
+@@ -1262,4 +1295,144 @@ public class PackOpeningDirector : MonoBehaviour
  			m_Carousel = null;
  		}
  	}
@@ -86491,15 +86586,28 @@ index 8b508d5..6ada18c 100644
 +
 +	private bool m_hasReadMassOpeningIntro = false;
 +
++	private List<NetCache.BoosterCard> m_sortedCatchupCards;
++
 +	private void ReadCards()
 +    {
 +		AccessibilityMgr.ShowUI(this);
 +
 +		var accessiblePackOpeningCards = new List<AccessiblePackOpeningCard>();
-+		foreach(var card in DeterminAppropriateHiddenCards().m_cards)
-+        {
-+			accessiblePackOpeningCards.Add(new AccessiblePackOpeningCard(this, card));
-+        }
++
++		if (m_useCatchupPackOpeningFlow)
++		{
++			foreach (var boosterCard in m_sortedCatchupCards)
++			{
++				accessiblePackOpeningCards.Add(new AccessiblePackOpeningCard(this, boosterCard));
++			}
++		}
++		else
++		{
++			foreach(var card in DeterminAppropriateHiddenCards().m_cards)
++			{
++				accessiblePackOpeningCards.Add(new AccessiblePackOpeningCard(this, card));
++			}
++		}
 +
 +		m_accessiblePackOpeningCards = new AccessibleListOfItems<AccessiblePackOpeningCard>(this, accessiblePackOpeningCards);
 +
@@ -86523,7 +86631,11 @@ index 8b508d5..6ada18c 100644
 +    {
 +		if (AccessibleKey.CONFIRM.IsPressed())
 +        {
-+			if (m_doneButtonShown)
++			if (m_useCatchupPackOpeningFlow)
++			{
++				m_catchupPackPileWidgetComponent.TriggerDoneButtonPressed();
++			}
++			else if (m_doneButtonShown)
 +            {
 +				m_doneButton.TriggerRelease();
 +            }
@@ -86572,7 +86684,11 @@ index 8b508d5..6ada18c 100644
 +
 +    public string GetAccessibleHelp()
 +    {
-+		if (m_doneButtonShown || IsMassPackOpeningHighlightsContinueButtonShowing())
++		if (m_useCatchupPackOpeningFlow)
++		{
++			return LocalizationUtils.Format(LocalizationKey.SCREEN_PACK_OPENING_CATCHUP_PACK_OPENING_HELP, AccessibleKey.CONFIRM);
++		}
++		else if (m_doneButtonShown || IsMassPackOpeningHighlightsContinueButtonShowing())
 +        {
 +			return AccessibleSpeech.PRESS_ENTER_TO_CONTINUE;
 +        }
