@@ -1,3 +1,12 @@
+### 2023-12-24
+
+- Updated HearthstoneAccess to support the new player experience (contributed by Endefx)
+- Added support for the new catchup packs (contributed by Endefx)
+- Fixed an issue that prevented players from entering the arena for the first time (contributed by Endefx)
+- Added partial support for the tavern brawl mode (contributed by Endefx)
+
+Known issue: HearthstoneAccess may lock up just after completing the apprenticeship. Restart the client to resolve this.
+
 ### 2023-12-09
 
 - Updated the shop implementation for Hearthstone 28.2. Note that the shop layout has been completely redesigned, and now reflects the tabbed structure shown on- screen. (contributed by Endefx)

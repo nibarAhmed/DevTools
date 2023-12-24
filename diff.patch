@@ -1307,10 +1307,10 @@ index 0000000..48f7eac
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibilityUtils.cs b/Assembly-CSharp/Accessibility/AccessibilityUtils.cs
 new file mode 100644
-index 0000000..667696c
+index 0000000..8851cfe
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibilityUtils.cs
-@@ -0,0 +1,491 @@
+@@ -0,0 +1,496 @@
 +﻿using Assets;
 +using Hearthstone.UI;
 +using System;
@@ -1436,6 +1436,11 @@ index 0000000..667696c
 +
 +            return AchieveManager.Get().HasUnlockedFeature(Achieve.Unlocks.VANILLA_HEROES);
 +            */
++        }
++
++        internal static bool CanPlayTavernBrawl()
++        {
++            return TavernBrawlManager.Get().GetMission(PegasusShared.BrawlType.BRAWL_TYPE_TAVERN_BRAWL)?.brawlMode != PegasusShared.TavernBrawlMode.TB_MODE_HEROIC;
 +        }
 +
 +        public static void PrintStackTrace()
@@ -3689,10 +3694,10 @@ index 0000000..34c93b1
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameModeScene.cs b/Assembly-CSharp/Accessibility/AccessibleGameModeScene.cs
 new file mode 100644
-index 0000000..5131daf
+index 0000000..529f312
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameModeScene.cs
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,179 @@
 +﻿using Hearthstone.DataModels;
 +using Hearthstone.UI;
 +using System;
@@ -3735,11 +3740,8 @@ index 0000000..5131daf
 +        private void SetupMainMenu()
 +        {
 +            m_mainMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.GLOBAL_CHOOSE_MODE), OnClickBackButton);
-+            if (GameModeUtils.HasUnlockedAllDefaultHeroes())
-+            {
-+                m_mainMenu.AddOption(GameStrings.Get("GLUE_RECONNECT_GAME_TYPE_ARENA"), OnClickArena);
-+                m_mainMenu.AddOption(GameStrings.Get("GLUE_PVPDR"), OnClickDuels);
-+            }
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_RECONNECT_GAME_TYPE_ARENA"), OnClickArena);
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_PVPDR"), OnClickDuels);
 +            m_mainMenu.AddOption(GameStrings.Get("GLUE_ADVENTURE"), OnClickSoloAdventures);
 +            m_mainMenu.AddOption(LocalizedText.SCREEN_GO_BACK, OnClickBackButton);
 +
@@ -3761,6 +3763,11 @@ index 0000000..5131daf
 +            }
 +
 +            GameModeDisplay.Get().SelectMode(soloAdventuresButton);
++            if (!GameModeDisplay.Get().CanEnterMode(out var reason, out var unused))
++            {
++                AccessibilityMgr.Output(this, reason);
++                return;
++            }
 +            GameModeDisplay.Get().m_playButton.TriggerRelease();
 +        }
 +
@@ -3774,6 +3781,11 @@ index 0000000..5131daf
 +            }
 +
 +            GameModeDisplay.Get().SelectMode(arenaButton);
++            if (!GameModeDisplay.Get().CanEnterMode(out var reason, out var unused))
++            {
++                AccessibilityMgr.Output(this, reason);
++                return;
++            }
 +            GameModeDisplay.Get().m_playButton.TriggerRelease();
 +        }
 +
@@ -3787,6 +3799,11 @@ index 0000000..5131daf
 +            }
 +
 +            GameModeDisplay.Get().SelectMode(duelsButton);
++            if (!GameModeDisplay.Get().CanEnterMode(out var reason, out var unused))
++            {
++                AccessibilityMgr.Output(this, reason);
++                return;
++            }
 +            GameModeDisplay.Get().m_playButton.TriggerRelease();
 +        }
 +
@@ -7344,10 +7361,10 @@ index 0000000..4d6a89d
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHub.cs b/Assembly-CSharp/Accessibility/AccessibleHub.cs
 new file mode 100644
-index 0000000..04e5d2c
+index 0000000..a48980d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHub.cs
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,296 @@
 +﻿using Hearthstone.Progression;
 +using PegasusShared;
 +using System;
@@ -7386,20 +7403,34 @@ index 0000000..04e5d2c
 +        private void SetupMainMenu()
 +        {
 +            m_mainMenu = new AccessibleMenu(this, LocalizedText.HUB_MAIN_MENU_TITLE, null);
++            var box = Box.Get();
 +
-+            if (AccessibilityUtils.CanPlayPvP())
-+			{
-+        m_mainMenu.AddOption(AccessibleKey.HUB_RANKED, LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_RANKED), OnPlayRanked);
-+        m_mainMenu.AddOption(AccessibleKey.HUB_CASUAL, LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_CASUAL), PlayCasual);
-+      }
++            if (box.m_PlayButton.IsEnabled())
++            {
++                if (!GameUtils.HasCompletedApprentice())
++                {
++                    m_mainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_HEARTHSTONE), PlayCasual);
++                }
++                else
++                {
++                    m_mainMenu.AddOption(AccessibleKey.HUB_RANKED, LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_RANKED), OnPlayRanked);
++                    m_mainMenu.AddOption(AccessibleKey.HUB_CASUAL, LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_PLAY_CASUAL), PlayCasual);
++                }
++            }
 +
-+            m_mainMenu.AddOption(AccessibleKey.HUB_MODES, LocalizedText.HUB_GAME_MODES_OPTION, OnClickModes);
-+            m_mainMenu.AddOption(AccessibleKey.HUB_BATTLEGROUNDS, LocalizedText.HUB_BATTLEGROUNDS_OPTION, OnClickBattlegrounds);
-+            m_mainMenu.AddOption(AccessibleKey.HUB_MY_COLLECTION, LocalizedText.HUB_MY_COLLECTION_OPTION, OnClickMyCollection);
-+            m_mainMenu.AddOption(AccessibleKey.HUB_OPEN_PACKS, $"{LocalizationUtils.Get(LocalizationKey.GLOBAL_OPEN_PACKS)} {Box.Get().m_OpenPacksButton.m_count.Text}", OnClickOpenPacks);
++            if (box.m_GameModesButton.IsEnabled())
++                m_mainMenu.AddOption(AccessibleKey.HUB_MODES, LocalizedText.HUB_GAME_MODES_OPTION, OnClickModes);
++            if (box.m_BattleGroundsButton.IsEnabled())
++                m_mainMenu.AddOption(AccessibleKey.HUB_BATTLEGROUNDS, LocalizedText.HUB_BATTLEGROUNDS_OPTION, OnClickBattlegrounds);
++            if (box.m_TavernBrawlButton.IsEnabled())
++                m_mainMenu.AddOption(LocalizedText.HUB_TAVERN_BRAWL_OPTION, OnClickTavernBrawl);
++            if (box.m_CollectionButton.IsEnabled())
++                m_mainMenu.AddOption(AccessibleKey.HUB_MY_COLLECTION, LocalizedText.HUB_MY_COLLECTION_OPTION, OnClickMyCollection);
++            if (box.m_OpenPacksButton.IsEnabled())
++                m_mainMenu.AddOption(AccessibleKey.HUB_OPEN_PACKS, $"{LocalizationUtils.Get(LocalizationKey.GLOBAL_OPEN_PACKS)} {Box.Get().m_OpenPacksButton.m_count.Text}", OnClickOpenPacks);
 +			m_mainMenu.AddOption(AccessibleKey.HUB_JOURNAL, LocalizationUtils.Get(LocalizationKey.GLOBAL_JOURNAL), OnClickJournal);
 +
-+            if (AccessibilityUtils.CanSeeShop())
++            if (AccessibilityUtils.CanSeeShop() && box.m_StoreButton.IsEnabled())
 +			{
 +				m_mainMenu.AddOption(AccessibleKey.HUB_SHOP, LocalizationUtils.Get(LocalizationKey.GLOBAL_SHOP), OnClickShop);
 +			}
@@ -7445,6 +7476,16 @@ index 0000000..04e5d2c
 +        private void OnClickBattlegrounds()
 +        {
 +            Box.Get().m_BattleGroundsButton.TriggerRelease();
++        }
++
++        private void OnClickTavernBrawl()
++        {
++            if (!AccessibilityUtils.CanPlayTavernBrawl())
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.HUB_TAVERN_BRAWL_INACCESSIBLE));
++                return;
++            }
++            Box.Get().m_TavernBrawlButton.TriggerRelease();
 +        }
 +
 +        private void OnClickMyCollection()
@@ -7610,6 +7651,7 @@ index 0000000..04e5d2c
 +        {
 +            if (m_curState == State.MAIN_MENU)
 +            {
++                SetupMainMenu(); // Incase we're returning from the journal and box railroading was updated.
 +                m_mainMenu?.StartReading();
 +            }
 +            else if (m_curState == State.PLAY_RANKED_MENU_CHOOSE_FORMAT)
@@ -10408,10 +10450,10 @@ index 0000000..d81874c
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleJournal.cs b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
 new file mode 100644
-index 0000000..25667c4
+index 0000000..c463868
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
-@@ -0,0 +1,1016 @@
+@@ -0,0 +1,1177 @@
 +﻿using System;
 +using System.Collections;
 +using System.Collections.Generic;
@@ -10435,6 +10477,8 @@ index 0000000..25667c4
 +            REWARDS_TRACK_MENU,
 +            CLAIMING_REWARD,
 +            CHOOSING_REWARD,
++            BROWSING_CHOOSE_ONE_DECK_REWARD,
++            CONFIRMING_DECK_CHOICE,
 +            ACHIEVEMENT_CATEGORY_MENU,
 +            ACHIEVEMENT_SUBCATEGORY_MENU,
 +            ACHIEVEMENT_LIST,
@@ -10446,7 +10490,7 @@ index 0000000..25667c4
 +            EVENT_QUESTS,
 +            CLAIMING_EVENT_REWARD
 +        };
-+private int prevPage=-1;
++        private int prevPage = -1;
 +        private State m_curState = State.LOADING;
 +        private Widget m_JournalWidget;
 +
@@ -10466,11 +10510,12 @@ index 0000000..25667c4
 +        private AccessibleMenu m_achievementSubcategoryMenu;
 +        private AccessibleListOfItems<AccessibleMultilineText> m_achievementListMenu;
 +        private AccessibleMenu m_achievementViewer;
-+//event menus
-+private AccessibleMenu m_eventMenu;
-+private AccessibleHorizontalMenu<AccessibleMultilineText> m_chooseRewardTrackMenu;
++
++        //event menus
++        private AccessibleMenu m_eventMenu;
++        private AccessibleHorizontalMenu<AccessibleMultilineText> m_chooseRewardTrackMenu;
 +        private AccessibleListOfItems<AccessibleQuest> m_eventQuests;
-+        
++
 +        private static AccessibleJournal s_instance = new AccessibleJournal();
 +
 +        internal static AccessibleJournal Get()
@@ -10505,20 +10550,24 @@ index 0000000..25667c4
 +            AccessibilityMgr.HideUI(this);
 +        }
 +
-+        private void ReadJournal()
++        internal void ReadJournal()
 +        {
 +            if (m_rewardTrackType == Assets.Global.RewardTrackType.BATTLEGROUNDS)
-+			{
++            {
 +                ReadBattlegroundsJournal();
-+			}
++            }
++            else if (m_rewardTrackType == Assets.Global.RewardTrackType.APPRENTICE)
++            {
++                ReadApprenticeJournal();
++            }
 +            else
-+			{
++            {
 +                ReadGlobalJournal();
-+			}
++            }
 +        }
 +
-+		private void ReadBattlegroundsJournal()
-+		{
++        private void ReadBattlegroundsJournal()
++        {
 +            return;
 +
 +            // TODO
@@ -10531,60 +10580,91 @@ index 0000000..25667c4
 +            m_mainMenu.AddOption(GameStrings.Get("GLUE_BACON_SEASONREWARDS_TITLE"), ReadRewardsTrack);
 +
 +            ReadMainMenu();*/
-+		}
++        }
 +
-+		private void ReadGlobalJournal()
-+		{
++        private void ReadGlobalJournal()
++        {
 +            var buttonManager = GetButtonManager();
 +            var questButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "QuestButton/JournalButtonTab/Root");
 +            var rewardButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "RewardButton/JournalButtonTab/Root");
 +            var achievementButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "AchievementButton/JournalButtonTab/Root");
 +            var profileButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "ProfileButton/JournalButtonTab/Root");
-+                        var eventButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "Events_WaxSeal");
-+//clickto dismiss event popup
++            var eventButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "Events_WaxSeal");
++
 +            m_mainMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.GLOBAL_JOURNAL), CloseJournal);
-+            if(SpecialEventManager.Get().GetCurrentSpecialEvent()!=null) {
-+            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_EVENT_TAB_TITLE"), () => AccessibleWidgetUtils.ClickButton(eventButton));
++            if (SpecialEventManager.Get().GetCurrentSpecialEvent() != null)
++            {
++                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_EVENT_TAB_TITLE"), () => AccessibleWidgetUtils.ClickButton(eventButton));
 +            }
 +
-+            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () =>  AccessibleWidgetUtils.ClickButton(questButton));
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () => AccessibleWidgetUtils.ClickButton(questButton));
 +            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), ReadRewardsTrack);
-+                                    m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_ACHIEVEMENTS_TITLE"), () => AccessibleWidgetUtils.ClickButton(achievementButton));
-+            //m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), () => AccessibleWidgetUtils.ClickButton(rewardButton));
-+
-+            /*m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_PROFILE_TITLE"), () => AccessibleWidgetUtils.ClickButton(profileButton));*/
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_ACHIEVEMENTS_TITLE"), () => AccessibleWidgetUtils.ClickButton(achievementButton));
 +
 +            ReadMainMenu();
-+		}
++        }
 +
-+		private void ReadMainMenu()
-+		{
++        private void ReadApprenticeJournal()
++        {
++            var buttonManager = GetButtonManager();
++            var tavernGuideButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "TavernGuideButton/JournalButtonTab/Root");
++            var questButton = AccessibleWidgetUtils.GetPegUIElement(buttonManager, "QuestButton/JournalButtonTab/Root");
++            m_mainMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.GLOBAL_JOURNAL), CloseJournal);
++            if (CanSeeTavernGuide())
++            {
++                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_TAVERN_GUIDE_TITLE"), () => AccessibleWidgetUtils.ClickButton(tavernGuideButton));
++            }
++            else if (GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.PLAYER_FLAGS, GameSaveKeySubkeyId.PLAYER_FLAGS_HAS_COMPLETED_TAVERN_GUIDE, out long value) && value == 1)
++            {
++                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () =>  AccessibleWidgetUtils.ClickButton(questButton));
++            }
++
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), ReadRewardsTrack);
++            ReadMainMenu();
++        }
++
++        private bool CanSeeTavernGuide()
++        {
++            if (RewardTrackManager.Get().GetApprenticeTrackLevel() <= 2)
++            {
++                return !RewardTrackManager.Get().HasAnyUnclaimedApprenticeRewards();
++            }
++            return TavernGuideManager.Get().IsTavernGuideActive();
++        }
++
++        private void ReadMainMenu()
++        {
 +            m_mainMenu.StartReading();
 +            m_curState = State.MAIN_MENU;
-+		}
++        }
 +
-+		internal IEnumerator OnTabChanged(JournalMetaDataModel data)
++        internal IEnumerator OnTabChanged(JournalMetaDataModel data)
 +        {
-+            if(prevPage==data.TabIndex) yield return null;
-+            prevPage=data.TabIndex;
-+                        AccessibilityUtils.LogDebug($"AccessibleJournal.OnTabChanged({data.TabIndex})");
++            if (prevPage == data.TabIndex) yield return null;
++            prevPage = data.TabIndex;
++            AccessibilityUtils.LogDebug($"AccessibleJournal.OnTabChanged({data.TabIndex})");
 +            if (data.TabIndex == 3) ReadAchievementCats();
 +            if (data.TabIndex == 1)
 +            {
 +                ReadQuestLog();
 +            }
-+                        if (data.TabIndex == 0)
++            if (data.TabIndex == 0)
 +            {
-+                m_curState=State.LOADING;
++                m_curState = State.LOADING;
 +                yield return new WaitForSeconds(1.3f);
-+ReadEventTab();
++                ReadEventTab();
 +
++            }
++            if (data.TabIndex == (int)JournalTrayDisplay.JournalTab.TavernGuide)
++            {
++                var tavernGuideDisplay = m_JournalWidget.GetComponentInChildren<TavernGuideTabDisplay>();
++                tavernGuideDisplay?.ReadTavernGuide();
 +            }
 +        }
 +
-+		#region Quests
++        #region Quests
 +
-+		private void ReadQuestLog()
++        private void ReadQuestLog()
 +        {
 +            var journalInnerTrayManager = GetJournalInnerTrayManager();
 +            var questLog = AccessibleUnityUtils.GetChildObject(journalInnerTrayManager, "Root/QuestLog/QuestLog");
@@ -10605,23 +10685,23 @@ index 0000000..25667c4
 +            var weeklyQuests = CreateQuestsFromQuestTiles(weeklyQuestTiles);
 +
 +            if (dailyQuests.Count == 0 && weeklyQuests.Count == 0)
-+			{
++            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.UI_QUEST_LOG_NO_QUESTS));
 +                return;
-+			}
++            }
 +
 +            if (!dailyTitle.activeInHierarchy)
 +            {
 +                dailyQuests.AddRange(weeklyQuests);
 +                m_dailyQuests = new AccessibleListOfItems<AccessibleQuest>(this, dailyQuests);
-+				ReadQuests(m_dailyQuests, State.READING_DAILY_QUESTS);
++                ReadQuests(m_dailyQuests, State.READING_DAILY_QUESTS);
 +            }
 +            else
 +            {
 +                m_dailyQuests = new AccessibleListOfItems<AccessibleQuest>(this, dailyQuests);
 +                m_weeklyQuests = new AccessibleListOfItems<AccessibleQuest>(this, weeklyQuests);
 +
-+				m_questsMenu = new AccessibleMenu(this, "", ReadJournal);
++                m_questsMenu = new AccessibleMenu(this, "", ReadJournal);
 +                m_questsMenu.AddOption(GetQuestPoolName(dailyTitle), () => ReadQuests(m_dailyQuests, State.READING_DAILY_QUESTS));
 +                m_questsMenu.AddOption(GetQuestPoolName(weeklyTitle), () => ReadQuests(m_weeklyQuests, State.READING_WEEKLY_QUESTS));
 +
@@ -10630,24 +10710,24 @@ index 0000000..25667c4
 +            }
 +        }
 +
-+		internal void OnQuestRerolled(Hearthstone.Progression.QuestTile questTile)
-+		{
++        internal void OnQuestRerolled(Hearthstone.Progression.QuestTile questTile)
++        {
 +            RereadQuestsAfterInteract();
-+		}
++        }
 +
-+		private List<AccessibleQuest> CreateQuestsFromQuestTiles(List<Hearthstone.Progression.QuestTile> questTiles)
-+		{
-+			var ret = new List<AccessibleQuest>();
++        private List<AccessibleQuest> CreateQuestsFromQuestTiles(List<Hearthstone.Progression.QuestTile> questTiles)
++        {
++            var ret = new List<AccessibleQuest>();
 +
-+            foreach(var questTile in questTiles)
++            foreach (var questTile in questTiles)
 +            {
-+				ret.Add(new AccessibleQuest(this, questTile.GetQuestDataModel(), questTile));
++                ret.Add(new AccessibleQuest(this, questTile.GetQuestDataModel(), questTile));
 +            }
 +
 +            return ret;
-+		}
++        }
 +
-+		private void ReadQuests(AccessibleListOfItems<AccessibleQuest> quests, State state)
++        private void ReadQuests(AccessibleListOfItems<AccessibleQuest> quests, State state)
 +        {
 +            quests.StartReading();
 +            m_curState = state;
@@ -10696,7 +10776,7 @@ index 0000000..25667c4
 +            return ret;
 +        }
 +
-+		private void ReadQuestsOrJournal()
++        private void ReadQuestsOrJournal()
 +        {
 +            if (m_questsMenu != null)
 +            {
@@ -10709,8 +10789,8 @@ index 0000000..25667c4
 +            }
 +        }
 +
-+		internal void OnQuestAbandoned(Hearthstone.Progression.QuestTile questTile)
-+		{
++        internal void OnQuestAbandoned(Hearthstone.Progression.QuestTile questTile)
++        {
 +            AccessibilityMgr.ShowUI(this); // Make it so we can output while the alert popup disappears
 +            if (RefreshMenuAfterAbandonIfNeeded(m_dailyQuests, questTile) && m_dailyQuests.Count == 0)
 +            {
@@ -10718,55 +10798,55 @@ index 0000000..25667c4
 +                return;
 +            }
 +            else if (RefreshMenuAfterAbandonIfNeeded(m_weeklyQuests, questTile) && m_weeklyQuests.Count == 0)
-+			{
++            {
 +                ReadJournal();
 +                return;
-+			}
++            }
 +
 +            RereadQuestsAfterInteract();
-+		}
++        }
 +
-+		private bool RefreshMenuAfterAbandonIfNeeded(AccessibleListOfItems<AccessibleQuest> quests, Hearthstone.Progression.QuestTile abandonedQuest)
-+		{
++        private bool RefreshMenuAfterAbandonIfNeeded(AccessibleListOfItems<AccessibleQuest> quests, Hearthstone.Progression.QuestTile abandonedQuest)
++        {
 +            if (quests == null)
-+			{
++            {
 +                return false;
-+			}
++            }
 +
 +            var questsBeforeAbandon = quests.Items;
 +
 +            var accessibleAbandonedQuest = questsBeforeAbandon.Find(q => q.GetQuestTile() == abandonedQuest);
 +
 +            if (accessibleAbandonedQuest != null)
-+			{
++            {
 +                quests.RemoveItem(accessibleAbandonedQuest);
 +                return true;
-+			}
++            }
 +
 +            return false;
-+		}
++        }
 +
-+		internal void OnQuestAbandonCancel()
-+		{
++        internal void OnQuestAbandonCancel()
++        {
 +            AccessibilityMgr.ShowUI(this); // Make it so we can output while the alert popup disappears
 +            RereadQuestsAfterInteract();
-+		}
++        }
 +
-+		private void RereadQuestsAfterInteract()
-+		{
++        private void RereadQuestsAfterInteract()
++        {
 +            if (m_curState == State.READING_DAILY_QUESTS)
-+			{
++            {
 +                m_dailyQuests.StartReading();
-+			}
++            }
 +            else if (m_curState == State.READING_WEEKLY_QUESTS)
-+			{
++            {
 +                m_weeklyQuests.StartReading();
-+			}
-+		}
++            }
++        }
 +
-+		#endregion
++        #endregion
 +
-+		private GameObject GetJournalInnerTrayManager()
++        private GameObject GetJournalInnerTrayManager()
 +        {
 +            return m_JournalWidget.transform.Find("Root/JournalInnerTrayManager/JournalInnerTrayManager").gameObject;
 +        }
@@ -10781,147 +10861,167 @@ index 0000000..25667c4
 +            m_JournalWidget.TriggerEvent("HIDE");
 +        }
 +
-+#region eventTab
++        #region eventTab
 +
-+private void ReadEventTab(bool delay=true) {
-+    SpecialEventDataModel dataModel=SpecialEventManager.Get().GetEventDataModelForCurrentEvent();
-+    m_curState=State.VIEWING_EVENT;
-+    Transform t = OverlayUI.Get().transform.Find("UICanvasHeightScale/Center/ClosedEnvelopeParent Popup Bone/ClosedEnvelopeParent/ClosedEnvelope/ClosedEnvelope/Clickable");
-+    if(t==null) eventMainMenu(dataModel);
-+    else {
-+        PegUIElement letter=t.GetComponent<PegUIElement>();
-+    if(letter!=null) {
-+        for(int x=0; x<6; x++) { // you have to try to click repeatedly until it works, 6 is usually enough times
-+            letter.TriggerRelease();
-+        letter.TriggerPress();
-+        }
-+        OverlayUI.Get().StartCoroutine(ReadOpenLetter(dataModel, letter));
-+    } else {
-+        eventMainMenu(dataModel);
-+    }
-+    }
-+}
-+private IEnumerator ReadOpenLetter(SpecialEventDataModel dataModel, PegUIElement oldLetter) {
-+    yield return new WaitForSeconds(1.1f);
-+    GameObject letter = OverlayUI.Get().transform.Find("UICanvasHeightScale/Center/LetterContentsParent Popup Bone/LetterContentsParent/LetterContents/EventLetterContents").gameObject;
-+    AccessibleUnityUtils.DebugGameObject(letter);
-+    UberText[] texts=letter.GetComponentsInChildren<UberText>();
-+foreach(UberText t in texts) {
-+    AccessibilityMgr.Output(null,GameStrings.Format(t.Text));
-+}
-+        yield return new WaitForSeconds(0.7f);
-+        PegUIElement[] buttons=letter.GetComponentsInChildren<PegUIElement>();
-+    foreach(PegUIElement b in buttons) {
-+        for(var i=0; i<5; i++) {
-+        b.TriggerRelease();
-+                b.TriggerPress();
-+        }
-+    }
-+    eventMainMenu(dataModel);
-+        
-+}
-+private void eventMainMenu(SpecialEventDataModel dataModel) {
-+        m_eventMenu = new AccessibleMenu(this,dataModel.Name,ReadJournal);
-+    if(dataModel.ChooseTrackPrompt!=""&&dataModel.ActiveTrackId==0) {
-+        m_eventMenu.AddOption(dataModel.ChooseTrackPrompt, () => ChooseEventTrack(dataModel.RewardTracks, dataModel.ChooseTrackPrompt));
-+    }
-+    else {
-+        m_eventMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"),()=>ReadEventQuests());
-+        m_eventMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), ReadRewardsTrack);
-+    }
-+    m_eventMenu.StartReading();
-+
-+}
-+private void ChooseEventTrack(DataModelList<int> trackList, string prompt) {
-+    m_curState=State.CHOOSING_EVENT_REWARD_TRACK;
-+    List<int> tracks=trackList.ToList<int>();
-+    m_chooseRewardTrackMenu=new AccessibleHorizontalMenu<AccessibleMultilineText>(this, prompt, null);
-+        foreach(int track in tracks) {
-+            List<string> lines=new List<string>();
-+            EventRewardTrackDbfRecord eventRewardTrack=GameDbf.EventRewardTrack.GetRecord(track);
-+            RewardTrackDbfRecord rewardTrack=GameDbf.RewardTrack.GetRecord(track);
-+            if(rewardTrack==null) continue;
-+            lines.Add(rewardTrack.Name.GetString());
-+            foreach(RewardTrackLevelDbfRecord level in rewardTrack.Levels) {
-+                string rewardDesc="";
-+                if(level.FreeRewardListRecord!=null)  rewardDesc=LocalizationUtils.Format(LocalizationKey.ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_DESC, level.FreeRewardListRecord.Description.GetString());
-+                lines.Add(LocalizationUtils.Format(LocalizationKey.ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_PREVIEW,level.Level,level.XpNeeded)+rewardDesc);
++        private void ReadEventTab(bool delay = true)
++        {
++            SpecialEventDataModel dataModel = SpecialEventManager.Get().GetEventDataModelForCurrentEvent();
++            m_curState = State.VIEWING_EVENT;
++            Transform t = OverlayUI.Get().transform.Find("UICanvasHeightScale/Center/ClosedEnvelopeParent Popup Bone/ClosedEnvelopeParent/ClosedEnvelope/ClosedEnvelope/Clickable");
++            if (t == null) eventMainMenu(dataModel);
++            else
++            {
++                PegUIElement letter = t.GetComponent<PegUIElement>();
++                if (letter != null)
++                {
++                    for (int x = 0; x < 6; x++)
++                    { // you have to try to click repeatedly until it works, 6 is usually enough times
++                        letter.TriggerRelease();
++                        letter.TriggerPress();
++                    }
++                    OverlayUI.Get().StartCoroutine(ReadOpenLetter(dataModel, letter));
++                }
++                else
++                {
++                    eventMainMenu(dataModel);
++                }
 +            }
-+
-+            AccessibleMultilineText item=new AccessibleMultilineText(this,lines);
-+            m_chooseRewardTrackMenu.AddOption(item,() => SelectTrack(track));
++        }
++        private IEnumerator ReadOpenLetter(SpecialEventDataModel dataModel, PegUIElement oldLetter)
++        {
++            yield return new WaitForSeconds(1.1f);
++            GameObject letter = OverlayUI.Get().transform.Find("UICanvasHeightScale/Center/LetterContentsParent Popup Bone/LetterContentsParent/LetterContents/EventLetterContents").gameObject;
++            AccessibleUnityUtils.DebugGameObject(letter);
++            UberText[] texts = letter.GetComponentsInChildren<UberText>();
++            foreach (UberText t in texts)
++            {
++                AccessibilityMgr.Output(null, GameStrings.Format(t.Text));
++            }
++            yield return new WaitForSeconds(0.7f);
++            PegUIElement[] buttons = letter.GetComponentsInChildren<PegUIElement>();
++            foreach (PegUIElement b in buttons)
++            {
++                for (var i = 0; i < 5; i++)
++                {
++                    b.TriggerRelease();
++                    b.TriggerPress();
++                }
++            }
++            eventMainMenu(dataModel);
 +
 +        }
-+    m_chooseRewardTrackMenu.StartReading();
-+}
++        private void eventMainMenu(SpecialEventDataModel dataModel)
++        {
++            m_eventMenu = new AccessibleMenu(this, dataModel.Name, ReadJournal);
++            if (dataModel.ChooseTrackPrompt != "" && dataModel.ActiveTrackId == 0)
++            {
++                m_eventMenu.AddOption(dataModel.ChooseTrackPrompt, () => ChooseEventTrack(dataModel.RewardTracks, dataModel.ChooseTrackPrompt));
++            }
++            else
++            {
++                m_eventMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () => ReadEventQuests());
++                m_eventMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), ReadRewardsTrack);
++            }
++            m_eventMenu.StartReading();
 +
-+public void SelectTrack(int id) {
-+			RewardTrackManager rewardTrackManager = RewardTrackManager.Get();
-+			if (rewardTrackManager == null)
-+			{
-+				Debug.LogError("[Journal] Attempting to activate a reward track without a valid RewardTrackManager.");
-+				return;
-+			}
-+			rewardTrackManager.SetActiveEventRewardTrack(id);
++        }
++        private void ChooseEventTrack(DataModelList<int> trackList, string prompt)
++        {
++            m_curState = State.CHOOSING_EVENT_REWARD_TRACK;
++            List<int> tracks = trackList.ToList<int>();
++            m_chooseRewardTrackMenu = new AccessibleHorizontalMenu<AccessibleMultilineText>(this, prompt, null);
++            foreach (int track in tracks)
++            {
++                List<string> lines = new List<string>();
++                EventRewardTrackDbfRecord eventRewardTrack = GameDbf.EventRewardTrack.GetRecord(track);
++                RewardTrackDbfRecord rewardTrack = GameDbf.RewardTrack.GetRecord(track);
++                if (rewardTrack == null) continue;
++                lines.Add(rewardTrack.Name.GetString());
++                foreach (RewardTrackLevelDbfRecord level in rewardTrack.Levels)
++                {
++                    string rewardDesc = "";
++                    if (level.FreeRewardListRecord != null) rewardDesc = LocalizationUtils.Format(LocalizationKey.ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_DESC, level.FreeRewardListRecord.Description.GetString());
++                    lines.Add(LocalizationUtils.Format(LocalizationKey.ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_PREVIEW, level.Level, level.XpNeeded) + rewardDesc);
++                }
++
++                AccessibleMultilineText item = new AccessibleMultilineText(this, lines);
++                m_chooseRewardTrackMenu.AddOption(item, () => SelectTrack(track));
++
++            }
++            m_chooseRewardTrackMenu.StartReading();
++        }
++
++        public void SelectTrack(int id)
++        {
++            RewardTrackManager rewardTrackManager = RewardTrackManager.Get();
++            if (rewardTrackManager == null)
++            {
++                Debug.LogError("[Journal] Attempting to activate a reward track without a valid RewardTrackManager.");
++                return;
++            }
++            rewardTrackManager.SetActiveEventRewardTrack(id);
 +            ReadJournal();
 +
-+}
-+
-+        private void ReadEventQuests() {
-+					QuestManager questManager = QuestManager.Get();
-+					QuestListDataModel m_questList = questManager.CreateActiveQuestsDataModel(Assets.QuestPool.QuestPoolType.EVENT, (Assets.QuestPool.RewardTrackType)GetRewardTrack().TrackDataModel.RewardTrackType, appendTimeUntilNextQuest: true);
-+				m_questList.Quests.Sort(QuestManager.SortChainQuestsToFront);                        List<QuestDataModel> quests=m_questList.Quests.ToList();
-+                        List<AccessibleQuest> questList=new List<AccessibleQuest>();
-+                        foreach(QuestDataModel q in quests) {                            AccessibleQuest newItem=new AccessibleQuest(this,q);
-+                            questList.Add(newItem);
-+                        }
-+                        m_eventQuests=new AccessibleListOfItems<AccessibleQuest>(null,questList);
-+                        m_eventQuests.SetGoBackAction(() => ReadEventTab(false));
-+                        m_curState=State.EVENT_QUESTS;
-+m_eventQuests.StartReading();
 +        }
 +
-+#endregion
++        private void ReadEventQuests()
++        {
++            QuestManager questManager = QuestManager.Get();
++            QuestListDataModel m_questList = questManager.CreateActiveQuestsDataModel(Assets.QuestPool.QuestPoolType.EVENT, (Assets.QuestPool.RewardTrackType)GetRewardTrack().TrackDataModel.RewardTrackType, appendTimeUntilNextQuest: true);
++            m_questList.Quests.Sort(QuestManager.SortChainQuestsToFront); List<QuestDataModel> quests = m_questList.Quests.ToList();
++            List<AccessibleQuest> questList = new List<AccessibleQuest>();
++            foreach (QuestDataModel q in quests)
++            {
++                AccessibleQuest newItem = new AccessibleQuest(this, q);
++                questList.Add(newItem);
++            }
++            m_eventQuests = new AccessibleListOfItems<AccessibleQuest>(null, questList);
++            m_eventQuests.SetGoBackAction(() => ReadEventTab(false));
++            m_curState = State.EVENT_QUESTS;
++            m_eventQuests.StartReading();
++        }
++
++        #endregion
 +        public void HandleAccessibleInput()
 +        {
-+			if ((m_curState == State.READING_DAILY_QUESTS || m_curState == State.READING_WEEKLY_QUESTS) && AccessibleKey.BACK.IsPressed())
-+			{
-+				// Everything else are menus so they handle their own BACKs
-+				{
-+					ReadQuestsOrJournal();
-+					return;
-+				}
-+			}
++            if ((m_curState == State.READING_DAILY_QUESTS || m_curState == State.READING_WEEKLY_QUESTS) && AccessibleKey.BACK.IsPressed())
++            {
++                // Everything else are menus so they handle their own BACKs
++                {
++                    ReadQuestsOrJournal();
++                    return;
++                }
++            }
 +
-+			if (m_curState == State.MAIN_MENU)
++            if (m_curState == State.MAIN_MENU)
 +            {
 +                m_mainMenu?.HandleAccessibleInput();
 +            }
-+                        else if (m_curState == State.EVENT_QUESTS)
++            else if (m_curState == State.EVENT_QUESTS)
 +            {
-+				m_eventQuests?.HandleAccessibleInput();
-+			}
-+                        else if (m_curState == State.VIEWING_EVENT)
++                m_eventQuests?.HandleAccessibleInput();
++            }
++            else if (m_curState == State.VIEWING_EVENT)
 +            {
-+				m_eventMenu?.HandleAccessibleInput();
-+			}
-+                        else if (m_curState == State.CHOOSING_EVENT_REWARD_TRACK)
++                m_eventMenu?.HandleAccessibleInput();
++            }
++            else if (m_curState == State.CHOOSING_EVENT_REWARD_TRACK)
 +            {
-+				m_chooseRewardTrackMenu?.HandleAccessibleInput();
-+			}
-+else if (m_curState == State.READING_DAILY_QUESTS)
++                m_chooseRewardTrackMenu?.HandleAccessibleInput();
++            }
++            else if (m_curState == State.READING_DAILY_QUESTS)
 +            {
-+				m_dailyQuests?.HandleAccessibleInput();
-+			}
-+			else if (m_curState == State.READING_WEEKLY_QUESTS)
++                m_dailyQuests?.HandleAccessibleInput();
++            }
++            else if (m_curState == State.READING_WEEKLY_QUESTS)
 +            {
-+				m_weeklyQuests?.HandleAccessibleInput();
-+			}
-+			else if (m_curState == State.QUESTS_MENU)
++                m_weeklyQuests?.HandleAccessibleInput();
++            }
++            else if (m_curState == State.QUESTS_MENU)
 +            {
 +                m_questsMenu?.HandleAccessibleInput();
 +            }
-+            else if (m_curState == State.REWARDS_TRACK_MENU||m_curState==State.EVENT_REWARD_TRACK)
++            else if (m_curState == State.REWARDS_TRACK_MENU || m_curState == State.EVENT_REWARD_TRACK)
 +            {
 +                m_rewardsTrackMenu?.HandleAccessibleInput();
 +            }
@@ -10938,28 +11038,64 @@ index 0000000..25667c4
 +            else if (m_curState == State.ACHIEVEMENT_LIST)
 +            {
 +                m_achievementListMenu?.HandleAccessibleInput();
-+                                        if (AccessibleKey.READ_NEXT_PAGE.IsPressed())
-+            {
-+                m_achievementListMenu?.ReadNextItem(m_achievementListMenu.Count/10);
++                if (AccessibleKey.READ_NEXT_PAGE.IsPressed())
++                {
++                    m_achievementListMenu?.ReadNextItem(m_achievementListMenu.Count / 10);
++                }
++                else if (AccessibleKey.READ_PREV_PAGE.IsPressed())
++                {
++                    m_achievementListMenu?.ReadNextItem(m_achievementListMenu.Count / -10);
++                }
++                else if (AccessibleKey.CONFIRM.IsPressed() && m_achievementListMenu.GetItemBeingReadIndex() >= 0 && m_achievementListMenu.GetItemBeingReadIndex() < m_achievementListMenu.Count)
++                {
++                    ClaimAchievement(m_currentAchievementList[m_achievementListMenu.GetItemBeingReadIndex()].ID);
++                }
++                return;
 +            }
-+                        else if (AccessibleKey.READ_PREV_PAGE.IsPressed())
-+            {
-+                m_achievementListMenu?.ReadNextItem(m_achievementListMenu.Count/-10);
-+            } else if(AccessibleKey.CONFIRM.IsPressed()&&m_achievementListMenu.GetItemBeingReadIndex()>=0&&m_achievementListMenu.GetItemBeingReadIndex()<m_achievementListMenu.Count) {
-+                ClaimAchievement(m_currentAchievementList[m_achievementListMenu.GetItemBeingReadIndex()].ID);
-+            }
-+            return;
-+            }
-+else if (m_curState == State.CHOOSING_REWARD)
++            else if (m_curState == State.CHOOSING_REWARD)
 +            {
 +                if (AccessibleKey.CONFIRM.IsPressed())
-+				{
-+                    if(m_achievementChooseOne) ClaimAchievementChooseOneReward(m_currentAchievement, m_chooseOneRewards.GetItemBeingRead());
++                {
++                    if (m_chooseOneRewards.GetItemBeingRead().GetDataModel().ItemType == RewardItemType.DECK)
++                    {
++                        SetupDeckRewardForBrowsing(m_chooseOneRewards.GetItemBeingRead());
++                        return;
++                    }
++                    if (m_achievementChooseOne) ClaimAchievementChooseOneReward(m_currentAchievement, m_chooseOneRewards.GetItemBeingRead());
 +                    else ClaimChooseOneReward(m_chooseOneRewards.GetItemBeingRead());
 +                    return;
-+				}
++                }
 +                m_chooseOneRewards?.HandleAccessibleInput();
 +                return;
++            }
++            else if (m_curState == State.BROWSING_CHOOSE_ONE_DECK_REWARD)
++            {
++                if (AccessibleKey.CONFIRM.IsPressed())
++                {
++                    AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.UI_REWARDS_TRACK_DECK_CHOICE_CONFIRMATION_PROMPT, AccessibleKey.CONFIRM, AccessibleKey.BACK));
++                    m_curState = State.CONFIRMING_DECK_CHOICE;
++                }
++                else if (AccessibleKey.BACK.IsPressed())
++                {
++                    m_curState = State.CHOOSING_REWARD;
++                    m_chooseOneRewards.StartReading();
++                }
++                else
++                {
++                    m_curDeck?.HandleAccessibleInput();
++                }
++            }
++            else if (m_curState == State.CONFIRMING_DECK_CHOICE)
++            {
++                if (AccessibleKey.CONFIRM.IsPressed())
++                {
++                    ClaimChooseOneReward(m_chooseOneRewards.GetItemBeingRead());
++                }
++                else if (AccessibleKey.BACK.IsPressed())
++                {
++                    m_curState = State.BROWSING_CHOOSE_ONE_DECK_REWARD;
++                    m_curDeck.StartReading();
++                }
 +            }
 +        }
 +
@@ -10973,18 +11109,18 @@ index 0000000..25667c4
 +            {
 +                return m_mainMenu?.GetHelp();
 +            }
-+                                                else if (m_curState == State.EVENT_QUESTS)
++            else if (m_curState == State.EVENT_QUESTS)
 +            {
-+				return m_eventQuests?.GetHelp(true);
-+			}
-+else if (m_curState == State.VIEWING_EVENT)
++                return m_eventQuests?.GetHelp(true);
++            }
++            else if (m_curState == State.VIEWING_EVENT)
 +            {
-+				return m_eventMenu?.GetHelp();
-+			}
-+                        else if (m_curState == State.CHOOSING_EVENT_REWARD_TRACK)
++                return m_eventMenu?.GetHelp();
++            }
++            else if (m_curState == State.CHOOSING_EVENT_REWARD_TRACK)
 +            {
-+				return m_chooseRewardTrackMenu?.GetHelp();
-+			}
++                return m_chooseRewardTrackMenu?.GetHelp();
++            }
 +            else if (m_curState == State.READING_DAILY_QUESTS || m_curState == State.READING_WEEKLY_QUESTS)
 +            {
 +                return LocalizationUtils.Get(LocalizationKey.UI_QUEST_NOTIFICATION_POPUP_HELP);
@@ -11001,19 +11137,19 @@ index 0000000..25667c4
 +            {
 +                return m_rewardsTrackMenu?.GetHelp();
 +            }
-+                        else if (m_curState == State.ACHIEVEMENT_CATEGORY_MENU)
++            else if (m_curState == State.ACHIEVEMENT_CATEGORY_MENU)
 +            {
 +                return m_achievementTabSelectorMenu?.GetHelp();
 +            }
-+else if (m_curState == State.ACHIEVEMENT_SUBCATEGORY_MENU)
++            else if (m_curState == State.ACHIEVEMENT_SUBCATEGORY_MENU)
 +            {
 +                return m_achievementSubcategoryMenu?.GetHelp();
 +            }
-+                        else if (m_curState == State.VIEWING_ACHIEVEMENT)
++            else if (m_curState == State.VIEWING_ACHIEVEMENT)
 +            {
 +                return m_achievementViewer?.GetHelp();
 +            }
-+else if (m_curState == State.ACHIEVEMENT_LIST)
++            else if (m_curState == State.ACHIEVEMENT_LIST)
 +            {
 +                return AccessibleSpeech.MENU_ACHIEVEMENT_HELP;
 +            }
@@ -11021,34 +11157,42 @@ index 0000000..25667c4
 +            {
 +                return m_chooseOneRewards.GetHelp(false);
 +            }
++            else if (m_curState == State.BROWSING_CHOOSE_ONE_DECK_REWARD)
++            {
++                return LocalizationUtils.Format(LocalizationKey.UI_REWARDS_TRACK_BROWSE_DECK_HELP, AccessibleKey.CONFIRM, AccessibleKey.BACK);
++            }
++            else if (m_curState == State.CONFIRMING_DECK_CHOICE)
++            {
++                return LocalizationUtils.Format(LocalizationKey.UI_REWARDS_TRACK_DECK_CHOICE_CONFIRMATION_PROMPT, AccessibleKey.CONFIRM, AccessibleKey.BACK);
++            }
 +
 +            return "";
 +        }
 +
 +        #region Rewards Track
-+		private void ReadRewardsTrack()
++        private void ReadRewardsTrack()
 +        {
 +            var numRewards = GetUnclaimedRewardsCount();
 +
-+			m_rewardsTrackMenu = new AccessibleMenu(this, "", ReadJournal);
++            m_rewardsTrackMenu = new AccessibleMenu(this, "", ReadJournal);
 +
 +            m_rewardsTrackMenu.AddOption(LocalizationUtils.Format(LocalizationKey.UI_REWARDS_TRACK_CLAIM_REWARDS, numRewards), ClaimRewardsTrackRewards);
-+			m_rewardsTrackMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_REWARDS_TRACK_READ_LEVEL), ReadRewardsTrackLevel);
++            m_rewardsTrackMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_REWARDS_TRACK_READ_LEVEL), ReadRewardsTrackLevel);
 +
-+			m_rewardsTrackMenu.StartReading();
-+			if(m_curState==State.VIEWING_EVENT) m_curState=State.EVENT_REWARD_TRACK;
++            m_rewardsTrackMenu.StartReading();
++            if (m_curState == State.VIEWING_EVENT) m_curState = State.EVENT_REWARD_TRACK;
 +            else m_curState = State.REWARDS_TRACK_MENU;
-+		}
++        }
 +
 +        private int GetCurrentTrackLevel()
-+		{
++        {
 +            if (AccessibleRewardsTrackTestingUtils.IsMockingRewardsTrack())
-+			{
++            {
 +                return AccessibleRewardsTrackTestingUtils.GetCurrentTrackLevel();
-+			}
++            }
 +
-+			return GetRewardTrack().TrackDataModel.Level;
-+		}
++            return GetRewardTrack().TrackDataModel.Level;
++        }
 +
 +        private int GetCurrentTrackXp()
 +        {
@@ -11061,136 +11205,153 @@ index 0000000..25667c4
 +        }
 +
 +        private int GetCurrentTrackId()
-+		{
++        {
 +            if (AccessibleRewardsTrackTestingUtils.IsMockingRewardsTrack())
-+			{
++            {
 +                return AccessibleRewardsTrackTestingUtils.GetCurrentTrackId();
-+			}
++            }
 +
-+			return GetRewardTrack().TrackDataModel.RewardTrackId;
-+		}
++            return GetRewardTrack().TrackDataModel.RewardTrackId;
++        }
 +
 +        private List<RewardTrackLevelDbfRecord> GetUnclaimedRewards()
-+		{
++        {
 +            var ret = new List<RewardTrackLevelDbfRecord>();
 +
 +            int trackLevel = GetCurrentTrackLevel();
 +            int trackId = GetCurrentTrackId();
-+			int levelCap = Math.Max(GetRewardTrack().RewardTrackAsset.LevelCapSoft,GetRewardTrack().RewardTrackAsset.Levels.Count());
-+			foreach (var record in GetRewardTrack().RewardTrackAsset.Levels)
-+			{
-+				if (trackId == record.RewardTrackId && record.Level <= trackLevel && record.Level <= levelCap && GetRewardTrack().HasUnclaimedRewardsForLevel(record))
-+				{
++            int levelCap = Math.Max(GetRewardTrack().RewardTrackAsset.LevelCapSoft, GetRewardTrack().RewardTrackAsset.Levels.Count());
++            foreach (var record in GetRewardTrack().RewardTrackAsset.Levels)
++            {
++                if (trackId == record.RewardTrackId && record.Level <= trackLevel && record.Level <= levelCap && GetRewardTrack().HasUnclaimedRewardsForLevel(record))
++                {
 +                    ret.Add(record);
-+				}
-+			}
++                }
++            }
 +
 +            ret.Sort((a, b) => a.Level - b.Level);
 +
 +            return ret;
-+		}
++        }
 +
-+#endregion
-+		private void ClaimRewardsTrackRewards()
-+		{
++        #endregion
++        private void ClaimRewardsTrackRewards()
++        {
 +            var unclaimedRewards = GetUnclaimedRewards();
 +
 +            if (unclaimedRewards.Count == 0)
-+			{
++            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.UI_REWARDS_TRACK_CLAIM_REWARDS_NO_REWARDS));
-+			}
++            }
 +            else
-+			{
++            {
 +                ClaimNextTrackReward();
-+			}
-+		}
++            }
++        }
 +
-+		private void ClaimNextTrackReward()
-+		{
++        private void ClaimNextTrackReward()
++        {
 +            var unclaimedRewards = GetUnclaimedRewards();
 +
 +            if (unclaimedRewards.Count == 0)
-+			{
++            {
 +                return;
-+			}
++            }
 +            else
-+			{
++            {
 +                var nextReward = unclaimedRewards[0];
 +                var nextRewardLevel = nextReward.Level;
 +                var rewardState = GetRewardTrack().GetPlayerRewardTrackLevelState(nextRewardLevel);
 +                var forPaidTrack = true;
 +
 +                if (rewardState.HasFreeRewardStatus && !ProgressUtils.HasClaimedRewardTrackReward((RewardTrack.RewardStatus)rewardState.FreeRewardStatus))
-+				{
++                {
 +                    forPaidTrack = false;
-+				}
++                }
 +
 +                if (IsChooseOneReward(nextReward, forPaidTrack))
-+				{
-+					ReadChooseOneRewards(nextReward, forPaidTrack);
-+				}
++                {
++                    ReadChooseOneRewards(nextReward, forPaidTrack);
++                }
 +                else
-+				{
-+					if(m_curState==State.EVENT_REWARD_TRACK) m_curState=State.CLAIMING_EVENT_REWARD;
++                {
++                    if (m_curState == State.EVENT_REWARD_TRACK) m_curState = State.CLAIMING_EVENT_REWARD;
 +                    else m_curState = State.CLAIMING_REWARD;
-+					GetRewardTrack().ClaimReward(nextReward.RewardTrackId, nextReward.Level, forPaidTrack);
-+				}
-+			}
-+		}
++                    GetRewardTrack().ClaimReward(nextReward.RewardTrackId, nextReward.Level, forPaidTrack);
++                }
++            }
++        }
 +
 +        private AccessibleListOfItems<AccessibleRewardItemDataModel> m_chooseOneRewards;
++        private AccessibleListOfItems<AccessibleEditingDeckCard> m_curDeck;
 +
-+		private void ReadChooseOneRewards(RewardTrackLevelDbfRecord record, bool forPaidTrack)
-+		{
++        private void ReadChooseOneRewards(RewardTrackLevelDbfRecord record, bool forPaidTrack)
++        {
 +            var dbfRecord = (forPaidTrack ? record.PaidRewardListRecord : record.FreeRewardListRecord);
-+m_achievementChooseOne=false;
++            m_achievementChooseOne = false;
 +            if (dbfRecord == null)
-+			{
++            {
 +                AccessibilityUtils.LogFatalError($"ReadChooseOneRewards() reached null dbfRecord: record.RewardTrackId={record.RewardTrackId} record.ID={record.ID} forPaidTrack={forPaidTrack}");
 +                return;
-+			}
++            }
 +
 +            if (!dbfRecord.ChooseOne)
-+			{
++            {
 +                AccessibilityUtils.LogFatalError($"ReadChooseOneRewards() reached a non-choose one dbfRecord: record.RewardTrackId={record.RewardTrackId} record.ID={record.ID} forPaidTrack={forPaidTrack}");
 +                return;
-+			}
++            }
 +            ReadChooseOneRewards(dbfRecord);
-+		}
++        }
 +
-+		private void ReadChooseOneRewards(RewardListDbfRecord record)
-+		{
-+
++        private void ReadChooseOneRewards(RewardListDbfRecord record)
++        {
 +            if (!record.ChooseOne)
-+			{
++            {
 +                return;
-+			}
++            }
 +
 +            var choices = record.RewardItems;
 +            var isHeroSkinChoice = true;
++            var isDeckChoice = true;
 +            foreach (var choice in choices)
-+			{
++            {
 +                if (choice.RewardType != Assets.RewardItem.RewardType.HERO_SKIN)
-+				{
++                {
 +                    isHeroSkinChoice = false;
-+				}
-+			}
++                }
++                if (choice.RewardType != Assets.RewardItem.RewardType.DECK)
++                {
++                    isDeckChoice = false;
++                }
++            }
 +
-+            var menuTitle = isHeroSkinChoice ? GameStrings.Get("GLUE_PROGRESSION_REWARD_TRACK_POPUP_SKIN_CHOICE_TITLE") : GameStrings.Get("GAMEPLAY_CHOOSE_ONE");
++            string menuTitle;
++            if (isHeroSkinChoice)
++            {
++                menuTitle = GameStrings.Get("GLUE_PROGRESSION_REWARD_TRACK_POPUP_SKIN_CHOICE_TITLE");
++            }
++            else if (isDeckChoice)
++            {
++                menuTitle = GameStrings.Get("GLUE_STORE_SELLABLEDECKS_CHOOSE_A_DECK");
++            }
++            else
++            {
++                menuTitle = GameStrings.Get("GAMEPLAY_CHOOSE_ONE");
++            }
 +            AccessibilityMgr.Output(this, menuTitle, true);
 +
-+			var accessibleRewards = new List<AccessibleRewardItemDataModel>();
++            var accessibleRewards = new List<AccessibleRewardItemDataModel>();
 +
-+			foreach (var choice in choices)
++            foreach (var choice in choices)
 +            {
-+                // Note: subsets may return more than 1 but this seems very unlikely to ever happen since choose one is just hero skins
++                // Note: subsets may return more than 1 but this seems very unlikely to ever happen since choose one is just hero skins or decks
 +                var rewardsItems = RewardFactory.CreateRewardItemDataModel(choice);
 +                var rewardItem = rewardsItems[0];
 +                if (isHeroSkinChoice && CollectionManager.Get().IsCardOwned(GameUtils.TranslateDbIdToCardId(GameDbf.RewardItem.GetRecord(rewardItem.AssetId).CardRecord.ID)))
 +                {
 +                    continue;
 +                }
-+				accessibleRewards.Add(new AccessibleRewardItemDataModel(this, rewardsItems[0], !isHeroSkinChoice));
++                accessibleRewards.Add(new AccessibleRewardItemDataModel(this, rewardsItems[0], false));
 +            }
 +
 +            if (accessibleRewards.Count == 0)
@@ -11198,235 +11359,277 @@ index 0000000..25667c4
 +                return;
 +            }
 +
-+			m_chooseOneRewards = new AccessibleListOfItems<AccessibleRewardItemDataModel>(this, accessibleRewards);
++            m_chooseOneRewards = new AccessibleListOfItems<AccessibleRewardItemDataModel>(this, accessibleRewards);
 +            m_chooseOneRewards.StartReading();
 +            m_curState = State.CHOOSING_REWARD;
-+		}
++        }
 +
-+		private void ClaimChooseOneReward(AccessibleRewardItemDataModel chosen)
-+		{
++        private void SetupDeckRewardForBrowsing(AccessibleRewardItemDataModel accessibleReward)
++        {
++            var reward = accessibleReward.GetDataModel();
++            if (reward.ItemType != RewardItemType.DECK)
++            {
++                AccessibilityUtils.LogFatalError("SetupDeckRewardForBrowsing was called with a reward that is not a deck!");
++                return;
++            }
++            var templateRecord = GameDbf.DeckTemplate.GetRecord(reward.DeckTemplateId);
++            var deck = CollectionManager.Get().GetTemplateDeck(templateRecord.DeckId);
++            var collectionDeck = new CollectionDeck();
++            collectionDeck.FillFromTemplateDeck(deck);
++            var accessibleCards = collectionDeck.GetSlots().Select((slot) => new AccessibleEditingDeckCard(this, slot, false)).ToList();
++            m_curDeck = new AccessibleListOfItems<AccessibleEditingDeckCard>(this, accessibleCards);
++            m_curState = State.BROWSING_CHOOSE_ONE_DECK_REWARD;
++            m_curDeck.StartReading();
++        }
++
++        private void ClaimChooseOneReward(AccessibleRewardItemDataModel chosen)
++        {
 +            var unclaimedRewards = GetUnclaimedRewards();
 +
 +            if (unclaimedRewards.Count == 0)
-+			{
++            {
 +                AccessibilityUtils.LogFatalError("ClaimChooseOneReward reached invalid state: unclaimedRewards was empty");
 +                return;
-+			}
++            }
 +            else
-+			{
++            {
 +                var nextReward = unclaimedRewards[0];
 +                var nextRewardLevel = nextReward.Level;
 +                var rewardState = GetRewardTrack().GetPlayerRewardTrackLevelState(nextRewardLevel);
 +                var forPaidTrack = true;
 +
 +                if (rewardState.HasFreeRewardStatus && !ProgressUtils.HasClaimedRewardTrackReward((RewardTrack.RewardStatus)rewardState.FreeRewardStatus))
-+				{
++                {
 +                    forPaidTrack = false;
-+				}
++                }
 +
 +                if (IsChooseOneReward(nextReward, forPaidTrack))
-+				{
-+					m_curState = State.CLAIMING_REWARD;
-+					GetRewardTrack().ClaimReward(nextReward.RewardTrackId, nextReward.Level, forPaidTrack, chosen.GetDataModel().AssetId);
-+				}
++                {
++                    m_curState = State.CLAIMING_REWARD;
++                    GetRewardTrack().ClaimReward(nextReward.RewardTrackId, nextReward.Level, forPaidTrack, chosen.GetDataModel().AssetId);
++                }
 +                else
-+				{
-+					AccessibilityUtils.LogFatalError($"ClaimChooseOneReward reached invalid state: reward was not choose one. trackId={nextReward.RewardTrackId} trackLevel={nextReward.Level} forPaidTrack={forPaidTrack}");
-+					return;
-+				}
-+			}
-+		}
++                {
++                    AccessibilityUtils.LogFatalError($"ClaimChooseOneReward reached invalid state: reward was not choose one. trackId={nextReward.RewardTrackId} trackLevel={nextReward.Level} forPaidTrack={forPaidTrack}");
++                    return;
++                }
++            }
++        }
 +
-+		private bool IsChooseOneReward(RewardTrackLevelDbfRecord record, bool forPaidTrack)
-+		{
++        private bool IsChooseOneReward(RewardTrackLevelDbfRecord record, bool forPaidTrack)
++        {
 +            var dbfRecord = (forPaidTrack ? record.PaidRewardListRecord : record.FreeRewardListRecord);
 +
 +            if (dbfRecord == null)
-+			{
++            {
 +                return false;
-+			}
++            }
 +
-+			return dbfRecord.ChooseOne;
-+		}
++            return dbfRecord.ChooseOne;
++        }
 +
-+		private int GetUnclaimedRewardsCount()
-+		{
++        private int GetUnclaimedRewardsCount()
++        {
 +            var ret = 0;
 +
 +            var unclaimedRewards = GetUnclaimedRewards();
 +
 +            foreach (var unclaimedReward in unclaimedRewards)
-+			{
++            {
 +                var freeRecord = unclaimedReward.FreeRewardListRecord;
 +                var paidRecord = unclaimedReward.PaidRewardListRecord;
 +                var playerRewardTrackLevelState = GetRewardTrack().GetPlayerRewardTrackLevelState(unclaimedReward.Level);
 +                var premiumRewardsUnlocked = GetRewardTrack().ArePremiumRewardsUnlocked();
 +
 +                if (freeRecord != null && freeRecord.RewardItems?.Count > 0 && !ProgressUtils.HasClaimedRewardTrackReward((RewardTrack.RewardStatus)playerRewardTrackLevelState.FreeRewardStatus))
-+				{
++                {
 +                    ret++;
-+				}
++                }
 +
 +                if (premiumRewardsUnlocked && paidRecord != null && paidRecord.RewardItems?.Count > 0 && !ProgressUtils.HasClaimedRewardTrackReward((RewardTrack.RewardStatus)playerRewardTrackLevelState.PaidRewardStatus))
-+				{
++                {
 +                    ret++;
-+				}
-+			}
++                }
++            }
 +
 +            return ret;
-+		}
++        }
 +
-+		internal void OnTrackRewardAckd(int rewardTrackId, int level, bool forPaidTrack)
-+		{
++        internal void OnTrackRewardAckd(int rewardTrackId, int level, bool forPaidTrack)
++        {
 +
 +            if (m_curState == State.CLAIMING_REWARD)
-+			{
++            {
 +                ReadRewardsTrack();
-+			} else             if (m_curState == State.CLAIMING_EVENT_REWARD)
-+			{
-+                m_curState=State.VIEWING_EVENT;
++            }
++            else if (m_curState == State.CLAIMING_EVENT_REWARD)
++            {
++                m_curState = State.VIEWING_EVENT;
 +                ReadRewardsTrack();
 +            }
 +
-+		}
++        }
 +
-+		private void ReadRewardsTrackLevel()
-+		{
++        private void ReadRewardsTrackLevel()
++        {
 +            AccessibilityMgr.Output(this, $"{GetCurrentTrackLevel()}");
 +            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.UI_REWARDS_TRACK_XP_PROGRESS, GetCurrentTrackXp(), GetCurrentTrackXpNeeded()));
-+		}
++        }
 +
 +        private RewardTrack GetRewardTrack()
-+		{
-+            if(m_curState==State.VIEWING_EVENT||m_curState==State.EVENT_REWARD_TRACK) return RewardTrackManager.Get().GetCurrentEventRewardTrack();
++        {
++            if (m_curState == State.VIEWING_EVENT || m_curState == State.EVENT_REWARD_TRACK) return RewardTrackManager.Get().GetCurrentEventRewardTrack();
 +            return RewardTrackManager.Get().GetRewardTrack(m_rewardTrackType);
-+            //return RewardTrackManager.Get().GetCurrentRewardTrack(Assets.Achievement.RewardTrackType.GLOBAL);
-+		}
++        }
 +
 +
 +        #region achievements
-+        private void ReadAchievementCats() {
-+            m_curState=State.ACHIEVEMENT_CATEGORY_MENU;
-+            if(m_achievementTabSelectorMenu==null) {
-+                m_achievementTabSelectorMenu = new AccessibleMenu(this,LocalizationUtils.Get(LocalizationKey.ACHIEVEMENT_CATEGORY_TITLE),()=>ReadJournal());
-+                DataModelList<AchievementCategoryDataModel> cats=AchievementManager.Get().Categories.Categories;
-+                m_achievementTabSelectorMenu.AddOption(LocalizationUtils.Get(LocalizationKey.ACHIEVEMENT_CATEGORY_RECENT),ReadRecentAchievements);
-+                for(int i=0; i<cats.Count; i++) {
-+                    var cat=cats[i];
-+                    m_achievementTabSelectorMenu.AddOption(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_CATEGORY_ITEM,cats[i].Name,cats[i].Stats.Points,cats[i].Stats.AvailablePoints,cats[i].Stats.CompletionPercentage, cats[i].Stats.CompletedAchievements,cats[i].Stats.TotalAchievements), () =>ReadAchievementCategory(cat));
++        private void ReadAchievementCats()
++        {
++            m_curState = State.ACHIEVEMENT_CATEGORY_MENU;
++            if (m_achievementTabSelectorMenu == null)
++            {
++                m_achievementTabSelectorMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.ACHIEVEMENT_CATEGORY_TITLE), () => ReadJournal());
++                DataModelList<AchievementCategoryDataModel> cats = AchievementManager.Get().Categories.Categories;
++                m_achievementTabSelectorMenu.AddOption(LocalizationUtils.Get(LocalizationKey.ACHIEVEMENT_CATEGORY_RECENT), ReadRecentAchievements);
++                for (int i = 0; i < cats.Count; i++)
++                {
++                    var cat = cats[i];
++                    m_achievementTabSelectorMenu.AddOption(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_CATEGORY_ITEM, cats[i].Name, cats[i].Stats.Points, cats[i].Stats.AvailablePoints, cats[i].Stats.CompletionPercentage, cats[i].Stats.CompletedAchievements, cats[i].Stats.TotalAchievements), () => ReadAchievementCategory(cat));
 +                }
 +                m_achievementTabSelectorMenu.StartReading();
-+            } else {
++            }
++            else
++            {
 +                m_achievementTabSelectorMenu.StartReading(false);
 +            }
 +        }
 +
-+    private void ReadRecentAchievements() {
-+        DataModelList<AchievementDataModel> allAchs=AchievementManager.Get().GetRecentlyCompletedAchievements().GetCurrentSortedAchievements()
-+            .SortByStatusThenClaimedDate()
-+            .Take(5)
-+            .ToDataModelList();;
-+        DataModelList<AchievementDataModel> recentAchieves = new DataModelList<AchievementDataModel>();
-+        m_currentCategory=null;
-+                m_currentSubcategory=null;
-+        for(int x=0; x<allAchs.Count; x++) {
-+            recentAchieves.Add(allAchs[x]);
-+    }
-+ReadAchievementList(recentAchieves, ReadAchievementCats);
-+}
++        private void ReadRecentAchievements()
++        {
++            DataModelList<AchievementDataModel> allAchs = AchievementManager.Get().GetRecentlyCompletedAchievements().GetCurrentSortedAchievements()
++                .SortByStatusThenClaimedDate()
++                .Take(5)
++                .ToDataModelList(); ;
++            DataModelList<AchievementDataModel> recentAchieves = new DataModelList<AchievementDataModel>();
++            m_currentCategory = null;
++            m_currentSubcategory = null;
++            for (int x = 0; x < allAchs.Count; x++)
++            {
++                recentAchieves.Add(allAchs[x]);
++            }
++            ReadAchievementList(recentAchieves, ReadAchievementCats);
++        }
 +        private AchievementCategoryDataModel m_currentCategory;
 +        private AchievementSubcategoryDataModel m_currentSubcategory;
-+        private void ReadAchievementCategory(AchievementCategoryDataModel data) {
-+                        AchievementManager.Get().SelectCategory(data);
-+                        m_currentCategory=data;
-+            m_curState=State.ACHIEVEMENT_SUBCATEGORY_MENU;
-+                m_achievementSubcategoryMenu = new AccessibleMenu(this,data.Name,()=>ReadAchievementCats());
-+                DataModelList<AchievementSubcategoryDataModel> cats=data.Subcategories.Subcategories;
-+                for(int i=0; i<cats.Count; i++) {
-+                    var cat=cats[i];
-+                    m_achievementSubcategoryMenu.AddOption(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_CATEGORY_ITEM,cats[i].Name,cats[i].Stats.Points,cats[i].Stats.AvailablePoints,cats[i].Stats.CompletionPercentage, cats[i].Stats.CompletedAchievements,cats[i].Stats.TotalAchievements), () =>ReadAchievementSubcategory(cat));
-+                }
-+                m_achievementSubcategoryMenu.StartReading();
++        private void ReadAchievementCategory(AchievementCategoryDataModel data)
++        {
++            AchievementManager.Get().SelectCategory(data);
++            m_currentCategory = data;
++            m_curState = State.ACHIEVEMENT_SUBCATEGORY_MENU;
++            m_achievementSubcategoryMenu = new AccessibleMenu(this, data.Name, () => ReadAchievementCats());
++            DataModelList<AchievementSubcategoryDataModel> cats = data.Subcategories.Subcategories;
++            for (int i = 0; i < cats.Count; i++)
++            {
++                var cat = cats[i];
++                m_achievementSubcategoryMenu.AddOption(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_CATEGORY_ITEM, cats[i].Name, cats[i].Stats.Points, cats[i].Stats.AvailablePoints, cats[i].Stats.CompletionPercentage, cats[i].Stats.CompletedAchievements, cats[i].Stats.TotalAchievements), () => ReadAchievementSubcategory(cat));
++            }
++            m_achievementSubcategoryMenu.StartReading();
 +
 +        }
 +
-+        private void ReadAchievementSubcategory(AchievementSubcategoryDataModel data) {
++        private void ReadAchievementSubcategory(AchievementSubcategoryDataModel data)
++        {
 +            AchievementManager.Get().SelectSubcategory(data);
 +            DataModelList<AchievementSectionDataModel> sections = data.Sections.Sections;
-+            DataModelList<AchievementDataModel> achieves=new DataModelList<AchievementDataModel>();
-+                        m_currentSubcategory=data;
-+                                    for(int i=0; i<sections.Count; i++) {
-+                for(int j=0; j<sections[i].Achievements.Achievements.Count; j++) {
-+                achieves.Add(sections[i].Achievements.Achievements[j]);
++            DataModelList<AchievementDataModel> achieves = new DataModelList<AchievementDataModel>();
++            m_currentSubcategory = data;
++            for (int i = 0; i < sections.Count; i++)
++            {
++                for (int j = 0; j < sections[i].Achievements.Achievements.Count; j++)
++                {
++                    achieves.Add(sections[i].Achievements.Achievements[j]);
 +                }
 +            }
-+            ReadAchievementList(achieves,() => ReadAchievementCategory(m_currentCategory));
++            ReadAchievementList(achieves, () => ReadAchievementCategory(m_currentCategory));
 +        }
-+DataModelList<AchievementDataModel> m_currentAchievementList=null;
-+        private void ReadAchievementList(DataModelList<AchievementDataModel> achievements, Action goBackAction, bool onlyIncompleteAchievements=false) {
-+            m_curState=State.ACHIEVEMENT_LIST;
-+            List<AccessibleMultilineText> items=new List<AccessibleMultilineText>();
-+            DataModelList<AchievementDataModel> achievementsCopy=new DataModelList<AchievementDataModel>();
-+            if(onlyIncompleteAchievements) {
-+                for(int i=0; i<achievements.Count; i++) {
-+                    if(achievements[i].CompletionDate=="") {
++        DataModelList<AchievementDataModel> m_currentAchievementList = null;
++        private void ReadAchievementList(DataModelList<AchievementDataModel> achievements, Action goBackAction, bool onlyIncompleteAchievements = false)
++        {
++            m_curState = State.ACHIEVEMENT_LIST;
++            List<AccessibleMultilineText> items = new List<AccessibleMultilineText>();
++            DataModelList<AchievementDataModel> achievementsCopy = new DataModelList<AchievementDataModel>();
++            if (onlyIncompleteAchievements)
++            {
++                for (int i = 0; i < achievements.Count; i++)
++                {
++                    if (achievements[i].CompletionDate == "")
++                    {
 +                        achievementsCopy.Add(achievements[i]);
-+                        }
++                    }
 +                }
-+                                AccessibilityMgr.Output(this,LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_SHOWING_INCOMPLETE,achievementsCopy.Count,achievements.Count));
++                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_SHOWING_INCOMPLETE, achievementsCopy.Count, achievements.Count));
 +            }
-+            else achievementsCopy=achievements;
-+            m_currentAchievementList=achievementsCopy;
-+                        for(int i=0; i<achievementsCopy.Count; i++) {
-+                            List<string> lines=new List<string>();
-+                AchievementDataModel ach=achievementsCopy[i];
++            else achievementsCopy = achievements;
++            m_currentAchievementList = achievementsCopy;
++            for (int i = 0; i < achievementsCopy.Count; i++)
++            {
++                List<string> lines = new List<string>();
++                AchievementDataModel ach = achievementsCopy[i];
 +                lines.Add(ach.Name);
-+                                if(!ProgressUtils.IsAchievementClaimed(ach.Status)&&ach.CompletionDate!="") lines.Add(LocalizationUtils.Get(LocalizationKey.ACHIEVEMENT_CLAIMABLE));
-+                if(ach.MaxTier>1) lines.Add(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_VIEW_TIER,ach.Tier,ach.MaxTier));
++                if (!ProgressUtils.IsAchievementClaimed(ach.Status) && ach.CompletionDate != "") lines.Add(LocalizationUtils.Get(LocalizationKey.ACHIEVEMENT_CLAIMABLE));
++                if (ach.MaxTier > 1) lines.Add(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_VIEW_TIER, ach.Tier, ach.MaxTier));
 +                lines.Add(ach.Description);
-+                                if(ach.Quota>1) lines.Add(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_VIEW_PROGRESS,ach.Progress,ach.Quota));
-+                                                                                                if(ach.RewardSummary!="") lines.Add(ach.RewardSummary);
-+                                                                if(ach.CompletionDate!="") lines.Add(ach.CompletionDate);
-+            items.Add(new AccessibleMultilineText(this, lines));            
-+}       
-+        m_achievementListMenu = new AccessibleListOfItems<AccessibleMultilineText>(this,items);
-+        m_achievementListMenu.TabAction=()=>ReadAchievementList(achievements,goBackAction,!onlyIncompleteAchievements);
-+        m_achievementListMenu.SetGoBackAction(goBackAction);
++                if (ach.Quota > 1) lines.Add(LocalizationUtils.Format(LocalizationKey.ACHIEVEMENT_VIEW_PROGRESS, ach.Progress, ach.Quota));
++                if (ach.RewardSummary != "") lines.Add(ach.RewardSummary);
++                if (ach.CompletionDate != "") lines.Add(ach.CompletionDate);
++                items.Add(new AccessibleMultilineText(this, lines));
++            }
++            m_achievementListMenu = new AccessibleListOfItems<AccessibleMultilineText>(this, items);
++            m_achievementListMenu.TabAction = () => ReadAchievementList(achievements, goBackAction, !onlyIncompleteAchievements);
++            m_achievementListMenu.SetGoBackAction(goBackAction);
 +            m_achievementListMenu.StartReading();
 +        }
 +
-+        private void ViewAchievement(AchievementDataModel ach) {
++        private void ViewAchievement(AchievementDataModel ach)
++        {
 +        }
-+    private bool m_achievementChooseOne=false;
-+    private int m_currentAchievement=0;
-+    private void ClaimAchievement(int id) {
-+        m_currentAchievement=id;
-+        RewardListDbfRecord rewardList = GameDbf.Achievement.GetRecord(id).RewardListRecord;
-+        if(AchievementManager.Get().ClaimAchievementReward(id, 0)) {
-+            if(rewardList!=null&&rewardList.ChooseOne) {
-+                m_achievementChooseOne=true;
-+                ReadChooseOneRewards(rewardList);
++        private bool m_achievementChooseOne = false;
++        private int m_currentAchievement = 0;
++        private void ClaimAchievement(int id)
++        {
++            m_currentAchievement = id;
++            RewardListDbfRecord rewardList = GameDbf.Achievement.GetRecord(id).RewardListRecord;
++            if (AchievementManager.Get().ClaimAchievementReward(id, 0))
++            {
++                if (rewardList != null && rewardList.ChooseOne)
++                {
++                    m_achievementChooseOne = true;
++                    ReadChooseOneRewards(rewardList);
++                }
++                else AchievementManager.Get().ShowNextReward(OnAchievementClaimed);
 +            }
-+            else             AchievementManager.Get().ShowNextReward(OnAchievementClaimed);
 +        }
-+    }
-+private void ClaimAchievementChooseOneReward(int achievementId, AccessibleRewardItemDataModel data) {
-+                        Network.Get().ClaimAchievementReward(achievementId,data.GetDataModel().AssetId);
-+                        OnAchievementClaimed();
-+}
++        private void ClaimAchievementChooseOneReward(int achievementId, AccessibleRewardItemDataModel data)
++        {
++            Network.Get().ClaimAchievementReward(achievementId, data.GetDataModel().AssetId);
++            OnAchievementClaimed();
++        }
 +
-+    internal void OnAchievementClaimed() {
-+        if(m_currentSubcategory==null) ReadRecentAchievements();
-+//else ReadAchievementSubcategory(m_currentSubcategory);
++        internal void OnAchievementClaimed()
++        {
++            if (m_currentSubcategory == null) ReadRecentAchievements();
++            //else ReadAchievementSubcategory(m_currentSubcategory);
 +
-+    }
-+        private void GoBackToAchievementList() {
-+            m_curState=State.ACHIEVEMENT_LIST;
-+            m_achievementViewer=null;
++        }
++        private void GoBackToAchievementList()
++        {
++            m_curState = State.ACHIEVEMENT_LIST;
++            m_achievementViewer = null;
 +            //m_achievementListMenu.StartReading(false);
 +        }
 +        #endregion
-+	}
++    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleKey.cs b/Assembly-CSharp/Accessibility/AccessibleKey.cs
 new file mode 100644
@@ -14010,7 +14213,7 @@ index 0000000..1112ecd
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleQuest.cs b/Assembly-CSharp/Accessibility/AccessibleQuest.cs
 new file mode 100644
-index 0000000..947bc85
+index 0000000..9f9cb37
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleQuest.cs
 @@ -0,0 +1,188 @@
@@ -14068,7 +14271,7 @@ index 0000000..947bc85
 +
 +            ret.Add(m_questDataModel.Description);
 +
-+            var progress = GetProgress();
++            var progress = GetProgress(m_questDataModel);
 +
 +            if (progress.Length > 0)
 +            {
@@ -14143,14 +14346,14 @@ index 0000000..947bc85
 +            return lst;
 +        }
 +
-+        private string GetProgress()
++        internal static string GetProgress(QuestDataModel questDataModel)
 +        {
-+            if (m_questDataModel.Quota == 0)
++            if (questDataModel.Quota == 0)
 +            {
 +                return "";
 +            }
 +
-+            return LocalizationUtils.Format(LocalizationKey.TOAST_QUEST_PROGRESS_TOAST_PROGRESS, m_questDataModel.Progress, m_questDataModel.Quota);
++            return LocalizationUtils.Format(LocalizationKey.TOAST_QUEST_PROGRESS_TOAST_PROGRESS, questDataModel.Progress, questDataModel.Quota);
 +        }
 +
 +        public QuestDataModel GetQuestDataModel()
@@ -14292,10 +14495,10 @@ index 0000000..040d6fc
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleRewardData.cs b/Assembly-CSharp/Accessibility/AccessibleRewardData.cs
 new file mode 100644
-index 0000000..4dc503f
+index 0000000..0166694
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleRewardData.cs
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,264 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -14346,6 +14549,8 @@ index 0000000..4dc503f
 +                    return GetLinesForMiniSetReward();
 +                 case Reward.Type.FORGE_TICKET:
 +                    return GetLinesForForgeTicketReward();
++                    case Reward.Type.DECK:
++                    return GetLinesForDeckReward();
 +                 case Reward.Type.CRAFTABLE_CARD:
 +                 case Reward.Type.CLASS_CHALLENGE:
 +                 case Reward.Type.EVENT:
@@ -14353,7 +14558,6 @@ index 0000000..4dc503f
 +                 case Reward.Type.BONUS_CHALLENGE:
 +                 case Reward.Type.ADVENTURE_DECK:
 +                 case Reward.Type.ADVENTURE_HERO_POWER:
-+                 case Reward.Type.DECK:
 +                 default:
 +                    return GetLinesForUnknownReward();
 +            }
@@ -14504,7 +14708,8 @@ index 0000000..4dc503f
 +
 +            var collectibleCard = CollectionManager.Get().GetCard(reward.CardID, TAG_PREMIUM.NORMAL);
 +            var heroName = collectibleCard.Name;
-+            var className = GameStrings.GetClassName(DefLoader.Get().GetEntityDef(reward.CardID).GetClass());
++            var @class = DefLoader.Get().GetEntityDef(reward.CardID).GetClass();
++            var className = GameStrings.GetClassName(@class);
 +
 +            if (reward.Premium == TAG_PREMIUM.GOLDEN)
 +            {
@@ -14514,11 +14719,15 @@ index 0000000..4dc503f
 +            }
 +            else if (GameUtils.IsVanillaHero(reward.CardID))
 +            {
-+                var numHeroes = AchieveManager.Get().NumDefaultHeroesUnlocked();
++                var numHeroes = GameUtils.DEFAULT_HERO_CLASSES.Length;
 +                var numUnlockedHeroes = AchieveManager.Get().NumDefaultHeroesUnlocked();
++                var record = GameDbf.Class.GetRecord((int)@class);
 +
 +                ret.Add(LocalizationUtils.Get(LocalizationKey.UI_REWARD_NEW_CLASS_UNLOCKED));
 +                ret.Add(LocalizationUtils.Format(LocalizationKey.UI_REWARD_CLASS_HERO, className));
++                ret.Add(record.PreviewDesc.GetString());
++                ret.Add(LocalizationUtils.Format(LocalizationKey.UI_REWARD_NEW_CLASS_STRENGTHS, record.StrengthsDesc.GetString()));
++                ret.Add(LocalizationUtils.Format(LocalizationKey.UI_REWARD_NEW_CLASS_WEAKNESSES, record.WeaknessesDesc.GetString()));
 +                ret.Add(LocalizationUtils.Format(LocalizationKey.UI_REWARD_CLASS_UNLOCK_PROGRESS, numUnlockedHeroes, numHeroes));
 +                return ret;
 +            }
@@ -14539,14 +14748,27 @@ index 0000000..4dc503f
 +            ret.Add(LocalizationUtils.Get(LocalizationKey.UI_REWARD_TYPE_ONE_CARD_BACK));
 +            return ret;
 +        }
++
++        private List<string> GetLinesForDeckReward()
++        {
++            var ret = new List<string>();
++            DeckRewardData reward = (DeckRewardData)RewardData;
++            ret.Add(LocalizationUtils.Get(LocalizationKey.UI_REWARD_DECK));
++            var record = GameDbf.Deck.GetRecord(reward.DeckId);
++            if (record != null)
++            {
++                ret.Add(record.Name.GetString());
++            }
++            return ret;
++        }
 +    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleRewardItemDataModel.cs b/Assembly-CSharp/Accessibility/AccessibleRewardItemDataModel.cs
 new file mode 100644
-index 0000000..ec9c7fb
+index 0000000..b381e88
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleRewardItemDataModel.cs
-@@ -0,0 +1,164 @@
+@@ -0,0 +1,196 @@
 +﻿using Assets;
 +using Hearthstone.DataModels;
 +using System;
@@ -14562,7 +14784,7 @@ index 0000000..ec9c7fb
 +
 +        private bool m_includeRewardType; // Used to suppress redundant reward types in certain screens e.g. choosing hero skins in a "choose hero skin" menu
 +
-+        internal AccessibleRewardItemDataModel(AccessibleComponent parent, RewardItemDataModel reward, bool includeRewardType=true) : base(parent)
++        internal AccessibleRewardItemDataModel(AccessibleComponent parent, RewardItemDataModel reward, bool includeRewardType = true) : base(parent)
 +        {
 +            m_reward = reward;
 +            m_includeRewardType = includeRewardType;
@@ -14583,7 +14805,6 @@ index 0000000..ec9c7fb
 +            switch (m_reward.ItemType)
 +            {
 +                case RewardItemType.BOOSTER:
-+                    //return AsList($"{m_reward.Quantity} {m_reward.Booster.BoosterName} card pack{suffix}"); Would be hard to localize
 +                    return GetLinesForCardPackReward();
 +                case RewardItemType.DUST:
 +                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_ARCANE_DUST, m_reward.Quantity));
@@ -14627,7 +14848,13 @@ index 0000000..ec9c7fb
 +                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_BATTLEGROUNDS_HERO_SKINS, m_reward.Quantity));
 +                case RewardItemType.BATTLEGROUNDS_GUIDE_SKIN:
 +                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_BATTLEGROUNDS_GUIDE_SKINS, m_reward.Quantity));
-+				// TODO: ROW Runestones
++                case RewardItemType.DECK:
++                    return GetLinesForDeckReward();
++                    case RewardItemType.GAME_MODE:
++                    return GetLinesForGameModeReward();
++                    case RewardItemType.LOANER_DECKS:
++                    return AsList(LocalizationUtils.Get(LocalizationKey.UI_REWARD_LOANER_DECKS));
++                // TODO: ROW Runestones
 +                default:
 +                    var ret = new List<string>();
 +                    ret.Add(LocalizationUtils.Get(LocalizationKey.UI_REWARD_TYPE_UNKNOWN));
@@ -14698,11 +14925,38 @@ index 0000000..ec9c7fb
 +            return ret;
 +        }
 +
++        private List<string> GetLinesForDeckReward()
++        {
++            var ret = new List<string>();
++            if (m_includeRewardType)
++            {
++                ret.Add(LocalizationUtils.Get(LocalizationKey.UI_REWARD_DECK));
++            }
++            var record = GameDbf.DeckTemplate.GetRecord(m_reward.DeckTemplateId);
++            var deckRecord = record.DeckRecord;
++            ret.Add(deckRecord.Name.GetString());
++            ret.Add(GameStrings.GetClassName((TAG_CLASS)record.ClassId));
++            ret.Add(deckRecord.Description.GetString());
++            return ret;
++        }
++
++        private List<string> GetLinesForGameModeReward()
++        {
++            var ret = new List<string>();
++            if (m_includeRewardType)
++            {
++                ret.Add(LocalizationUtils.Format(LocalizationKey.UI_REWARD_GAME_MODE));
++            }
++
++            ret.Add(GameStrings.GetGameModeName((RewardItem.UnlockableGameMode)m_reward.GameModeId));
++            return ret;
++        }
++
 +        private List<string> AsList(string str)
 +        {
-+			var ret = new List<string>();
-+			ret.Add(str);
-+			return ret;
++            var ret = new List<string>();
++            ret.Add(str);
++            return ret;
 +        }
 +
 +        public RewardItemDataModel GetDataModel()
@@ -16256,6 +16510,56 @@ index 0000000..400b739
 +        internal static string CombineWordsWithColon(string a, string b)
 +        {
 +            return $"{a}: {b}";
++        }
++    }
++}
+diff --git a/Assembly-CSharp/Accessibility/AccessibleTavernGuideQuest.cs b/Assembly-CSharp/Accessibility/AccessibleTavernGuideQuest.cs
+new file mode 100644
+index 0000000..77efef0
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/AccessibleTavernGuideQuest.cs
+@@ -0,0 +1,44 @@
++using System;
++using System.Collections.Generic;
++using Hearthstone.DataModels;
++using Hearthstone.Progression;
++
++namespace Accessibility
++{
++    class AccessibleTavernGuideQuest : AccessibleItem
++    {
++        private TavernGuideQuestDataModel m_dataModel;
++
++        internal AccessibleTavernGuideQuest(AccessibleComponent parent, TavernGuideQuestDataModel dataModel) : base(parent)
++        {
++            m_dataModel = dataModel;
++        }
++        internal override List<string> GetLines()
++        {
++            var ret = new List<string>();
++            ret.Add(m_dataModel.Title);
++            if (m_dataModel.Status == TavernGuideManager.TavernGuideQuestStatus.LOCKED)
++            {
++                ret.Add(LocalizationUtils.Format(LocalizationKey.TAVERN_GUIDE_QUEST_UNLOCK_REQUIREMENT, m_dataModel.UnlockRequirementsDescription));
++                return ret;
++            }
++            if (m_dataModel.Status == TavernGuideManager.TavernGuideQuestStatus.COMPLETED)
++            {
++                ret.Add(LocalizationUtils.Get(LocalizationKey.TAVERN_GUIDE_QUEST_COMPLETED));
++            }
++            var questDataModel = m_dataModel.Quest;
++            ret.Add(questDataModel.Description);
++            var progress = AccessibleQuest.GetProgress(questDataModel);
++            if (!string.IsNullOrEmpty(progress) && m_dataModel.Status != TavernGuideManager.TavernGuideQuestStatus.COMPLETED)
++            {
++                ret.Add(progress);
++            }
++            ret.Add(m_dataModel.SelectedDescription);
++            if (!string.IsNullOrEmpty(m_dataModel.RecommendedClasses))
++            {
++                ret.Add(LocalizationUtils.Format(LocalizationKey.TAVERN_GUIDE_QUEST_RECOMMENDED_CLASSES, m_dataModel.RecommendedClasses));
++            }
++            return ret;
 +        }
 +    }
 +}
@@ -20662,10 +20966,10 @@ index 0000000..b2631d1
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
 new file mode 100644
-index 0000000..9d84d65
+index 0000000..bfa0b40
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,112 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using Hearthstone.Progression;
@@ -20759,6 +21063,11 @@ index 0000000..9d84d65
 +                ret.Add(className);
 +            }
 +
++            if (m_deck.GetClass() == TAG_CLASS.DEATHKNIGHT)
++            {
++                ret.Add(AccessibleRuneUtils.StringifyRunePattern(m_deck.GetCollectionDeck().Runes));
++            }
++
 +            // Invalid cards (used to be missing cards before 23.2.0 but decks can now have more than 30 while being built)
 +            if (m_deck.m_isShowingInvalidCardCount)
 +            {
@@ -20775,10 +21084,10 @@ index 0000000..9d84d65
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..bb4c54f
+index 0000000..49a6f30
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2337 @@
+@@ -0,0 +1,2346 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -21022,7 +21331,7 @@ index 0000000..bb4c54f
 +            AccessibilityUtils.LogDebug("CM OnPageChanged");
 +            AccessibilityUtils.LogDebug($"CM curPageNum {curPageNum}");
 +
-+            var classContext = m_curMode == Mode.TRADITIONAL ? GetTraditionalPageManager().m_currentClassContext as CollectionTabInfo? : null;
++            var classContext = m_curMode == Mode.TRADITIONAL || m_curMode == Mode.EMBEDDED ? GetTraditionalPageManager().m_currentClassContext as CollectionTabInfo? : null;
 +
 +            AccessibilityUtils.LogDebug($"CM classContext={classContext} | m_curClassContext={m_curClassContext}");
 +
@@ -22031,6 +22340,8 @@ index 0000000..bb4c54f
 +                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_COPY_DECK_OPTION), EditDeckCopyDeck);
 +                if (m_curMode == Mode.TRADITIONAL)
 +                    SetupEditDeckFormatSwitcherButtons();
++                    if (SceneMgr.Get().IsInTavernBrawlMode())
++                    m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_DELETE_DECK), () => TavernBrawlDisplay.Get().m_editDeckButton.TriggerRelease());
 +                m_editDeckMenu.AddOption(CollectionDeckTray.Get().m_doneButton.GetText(), EditDeckDone);
 +            }
 +            else
@@ -22314,9 +22625,16 @@ index 0000000..bb4c54f
 +            }
 +
 +            // Just wait if we're creating from clipboard as it'll switch back once the cards fill
-+            if (m_curState != State.CREATE_DECK_FROM_CLIPBOARD && m_curMode == Mode.TRADITIONAL)
++            if (m_curState != State.CREATE_DECK_FROM_CLIPBOARD)
 +            {
-+                AccessibilityMgr.SetScreen(this);
++                if (m_curMode == Mode.TRADITIONAL)
++                {
++                    AccessibilityMgr.SetScreen(this);
++                }
++                else if (m_curMode == Mode.EMBEDDED)
++                {
++                    AccessibilityMgr.ShowUI(this);
++                }
 +
 +                SetupEditDeckMenu();
 +            }
@@ -23159,10 +23477,10 @@ index 0000000..8116cec
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleEditingDeckCard.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleEditingDeckCard.cs
 new file mode 100644
-index 0000000..f7a2810
+index 0000000..9bacae8
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleEditingDeckCard.cs
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,86 @@
 +﻿using System.Collections.Generic;
 +
 +namespace Accessibility
@@ -23177,16 +23495,20 @@ index 0000000..f7a2810
 +
 +        private readonly CollectionDeckSlot m_slot;
 +
-+        public AccessibleEditingDeckCard(AccessibleComponent parent, DeckTrayDeckTileVisual cardTile) : base(parent)
++        private bool m_includeEligibility;
++
++        public AccessibleEditingDeckCard(AccessibleComponent parent, DeckTrayDeckTileVisual cardTile, bool includeEligibility = true) : base(parent)
 +        {
 +            m_cardTile = cardTile;
 +            m_slot = cardTile.GetSlot();
++            m_includeEligibility = includeEligibility;
 +            SetupCard();
 +        }
 +
-+        public AccessibleEditingDeckCard(AccessibleComponent parent, CollectionDeckSlot slot) : base(parent)
++        public AccessibleEditingDeckCard(AccessibleComponent parent, CollectionDeckSlot slot, bool includeEligibility = true) : base(parent)
 +        {
 +            m_slot = slot;
++            m_includeEligibility = includeEligibility;
 +            SetupCard();
 +        }
 +
@@ -23206,7 +23528,7 @@ index 0000000..f7a2810
 +            m_card = new AccessibleCollectibleCard(m_parent, m_collectibleCard, count);
 +            var lines = m_card.GetLines();
 +            var eligibility = GetEligibility();
-+            if (eligibility != null)
++            if (m_includeEligibility && eligibility != null)
 +            {
 +                lines.Insert(1, eligibility);
 +            }
@@ -24882,10 +25204,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..fe66559
+index 0000000..1a66d68
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1160 @@
+@@ -0,0 +1,1178 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -24945,6 +25267,7 @@ index 0000000..fe66559
 +    public static LocalizationKey HUB_MAIN_MENU_OPTION_GAME_MENU = CreateKey("ACCESSIBILITY_HUB_MAIN_MENU_OPTION_GAME_MENU");
 +    public static LocalizationKey HUB_MAIN_MENU_OPTION_SOCIAL_MENU = CreateKey("ACCESSIBILITY_HUB_MAIN_MENU_OPTION_SOCIAL_MENU");
 +    public static LocalizationKey HUB_MAIN_MENU_OPTION_HELP = CreateKey("ACCESSIBILITY_HUB_MAIN_MENU_OPTION_HELP");
++    public static LocalizationKey HUB_TAVERN_BRAWL_INACCESSIBLE = CreateKey("ACCESSIBILITY_HUB_TAVERN_BRAWL_INACCESSIBLE");
 +
 +    // Global
 +    public static LocalizationKey GLOBAL_SOLO_ADVENTURES = CreateKey("GLUE_ADVENTURE");
@@ -25562,6 +25885,11 @@ index 0000000..fe66559
 +    public static LocalizationKey UI_REWARD_N_MINI_SETS = CreateKey("ACCESSIBILITY_UI_REWARD_N_MINI_SETS");
 +    public static LocalizationKey UI_REWARD_N_BATTLEGROUNDS_HERO_SKINS = CreateKey("ACCESSIBILITY_UI_REWARD_N_BATTLEGROUNDS_HERO_SKINS");
 +    public static LocalizationKey UI_REWARD_N_BATTLEGROUNDS_GUIDE_SKINS = CreateKey("ACCESSIBILITY_UI_REWARD_N_BATTLEGROUNDS_GUIDE_SKINS");
++    public static LocalizationKey UI_REWARD_DECK = CreateKey("ACCESSIBILITY_UI_REWARD_DECK");
++    public static LocalizationKey UI_REWARD_LOANER_DECKS = CreateKey("ACCESSIBILITY_UI_REWARD_LOANER_DECKS");
++    public static LocalizationKey UI_REWARD_GAME_MODE = CreateKey("ACCESSIBILITY_UI_REWARD_GAME_MODE");
++    public static LocalizationKey UI_REWARD_NEW_CLASS_STRENGTHS = CreateKey("ACCESSIBILITY_UI_REWARD_NEW_CLASS_STRENGTHS");
++    public static LocalizationKey UI_REWARD_NEW_CLASS_WEAKNESSES = CreateKey("ACCESSIBILITY_UI_REWARD_NEW_CLASS_WEAKNESSES");
 +
 +    // Choose free deck UI
 +    public static LocalizationKey UI_CHOOSE_FREE_DECK_TITLE = CreateKey("GLUE_FREE_DECK_POPUP_TITLE");
@@ -25581,6 +25909,8 @@ index 0000000..fe66559
 +    public static LocalizationKey UI_REWARDS_TRACK_XP_PROGRESS = CreateKey("ACCESSIBILITY_UI_REWARDS_TRACK_XP_PROGRESS");
 +    public static LocalizationKey UI_REWARDS_TRACK_CLAIM_REWARDS = CreateKey("ACCESSIBILITY_UI_REWARDS_TRACK_CLAIM_REWARDS");
 +    public static LocalizationKey UI_REWARDS_TRACK_CLAIM_REWARDS_NO_REWARDS = CreateKey("ACCESSIBILITY_UI_REWARDS_TRACK_CLAIM_REWARDS_NO_REWARDS");
++    public static LocalizationKey UI_REWARDS_TRACK_DECK_CHOICE_CONFIRMATION_PROMPT = CreateKey("ACCESSIBILITY_UI_REWARDS_TRACK_DECK_CHOICE_CONFIRMATION_PROMPT");
++    public static LocalizationKey UI_REWARDS_TRACK_BROWSE_DECK_HELP = CreateKey("ACCESSIBILITY_UI_REWARDS_TRACK_BROWSE_DECK_HELP");
 +
 +    // Shop
 +    public static LocalizationKey UI_SHOP_READ_GOLD = CreateKey("ACCESSIBILITY_UI_SHOP_READ_GOLD");
@@ -25744,6 +26074,7 @@ index 0000000..fe66559
 +    // Hearthstone (virtual) menu
 +    public static LocalizationKey SCREEN_HEARTHSTONE_PLAY_RANKED = CreateKey("GLOBAL_PLAY_RANKED");
 +    public static LocalizationKey SCREEN_HEARTHSTONE_PLAY_CASUAL = CreateKey("GLUE_PLAY_CASUAL");
++    public static LocalizationKey SCREEN_HEARTHSTONE_PLAY_HEARTHSTONE = CreateKey("ACCESSIBILITY_SCREEN_HEARTHSTONE_PLAY_HEARTHSTONE");
 +    public static LocalizationKey SCREEN_HEARTHSTONE_PLAY_STANDARD = CreateKey("GLOBAL_PLAY_STANDARD");
 +    public static LocalizationKey SCREEN_HEARTHSTONE_PLAY_WILD = CreateKey("GLOBAL_PLAY_WILD");
 +    public static LocalizationKey SCREEN_HEARTHSTONE_PLAY_TWIST = CreateKey("GLUE_PLAY_TWIST");
@@ -26002,6 +26333,15 @@ index 0000000..fe66559
 +    public static LocalizationKey ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_PREVIEW=CreateKey("ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_PREVIEW");
 +    public static LocalizationKey ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_DESC=CreateKey("ACCESSIBILITY_JOURNAL_EVENT_REWARD_TRACK_DESC");
 +
++    public static LocalizationKey TAVERN_GUIDE_QUEST_COMPLETED = CreateKey("ACCESSIBILITY_TAVERN_GUIDE_QUEST_COMPLETED");
++    public static LocalizationKey TAVERN_GUIDE_QUEST_UNLOCK_REQUIREMENT = CreateKey("ACCESSIBILITY_TAVERN_GUIDE_QUEST_UNLOCK_REQUIREMENT");
++    public static LocalizationKey TAVERN_GUIDE_QUEST_SET_LABEL = CreateKey("ACCESSIBILITY_TAVERN_GUIDE_QUEST_SET_LABEL");
++    public static LocalizationKey TAVERN_GUIDE_QUEST_RECOMMENDED_CLASSES = CreateKey("ACCESSIBILITY_TAVERN_GUIDE_QUEST_RECOMMENDED_CLASSES");
++    public static LocalizationKey TAVERN_GUIDE_NEW = CreateKey("ACCESSIBILITY_TAVERN_GUIDE_NEW");
++    public static LocalizationKey TAVERN_GUIDE_CLAIM_REWARD = CreateKey("ACCESSIBILITY_TAVERN_GUIDE_CLAIM_REWARD");
++
++    public static LocalizationKey APPRENTICE_REWARD_REMINDER = CreateKey("ACCESSIBILITY_APPRENTICE_REWARD_REMINDER");
++
 +    public string Key { get; private set; }
 +
 +    private LocalizationKey(string key)
@@ -26184,10 +26524,10 @@ index 0000000..a7d8e6a
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizedText.cs b/Assembly-CSharp/Accessibility/Localization/LocalizedText.cs
 new file mode 100644
-index 0000000..6c108ba
+index 0000000..fa4ae4d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizedText.cs
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,75 @@
 +﻿using Accessibility;
 +using System;
 +using System.Collections.Generic;
@@ -26205,6 +26545,7 @@ index 0000000..6c108ba
 +    // Hub
 +    public static string HUB_MAIN_MENU_TITLE => LocalizationUtils.Get(LocalizationKey.HUB_MAIN_MENU_TITLE);
 +    public static string HUB_BATTLEGROUNDS_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_BATTLEGROUNDS);
++    public static string HUB_TAVERN_BRAWL_OPTION => GameStrings.Get("GLOBAL_TAVERN_BRAWL");
 +    public static string HUB_GAME_MODES_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_GAME_MODES);
 +    public static string HUB_MY_COLLECTION_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_MY_COLLECTION);
 +    public static string HUB_HELP_OPTION => LocalizationUtils.Get(LocalizationKey.GLOBAL_HELP);
@@ -31773,7 +32114,7 @@ index b2c616f..4c637ba 100644
  	protected override void Awake()
  	{
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
-index af12aa8..e8f9856 100644
+index af12aa8..7810527 100644
 --- a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 +++ b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 @@ -11,9 +11,10 @@ using PegasusClient;
@@ -32036,7 +32377,7 @@ index af12aa8..e8f9856 100644
  	}
  
  	private void OnSessionEndComplete()
-@@ -3275,4 +3292,689 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -3275,4 +3292,691 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  		Navigation.PopBlockBackingOut();
  		Navigation.GoBack();
  	}
@@ -32079,7 +32420,9 @@ index af12aa8..e8f9856 100644
 +
 +	private void ReadScreen()
 +    {
-+		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode())
++		var currentId = Enum.GetName(typeof(AdventureDbId), m_dungeonCrawlData.GetSelectedAdventure());
++		AccessibilityUtils.LogDebug($"AdventureDungeonCrawlDisplay.ReadScreen: current adventure is {currentId}");
++		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode() && !SceneMgr.Get().IsInTavernBrawlMode())
 +        {
 +			return;
 +        }
@@ -56426,10 +56769,20 @@ index 32ddf75..fcb2bea 100644
  		set; }
  }
 diff --git a/Assembly-CSharp/DeckArchetypesIntroPopup.cs b/Assembly-CSharp/DeckArchetypesIntroPopup.cs
-index 7db05fe..dace72a 100644
+index 7db05fe..711943d 100644
 --- a/Assembly-CSharp/DeckArchetypesIntroPopup.cs
 +++ b/Assembly-CSharp/DeckArchetypesIntroPopup.cs
-@@ -9,6 +9,7 @@ public class DeckArchetypesIntroPopup : BasicPopup
+@@ -1,7 +1,9 @@
+ using System;
++using System.Collections.Generic;
+ using Blizzard.T5.MaterialService.Extensions;
+ using Hearthstone.UI;
+ using UnityEngine;
++using Accessibility;
+ 
+ [RequireComponent(typeof(WidgetTemplate))]
+ public class DeckArchetypesIntroPopup : BasicPopup
+@@ -9,6 +11,7 @@ public class DeckArchetypesIntroPopup : BasicPopup
  	public class DeckArchetypesIntroPopupInfo : PopupInfo
  	{
  		public Action m_onHiddenCallback;
@@ -56437,6 +56790,59 @@ index 7db05fe..dace72a 100644
  	}
  
  	public static readonly AssetReference PrefabReference = new AssetReference("NPPG_DeckPickerArchetypes.prefab:6b850c6784b6e6044af0bcef1d4e506f");
+@@ -64,11 +67,14 @@ public class DeckArchetypesIntroPopup : BasicPopup
+ 		{
+ 			OverlayUI.Get().AddGameObject(base.gameObject, CanvasAnchor.CENTER, destroyOnSceneLoad: false, (!UniversalInputManager.UsePhoneUI) ? CanvasScaleMode.HEIGHT : CanvasScaleMode.WIDTH);
+ 			m_widget.TriggerEvent("SHOW_POPUP");
++
++			ReadPopup();
+ 		}
+ 	}
+ 
+ 	public override void Hide()
+ 	{
++		AccessibilityMgr.HideUI(this);
+ 		DeckArchetypesIntroPopupInfo deckArchetypesIntroPopupInfo = m_popupInfo as DeckArchetypesIntroPopupInfo;
+ 		if (deckArchetypesIntroPopupInfo != null && deckArchetypesIntroPopupInfo.m_onHiddenCallback != null)
+ 		{
+@@ -103,4 +109,37 @@ public class DeckArchetypesIntroPopup : BasicPopup
+ 			m_magePortraitMesh.SetSharedMaterial(m_magePortraitMaterialIndex, customDeckPortrait2);
+ 		}
+ 	}
++
++	#region Accessibility
++	private AccessibleListOfItems<AccessibleMultilineText> m_accessibleArchetypes;
++
++	private void ReadPopup()
++	{
++		AccessibilityMgr.ShowUI(this);
++		AccessibilityMgr.Output(this, GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_DECK_POPUP_SUBTITLE"));
++		var archetypes = new List<AccessibleMultilineText>();
++		archetypes.Add(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_DECK_POPUP_AGGRO"), GameStrings.GetClassName(TAG_CLASS.HUNTER), GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_DECK_POPUP_AGGRO_DESC")));
++		archetypes.Add(new AccessibleMultilineText(this, GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_DECK_POPUP_CONTROL"), GameStrings.GetClassName(TAG_CLASS.MAGE), GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_DECK_POPUP_CONTROL_DESC")));
++		m_accessibleArchetypes = new AccessibleListOfItems<AccessibleMultilineText>(this, archetypes);
++		m_accessibleArchetypes.StartReading();
++	}
++
++	public override void HandleAccessibleInput()
++	{
++		if (AccessibleKey.CONFIRM.IsPressed())
++		{
++			m_widget.TriggerEvent(HIDE_EVENT_NAME);
++		}
++		else
++		{
++			m_accessibleArchetypes.HandleAccessibleInput();
++		}
++	}
++
++	public override string GetAccessibleHelp()
++	{
++		return LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_CONTINUE, AccessibleKey.CONFIRM);
++	}
++
++	#endregion
+ }
 diff --git a/Assembly-CSharp/DeckHelper.cs b/Assembly-CSharp/DeckHelper.cs
 index 9980a38..4efb25f 100644
 --- a/Assembly-CSharp/DeckHelper.cs
@@ -56579,7 +56985,7 @@ index 5e43989..114ba2d 100644
 +		#endregion
  }
 diff --git a/Assembly-CSharp/DeckPickerTrayDisplay.cs b/Assembly-CSharp/DeckPickerTrayDisplay.cs
-index 5f0f003..618acfa 100644
+index 5f0f003..74e4e6d 100644
 --- a/Assembly-CSharp/DeckPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/DeckPickerTrayDisplay.cs
 @@ -4,6 +4,7 @@ using System.Collections.Generic;
@@ -57696,7 +58102,16 @@ index 5f0f003..618acfa 100644
  				GameMgr gameMgr = GameMgr.Get();
  				long deckId = 0L;
  				int deckTemplateId2 = deckTemplateId;
-@@ -4069,7 +4080,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -3945,6 +3956,8 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+ 		{
+ 			decksContent.CreateNewDeckFromUserSelection(heroDef.GetClass(), heroDef.GetCardId());
+ 			CollectionManager.Get().GetCollectibleDisplay().EnableInput(enable: true);
++
++			AccessibilityMgr.SetScreen(TavernBrawlDisplay.Get());
+ 			yield break;
+ 		}
+ 		CollectionManagerDisplay collectionManagerDisplay = CollectionManager.Get().GetCollectibleDisplay() as CollectionManagerDisplay;
+@@ -4069,7 +4082,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  				}
  			}
  		}
@@ -57705,7 +58120,7 @@ index 5f0f003..618acfa 100644
  		{
  			yield return null;
  		}
-@@ -4085,6 +4096,8 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4085,6 +4098,8 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		{
  			PlayEnterModeDialogues();
  		}
@@ -57714,7 +58129,7 @@ index 5f0f003..618acfa 100644
  	}
  
  	private bool CustomPagesReady()
-@@ -4179,7 +4192,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4179,7 +4194,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		bool flag = RewardUtils.HasNewRewardedDeck(out deckId);
  		if (flag && !HasValidDeckboxWithId(deckId))
  		{
@@ -57723,7 +58138,7 @@ index 5f0f003..618acfa 100644
  			return false;
  		}
  		return flag;
-@@ -4190,7 +4203,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4190,7 +4205,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		return GetDeckboxWithDeckID(deckId) != null;
  	}
  
@@ -57732,7 +58147,7 @@ index 5f0f003..618acfa 100644
  	{
  		if (SceneMgr.Get().GetMode() != SceneMgr.Mode.FRIENDLY)
  		{
-@@ -4256,28 +4269,28 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4256,28 +4271,28 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		base.OnFriendChallengeChanged(challengeEvent, player, challengeData, userData);
  		switch (challengeEvent)
  		{
@@ -57783,7 +58198,7 @@ index 5f0f003..618acfa 100644
  		}
  	}
  
-@@ -4429,7 +4442,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4429,7 +4444,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  	private bool ShowInnkeeperQuoteIfNeeded()
  	{
  		bool result = false;
@@ -57792,7 +58207,7 @@ index 5f0f003..618acfa 100644
  		{
  			NotificationManager.Get().CreateInnkeeperQuote(UserAttentionBlocker.NONE, NotificationManager.DEFAULT_CHARACTER_POS, GameStrings.Get("VO_INNKEEPER_PLAY_STANDARD_TO_WILD"), "VO_INNKEEPER_Male_Dwarf_SetRotation_43.prefab:4b4ce858139927946905ec0d40d5b3c1");
  			Options.Get().SetBool(Option.SHOW_WILD_DISCLAIMER_POPUP_ON_CREATE_DECK, val: false);
-@@ -4462,7 +4475,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4462,7 +4477,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		bool result = false;
  		if (num == 0 || num == 2 || num == 6)
  		{
@@ -57801,7 +58216,7 @@ index 5f0f003..618acfa 100644
  			{
  				StartCoroutine(ShowWhizbangPopup(templateDeck));
  				num++;
-@@ -4482,10 +4495,13 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4482,10 +4497,13 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		if (whizbangDeck != null)
  		{
  			yield return new WaitForSeconds(1f);
@@ -57818,7 +58233,7 @@ index 5f0f003..618acfa 100644
  			popupInfo.m_disableBnetBar = true;
  			DialogManager.Get().ShowBasicPopup(UserAttentionBlocker.NONE, popupInfo);
  		}
-@@ -4599,7 +4615,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4599,7 +4617,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  			{
  				StopCoroutine(m_showLeftArrowCoroutine);
  			}
@@ -57827,7 +58242,7 @@ index 5f0f003..618acfa 100644
  		}
  		if (flag2)
  		{
-@@ -4613,7 +4629,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4613,7 +4631,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		{
  			StopCoroutine(m_showRightArrowCoroutine);
  		}
@@ -57836,7 +58251,7 @@ index 5f0f003..618acfa 100644
  	}
  
  	private bool IsShowingFirstPage()
-@@ -4815,9 +4831,9 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4815,9 +4833,9 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  	private IEnumerator ShowRotatedBoostersPopup(Action callbackOnHide = null)
  	{
  		yield return new WaitForSeconds(1f);
@@ -57848,7 +58263,7 @@ index 5f0f003..618acfa 100644
  			setRotationRotatedBoostersPopupInfo.m_onHiddenCallback = callbackOnHide;
  			DialogManager.Get().ShowSetRotationTutorialPopup(UserAttentionBlocker.SET_ROTATION_INTRO, setRotationRotatedBoostersPopupInfo);
  			GameSaveDataManager gameSaveDataManager = GameSaveDataManager.Get();
-@@ -4857,7 +4873,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4857,7 +4875,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		{
  			m_switchFormatButton.Disable();
  			m_switchFormatButton.RemoveEventListener(UIEventType.RELEASE, OnSwitchFormatReleased);
@@ -57857,7 +58272,7 @@ index 5f0f003..618acfa 100644
  			StartCoroutine(ShowWelcomeQuests());
  		}
  		else
-@@ -4935,7 +4951,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4935,7 +4953,7 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		{
  			m_switchFormatButton.Enable();
  		}
@@ -57866,7 +58281,7 @@ index 5f0f003..618acfa 100644
  	}
  
  	private bool ShouldShowStandardDeckVO(VisualsFormatType newVisualsFormatType)
-@@ -4961,14 +4977,14 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4961,14 +4979,14 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  		yield return new WaitForSeconds(1f);
  		switch (GetNumValidStandardDecks())
  		{
@@ -57887,7 +58302,7 @@ index 5f0f003..618acfa 100644
  		}
  		GameSaveDataManager gameSaveDataManager = GameSaveDataManager.Get();
  		if (gameSaveDataManager != null)
-@@ -4978,4 +4994,490 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -4978,4 +4996,495 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  			gameSaveDataManager.SaveSubkeys(list);
  		}
  	}
@@ -57924,7 +58339,7 @@ index 5f0f003..618acfa 100644
 +
 +	private bool CreatingDeck()
 +	{
-+		return SceneMgr.Get().GetMode() == SceneMgr.Mode.COLLECTIONMANAGER;
++		return IsChoosingHero();
 +	}
 +
 +	internal int? GetCurrentPageIndex()
@@ -58164,6 +58579,11 @@ index 5f0f003..618acfa 100644
 +	private void RankedOnDeckPickerTrayDisplayReady()
 +	{
 +		AccessibilityMgr.SetScreen(this);
++		if (!GameUtils.HasCompletedApprentice() && RewardTrackManager.Get().HasAnyUnclaimedApprenticeRewards())
++		{
++			AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.APPRENTICE_REWARD_REMINDER));
++		}
++
 +		AccessibilityMgr.Output(this, m_modeName.Text);
 +
 +		m_rankedMainMenu = new AccessibleMenu(this, "", m_backButton.TriggerRelease);
@@ -59950,7 +60370,7 @@ index 9c0aa51..4a6c435 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/DeckTrayDeckListContent.cs b/Assembly-CSharp/DeckTrayDeckListContent.cs
-index bc64bdf..82329d4 100644
+index bc64bdf..f50ba8b 100644
 --- a/Assembly-CSharp/DeckTrayDeckListContent.cs
 +++ b/Assembly-CSharp/DeckTrayDeckListContent.cs
 @@ -7,6 +7,7 @@ using Hearthstone;
@@ -59978,7 +60398,7 @@ index bc64bdf..82329d4 100644
  
  	protected bool m_initialized;
  
-@@ -566,6 +567,7 @@ public class DeckTrayDeckListContent : DeckTrayReorderableContent
+@@ -566,11 +567,14 @@ public class DeckTrayDeckListContent : DeckTrayReorderableContent
  				deckBox.SetDeckName(collectionDeck.Name);
  			}
  			deckBox.ShowDeckName();
@@ -59986,7 +60406,14 @@ index bc64bdf..82329d4 100644
  		}
  	}
  
-@@ -578,8 +580,8 @@ public class DeckTrayDeckListContent : DeckTrayReorderableContent
+ 	public void CreateNewDeckFromUserSelection(TAG_CLASS heroClass, string heroCardID, string customDeckName = null, DeckSourceType deckSourceType = DeckSourceType.DECK_SOURCE_TYPE_NORMAL, string pastedDeckHashString = null)
+ 	{
++		AccessibleCollectionManager.Get().PrepareToEditDeck();
++
+ 		bool num = SceneMgr.Get().IsInTavernBrawlMode();
+ 		bool flag = SceneMgr.Get().GetMode() == SceneMgr.Mode.PVP_DUNGEON_RUN;
+ 		DeckType deckType = DeckType.NORMAL_DECK;
+@@ -578,8 +582,8 @@ public class DeckTrayDeckListContent : DeckTrayReorderableContent
  		if (num)
  		{
  			value = GameStrings.Get("GLUE_COLLECTION_TAVERN_BRAWL_DECKNAME");
@@ -60056,7 +60483,7 @@ index 790def1..8facf1a 100644
 +    public abstract string GetAccessibleHelp();
  }
 diff --git a/Assembly-CSharp/DialogManager.cs b/Assembly-CSharp/DialogManager.cs
-index f85da08..8f9339a 100644
+index f85da08..c339227 100644
 --- a/Assembly-CSharp/DialogManager.cs
 +++ b/Assembly-CSharp/DialogManager.cs
 @@ -13,6 +13,7 @@ using Hearthstone.UI;
@@ -60127,16 +60554,22 @@ index f85da08..8f9339a 100644
  		{
  			m_onHiddenCallback = onHiddenCallback
  		};
-@@ -659,7 +660,7 @@ public class DialogManager : MonoBehaviour
+@@ -659,7 +660,13 @@ public class DialogManager : MonoBehaviour
  
  	public void ShowRewardTrackInfographic(Action onHiddenCallback)
  	{
 -		RewardTrackInfographic.RewardTrackInfographicInfo info = new RewardTrackInfographic.RewardTrackInfographicInfo
++		if (AccessibilityMgr.IsAccessibilityEnabled())
++		{
++			RewardTrackInfographic.IncrementPopupSeenFlag();
++			onHiddenCallback();
++			return;
++		}
 +		RewardTrackInfographic.RewardTrackInfographicInfo info = new RewardTrackInfographic.RewardTrackInfographicInfo("")
  		{
  			m_prefabAssetRefs = { (string)RewardTrackInfographic.PrefabReference },
  			m_onHiddenCallback = onHiddenCallback
-@@ -736,7 +737,7 @@ public class DialogManager : MonoBehaviour
+@@ -736,7 +743,7 @@ public class DialogManager : MonoBehaviour
  			return;
  		}
  		NetCache.ProfileNoticeMedal profileNoticeMedal = profileNotice as NetCache.ProfileNoticeMedal;
@@ -60145,7 +60578,7 @@ index f85da08..8f9339a 100644
  		{
  			return;
  		}
-@@ -863,7 +864,7 @@ public class DialogManager : MonoBehaviour
+@@ -863,7 +870,7 @@ public class DialogManager : MonoBehaviour
  	{
  		DialogRequest dialogRequest = ((m_dialogRequests.Count == 0) ? null : m_dialogRequests.Peek());
  		UserAttentionBlocker attentionCategory = dialogRequest?.m_attentionCategory ?? UserAttentionBlocker.NONE;
@@ -60154,7 +60587,7 @@ index f85da08..8f9339a 100644
  		{
  			m_loadingDialog = false;
  			UnityEngine.Object.DestroyImmediate(go);
-@@ -1225,4 +1226,17 @@ public class DialogManager : MonoBehaviour
+@@ -1225,4 +1232,17 @@ public class DialogManager : MonoBehaviour
  		};
  		AddToQueue(request);
  	}
@@ -69361,7 +69794,7 @@ index cc83c6d..ce15223 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/GameModeDisplay.cs b/Assembly-CSharp/GameModeDisplay.cs
-index 558500d..b9354d3 100644
+index 558500d..785cf85 100644
 --- a/Assembly-CSharp/GameModeDisplay.cs
 +++ b/Assembly-CSharp/GameModeDisplay.cs
 @@ -9,6 +9,7 @@ using Hearthstone.DataModels;
@@ -69420,6 +69853,15 @@ index 558500d..b9354d3 100644
  	}
  
  	private bool ShouldShowNewBanner(GameModeDbfRecord gameModeRecord)
+@@ -345,7 +348,7 @@ public class GameModeDisplay : MonoBehaviour
+ 		return false;
+ 	}
+ 
+-	private bool CanEnterMode(out string reason, out ModeLockedStatus lockedStatus)
++	internal bool CanEnterMode(out string reason, out ModeLockedStatus lockedStatus)
+ 	{
+ 		reason = "";
+ 		lockedStatus = ModeLockedStatus.Locked;
 @@ -498,12 +501,12 @@ public class GameModeDisplay : MonoBehaviour
  		}
  		switch (EnumUtils.Parse<SceneMgr.Mode>(gameModeRecord.LinkedScene))
@@ -69612,19 +70054,6 @@ index 558500d..b9354d3 100644
 +
 +	#endregion
  }
-diff --git a/Assembly-CSharp/GameModeUtils.cs b/Assembly-CSharp/GameModeUtils.cs
-index 98a040c..5773f01 100644
---- a/Assembly-CSharp/GameModeUtils.cs
-+++ b/Assembly-CSharp/GameModeUtils.cs
-@@ -5,6 +5,8 @@ public static class GameModeUtils
- {
- 	public static bool CanAccessGameModes()
- 	{
-+		return true;
-+
- 		if (!HasUnlockedMode(Global.UnlockableGameMode.ARENA) && !HasUnlockedMode(Global.UnlockableGameMode.SOLO_ADVENTURES) && !HasUnlockedMode(Global.UnlockableGameMode.DUELS))
- 		{
- 			return HasUnlockedMode(Global.UnlockableGameMode.MERCENARIES);
 diff --git a/Assembly-CSharp/GameState.cs b/Assembly-CSharp/GameState.cs
 index 4a921de..d0317c8 100644
 --- a/Assembly-CSharp/GameState.cs
@@ -76921,7 +77350,7 @@ index 6a34c7c..9aaed65 100644
  	}
  }
 diff --git a/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs b/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs
-index b224f12..9f60d3c 100644
+index b224f12..835b50f 100644
 --- a/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs
 @@ -5,9 +5,10 @@ using Hearthstone.DataModels;
@@ -76945,7 +77374,7 @@ index b224f12..9f60d3c 100644
  	}
  
  	protected override void InitForMode(SceneMgr.Mode mode)
-@@ -672,4 +675,111 @@ public class GuestHeroPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -672,4 +675,108 @@ public class GuestHeroPickerTrayDisplay : AbsDeckPickerTrayDisplay
  			component.Owner.BindDataModel(heroClassIconsDataModel);
  		}
  	}
@@ -76962,7 +77391,7 @@ index b224f12..9f60d3c 100644
 +
 +	private void ReadPickerTrayDisplay()
 +	{
-+		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode())
++		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode() && !SceneMgr.Get().IsInTavernBrawlMode())
 +        {
 +			return;
 +        }
@@ -76983,11 +77412,8 @@ index b224f12..9f60d3c 100644
 +		{
 +			numSupported = numSupportedDuelsHeroes;
 +		}
-+		//foreach (var hb in m_heroButtons)
-+		for (var i = 0; i < numSupported; i++)
++		foreach (var hb in m_heroButtons)
 +        {
-+			var hb = m_heroButtons[i];
-+
 +			accessibleHeroPickerButtons.AddOption(new AccessibleHeroPickerButton(this, hb), () => ChooseHero(hb));
 +        }
 +
@@ -78135,7 +78561,7 @@ index cdc8555..15ea2f7 100644
 +}
 \ No newline at end of file
 diff --git a/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs b/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs
-index 8614747..7ab50f8 100644
+index 8614747..84d19da 100644
 --- a/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs
 +++ b/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs
 @@ -7,6 +7,7 @@ using Hearthstone.DataModels;
@@ -78162,7 +78588,7 @@ index 8614747..7ab50f8 100644
  					m_journalMetaDatamodel.DoneChangingTabs = true;
  				}
 +
-+				AccessibleJournal.Get().OnJournalOpened(m_widget, m_rewardTrackType);
++				AccessibleJournal.Get().OnJournalOpened(m_widget, GameUtils.HasCompletedApprentice() ? m_rewardTrackType : Global.RewardTrackType.APPRENTICE);
  			}, null, callImmediatelyIfSet: true, doOnce: true);
  		}
  
@@ -78177,6 +78603,18 @@ index 8614747..7ab50f8 100644
  			}
  			HearthstonePerformance.Get()?.StopCurrentFlow();
  			UnityEngine.Object.Destroy(m_owner);
+@@ -312,7 +317,10 @@ namespace Hearthstone.Progression
+ 			GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.FTUE_HAS_SEEN_TAVERN_GUIDE_INTRODUCTION, out long value);
+ 			if (value != 1)
+ 			{
+-				NotificationManager.Get().CreateInnkeeperQuote(UserAttentionBlocker.NONE, NotificationManager.DEFAULT_CHARACTER_POS, GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_TUTORIALS_INNKEEEPER_LEARN_ROPES"), "");
++				if (!AccessibilityMgr.IsAccessibilityEnabled())
++				{
++					NotificationManager.Get().CreateInnkeeperQuote(UserAttentionBlocker.NONE, NotificationManager.DEFAULT_CHARACTER_POS, GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_TUTORIALS_INNKEEEPER_LEARN_ROPES"), "");
++				}
+ 				GameSaveDataManager.Get().SaveSubkey(new GameSaveDataManager.SubkeySaveRequest(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.FTUE_HAS_SEEN_TAVERN_GUIDE_INTRODUCTION, 1L));
+ 				if (m_journalMetaDatamodel == null)
+ 				{
 diff --git a/Assembly-CSharp/Hearthstone/Progression/JournalTrayDisplay.cs b/Assembly-CSharp/Hearthstone/Progression/JournalTrayDisplay.cs
 index 2dfe1e3..ece23c4 100644
 --- a/Assembly-CSharp/Hearthstone/Progression/JournalTrayDisplay.cs
@@ -79520,10 +79958,25 @@ index 4524b2b..8ae6f32 100644
  			if (playerRewardTrackStateUpdate == null)
  			{
 diff --git a/Assembly-CSharp/Hearthstone/Progression/TavernGuideTabDisplay.cs b/Assembly-CSharp/Hearthstone/Progression/TavernGuideTabDisplay.cs
-index 05b31e3..54d58bf 100644
+index 05b31e3..8fbd8a3 100644
 --- a/Assembly-CSharp/Hearthstone/Progression/TavernGuideTabDisplay.cs
 +++ b/Assembly-CSharp/Hearthstone/Progression/TavernGuideTabDisplay.cs
-@@ -197,7 +197,8 @@ namespace Hearthstone.Progression
+@@ -4,11 +4,13 @@ using System.Linq;
+ using Hearthstone.DataModels;
+ using Hearthstone.UI;
+ using UnityEngine;
++using Accessibility;
++using System.Text;
+ 
+ namespace Hearthstone.Progression
+ {
+ 	[RequireComponent(typeof(WidgetTemplate))]
+-	public class TavernGuideTabDisplay : MonoBehaviour
++	public class TavernGuideTabDisplay : MonoBehaviour, AccessibleUI
+ 	{
+ 		private enum PagePriority
+ 		{
+@@ -197,7 +199,8 @@ namespace Hearthstone.Progression
  			PagePriority pagePriority = PagePriority.DEFAULT;
  			foreach (KeyValuePair<int, Tuple<int, PagePriority>> item3 in m_categoryPagePriority)
  			{
@@ -79533,6 +79986,186 @@ index 05b31e3..54d58bf 100644
  				int num3 = key;
  				Tuple<int, PagePriority> tuple = value;
  				int item = tuple.Item1;
+@@ -324,5 +327,179 @@ namespace Hearthstone.Progression
+ 				GoToNextQuestSet();
+ 			}
+ 		}
++
++		#region Accessibility
++		private enum State
++		{
++			INTRO,
++			BROWSING_CATEGORIES,
++			BROWSING_QUEST_SETS,
++			BROWSING_QUESTS
++		}
++
++		private State m_curState;
++		private AccessibleMenu m_categoryMenu;
++		private AccessibleMenu m_questSetMenu;
++		private AccessibleListOfItems<AccessibleTavernGuideQuest> m_quests;
++
++		internal void ReadTavernGuide()
++		{
++			AccessibilityMgr.ShowUI(this);
++			if (TavernGuideManager.Get().CanShowAllQuestSets())
++			{
++				ReadCategories();
++			}
++			else if (RewardTrackManager.Get().GetApprenticeTrackLevel() == 1)
++			{
++				ReadIntro();
++			}
++			else
++			{
++				AccessibilityUtils.LogFatalError("Tavern guide has reached an invalid state!");
++				AccessibilityMgr.HideUI(this);
++			}
++		}
++
++		private void ReadCategories()
++		{
++			m_categoryMenu = new AccessibleMenu(this, "", OnBackFromCategories);
++			for (int i = 0; i < m_tavernGuideDatamodel.TavernGuideQuestSetCategories.Count; i++)
++			{
++				var idx = i;
++				m_categoryMenu.AddOption(m_tavernGuideDatamodel.TavernGuideQuestSetCategories[idx].Title, () => ReadCategory(idx));
++			}
++			m_curState = State.BROWSING_CATEGORIES;
++			m_categoryMenu.StartReading();
++		}
++
++		private void OnBackFromCategories()
++		{
++			AccessibilityMgr.HideUI(this);
++			AccessibleJournal.Get().ReadJournal();
++		}
++
++		private void ReadCategory(int idx)
++		{
++			m_tavernGuideDatamodel.SelectedCategoryIndex = idx;
++			m_tavernGuideDatamodel.IsOpening = false;
++			var category = m_tavernGuideDatamodel.TavernGuideQuestSetCategories[idx];
++			m_questSetMenu = new AccessibleMenu(this, "", ReadCategories);
++			for (int i = 0; i < category.TavernGuideQuestSets.Count; i++)
++			{
++				if (idx == 0 && i == 0)
++				{
++					continue;
++				}
++				var idx2 = i;
++				var questSet = category.TavernGuideQuestSets[idx2];
++				m_questSetMenu.AddOption(() => GetQuestSetTitle(questSet), () => ReadQuestSet(idx2));
++			}
++			m_curState = State.BROWSING_QUEST_SETS;
++			m_questSetMenu.StartReading();
++		}
++
++		private string GetQuestSetTitle(TavernGuideQuestSetDataModel questSet)
++		{
++			var sb = new StringBuilder();
++			if (CanClaimQuestSetReward(questSet))
++			{
++				sb.Append(LocalizationUtils.Get(LocalizationKey.TAVERN_GUIDE_CLAIM_REWARD) + " ");
++			}
++			sb.Append(LocalizationUtils.Format(LocalizationKey.TAVERN_GUIDE_QUEST_SET_LABEL, questSet.Title, questSet.Description));
++			return sb.ToString();
++		}
++
++		private void ReadQuestSet(int idx)
++        {
++            m_tavernGuideDatamodel.SelectedQuestSetIndex = idx;
++            m_tavernGuideDatamodel.IsOpening = false;
++            var questSet = GetCurrentQuestSet();
++            if (CanClaimQuestSetReward(questSet))
++            {
++                ClaimQuestSetReward(questSet.CompletionAchievement.ID);
++                return;
++            }
++            var accessibleQuests = questSet.Quests.Select((q) => new AccessibleTavernGuideQuest(this, q)).ToList();
++            m_quests = new AccessibleListOfItems<AccessibleTavernGuideQuest>(this, accessibleQuests);
++            m_curState = State.BROWSING_QUESTS;
++            m_quests.StartReading();
++        }
++
++        private static bool CanClaimQuestSetReward(TavernGuideQuestSetDataModel questSet)
++        {
++            return questSet.CompletionAchievement != null && questSet.CompletionAchievement.Status == AchievementManager.AchievementStatus.COMPLETED;
++        }
++
++        internal static void ClaimQuestSetReward(int achievementId)
++	{
++		if (achievementId != 0)
++		{
++			AchievementManager.Get().ClaimAchievementReward(achievementId);
++		}
++	}
++
++	internal static void ExecuteDeeplink(TavernGuideQuestDataModel tavernGuideQuestDataModel)
++	{
++		string deepLink = tavernGuideQuestDataModel.Quest.DeepLink;
++		if (!string.IsNullOrEmpty(deepLink))
++		{
++			DeepLinkManager.ExecuteDeepLink(deepLink.Substring("hearthstone://".Length).Split('/').ToList()
++				.ToArray(), DeepLinkManager.DeepLinkSource.TAVERN_GUIDE, tavernGuideQuestDataModel.ID);
++		}
++	}
++
++	private void ReadIntro()
++	{
++		AccessibilityMgr.Output(this, GameStrings.Get("GLUE_PROGRESSION_APPRENTICE_TUTORIALS_INNKEEEPER_LEARN_ROPES"));
++		AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_START, AccessibleKey.CONFIRM));
++		m_curState = State.INTRO;
++	}
++
++
++		public void HandleAccessibleInput()
++		{
++			switch (m_curState)
++			{
++				case State.BROWSING_CATEGORIES:
++				m_categoryMenu?.HandleAccessibleInput();
++				break;
++				case State.BROWSING_QUEST_SETS:
++				m_questSetMenu?.HandleAccessibleInput();
++				break;
++				case State.BROWSING_QUESTS:
++				if (AccessibleKey.BACK.IsPressed())
++				{
++					ReadCategory(m_tavernGuideDatamodel.SelectedCategoryIndex);
++				}
++				else
++				{
++					m_quests?.HandleAccessibleInput();
++				}
++				break;
++				case State.INTRO:
++				if (AccessibleKey.CONFIRM.IsPressed())
++				{
++					var introQuest = m_tavernGuideDatamodel.TavernGuideQuestSetCategories[0].TavernGuideQuestSets[0].Quests[0];
++					ExecuteDeeplink(introQuest);
++				}
++				break;
++			}
++		}
++
++		public string GetAccessibleHelp()
++		{
++			switch (m_curState)
++			{
++				case State.BROWSING_QUEST_SETS:
++				case State.BROWSING_CATEGORIES:
++					return m_categoryMenu?.GetHelp();
++					case State.BROWSING_QUESTS:
++					return m_quests?.GetHelp(true);
++					case State.INTRO:
++					return LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_START, AccessibleKey.CONFIRM);
++			}
++			return "";
++		}
+ 	}
++	#endregion
+ }
 diff --git a/Assembly-CSharp/Hearthstone/Store/ProductDataService.cs b/Assembly-CSharp/Hearthstone/Store/ProductDataService.cs
 index ea2506b..be9e27f 100644
 --- a/Assembly-CSharp/Hearthstone/Store/ProductDataService.cs
@@ -91290,7 +91923,7 @@ index 725187e..836ca80 100644
  			set; }
  
 diff --git a/Assembly-CSharp/Reward.cs b/Assembly-CSharp/Reward.cs
-index 69ec147..5889b22 100644
+index 69ec147..7185ea9 100644
 --- a/Assembly-CSharp/Reward.cs
 +++ b/Assembly-CSharp/Reward.cs
 @@ -1,8 +1,9 @@
@@ -91399,7 +92032,7 @@ index 69ec147..5889b22 100644
  		if (!animate)
  		{
  			OnHideAnimateComplete();
-@@ -347,6 +355,8 @@ public abstract class Reward : MonoBehaviour
+@@ -347,11 +355,15 @@ public abstract class Reward : MonoBehaviour
  
  	private void OnHide()
  	{
@@ -91408,7 +92041,14 @@ index 69ec147..5889b22 100644
  		OnHideListener[] array = m_hideListeners.ToArray();
  		for (int i = 0; i < array.Length; i++)
  		{
-@@ -376,4 +386,48 @@ public abstract class Reward : MonoBehaviour
+ 			array[i].Fire();
+ 		}
++
++		AccessibleJournal.Get().OnTrackRewardAckd(0, 0, false);
+ 	}
+ 
+ 	protected void UpdateBannerObject()
+@@ -376,4 +388,48 @@ public abstract class Reward : MonoBehaviour
  			}
  		}
  	}
@@ -91877,7 +92517,7 @@ index 73b8abd..6d5737f 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/RewardTrackInfographic.cs b/Assembly-CSharp/RewardTrackInfographic.cs
-index 4a31ebb..ee50dec 100644
+index 4a31ebb..61eeecc 100644
 --- a/Assembly-CSharp/RewardTrackInfographic.cs
 +++ b/Assembly-CSharp/RewardTrackInfographic.cs
 @@ -8,6 +8,8 @@ public class RewardTrackInfographic : BasicPopup
@@ -91889,6 +92529,15 @@ index 4a31ebb..ee50dec 100644
  	}
  
  	public static readonly AssetReference PrefabReference = new AssetReference("NPPG_RewardTrackFlow.prefab:950486367395976479668ac78af0d9e7");
+@@ -63,7 +65,7 @@ public class RewardTrackInfographic : BasicPopup
+ 		}
+ 	}
+ 
+-	private void IncrementPopupSeenFlag()
++	internal static void IncrementPopupSeenFlag()
+ 	{
+ 		GameSaveDataManager.Get().SaveSubkey(new GameSaveDataManager.SubkeySaveRequest(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.FTUE_HAS_SEEN_REWARD_TRACK_INFOGRAPHIC, 1L));
+ 	}
 diff --git a/Assembly-CSharp/RewardTrackSeasonRoll.cs b/Assembly-CSharp/RewardTrackSeasonRoll.cs
 index 6b45fd4..4bd30cc 100644
 --- a/Assembly-CSharp/RewardTrackSeasonRoll.cs
@@ -93947,7 +94596,7 @@ index 76cbe2d..2fa5e03 100644
  				flag3 = true;
  				text = "user_attention_blocked";
 diff --git a/Assembly-CSharp/Store.cs b/Assembly-CSharp/Store.cs
-index 8ae02f0..f840855 100644
+index 8ae02f0..2a973d6 100644
 --- a/Assembly-CSharp/Store.cs
 +++ b/Assembly-CSharp/Store.cs
 @@ -9,9 +9,10 @@ using Hearthstone.DataModels;
@@ -94004,16 +94653,19 @@ index 8ae02f0..f840855 100644
  	{
  		VisualController visualController = GetComponent<VisualController>();
  		while (visualController != null && visualController.IsChangingStates)
-@@ -666,6 +667,8 @@ public abstract class Store : UIBPopup, IStore
+@@ -666,6 +667,11 @@ public abstract class Store : UIBPopup, IStore
  			yield return null;
  		}
  		ShowImpl(isTotallyFake);
-+		ReadStore(dataModel);
 +
++		if (!DialogManager.Get().ShowingDialog())
++		{
++			ReadStore(dataModel);
++		}
  	}
  
  	private void ForceDisableBuyButtons(bool forceDisable)
-@@ -813,17 +816,17 @@ public abstract class Store : UIBPopup, IStore
+@@ -813,17 +819,17 @@ public abstract class Store : UIBPopup, IStore
  	}
  
  	private void OnShopProductPageOpened(ProductPage page)
@@ -94036,7 +94688,7 @@ index 8ae02f0..f840855 100644
  		}
  	}
  
-@@ -836,4 +839,50 @@ public abstract class Store : UIBPopup, IStore
+@@ -836,4 +842,50 @@ public abstract class Store : UIBPopup, IStore
  		}
  		return hashSet;
  	}
@@ -95250,18 +95902,31 @@ index ff521f6..8b2bf3b 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/TavernBrawlDisplay.cs b/Assembly-CSharp/TavernBrawlDisplay.cs
-index 7db7ab1..cc66a68 100644
+index 7db7ab1..9b4b33d 100644
 --- a/Assembly-CSharp/TavernBrawlDisplay.cs
 +++ b/Assembly-CSharp/TavernBrawlDisplay.cs
-@@ -7,6 +7,7 @@ using Blizzard.T5.MaterialService.Extensions;
+@@ -7,9 +7,10 @@ using Blizzard.T5.MaterialService.Extensions;
  using Hearthstone.DungeonCrawl;
  using PegasusShared;
  using UnityEngine;
 +using Accessibility;
  
  [CustomEditClass]
- public class TavernBrawlDisplay : MonoBehaviour
-@@ -299,7 +300,7 @@ public class TavernBrawlDisplay : MonoBehaviour
+-public class TavernBrawlDisplay : MonoBehaviour
++public class TavernBrawlDisplay : MonoBehaviour, AccessibleScreen
+ {
+ 	[CustomEditField(Sections = "Buttons")]
+ 	public UIBButton m_createDeckButton;
+@@ -261,6 +262,8 @@ public class TavernBrawlDisplay : MonoBehaviour
+ 		}
+ 		RefreshStateBasedUI(animate: false);
+ 		RefreshDataBasedUI(m_wipeAnimStartDelay);
++
++		AccessibilityMgr.SetScreen(this);
+ 	}
+ 
+ 	private void OnDestroy()
+@@ -299,7 +302,7 @@ public class TavernBrawlDisplay : MonoBehaviour
  			return;
  		}
  		UpdateRecordUI();
@@ -95270,7 +95935,7 @@ index 7db7ab1..cc66a68 100644
  		{
  			m_firstTimeIntroductionPopupShowing = true;
  			StartCoroutine(DoFirstTimeHeroicIntro());
-@@ -458,9 +459,9 @@ public class TavernBrawlDisplay : MonoBehaviour
+@@ -458,9 +461,9 @@ public class TavernBrawlDisplay : MonoBehaviour
  			if (TavernBrawlManager.Get().HasValidDeckForCurrent())
  			{
  				if (TavernBrawlManager.Get().PlayerStatus == TavernBrawlStatus.TB_STATUS_ACTIVE && m_playButton != null)
@@ -95283,7 +95948,7 @@ index 7db7ab1..cc66a68 100644
  				if (m_editDeckHighlight != null)
  				{
  					m_editDeckHighlight.ChangeState(ActorStateType.HIGHLIGHT_OFF);
-@@ -755,17 +756,17 @@ public class TavernBrawlDisplay : MonoBehaviour
+@@ -755,17 +758,17 @@ public class TavernBrawlDisplay : MonoBehaviour
  	{
  		if (!DemoMgr.Get().IsExpoDemo())
  		{
@@ -95310,7 +95975,7 @@ index 7db7ab1..cc66a68 100644
  
  	private void UpdateRecordUI()
  	{
-@@ -868,7 +869,7 @@ public class TavernBrawlDisplay : MonoBehaviour
+@@ -868,7 +871,7 @@ public class TavernBrawlDisplay : MonoBehaviour
  		{
  			return;
  		}
@@ -95319,7 +95984,7 @@ index 7db7ab1..cc66a68 100644
  		int latestSeenTavernBrawlChalkboard = TavernBrawlManager.Get().LatestSeenTavernBrawlChalkboard;
  		if (latestSeenTavernBrawlChalkboard == 0)
  		{
-@@ -1069,8 +1070,8 @@ public class TavernBrawlDisplay : MonoBehaviour
+@@ -1069,8 +1072,8 @@ public class TavernBrawlDisplay : MonoBehaviour
  		}
  		EnableBackButton(enable: false);
  		StoreManager.Get().HideStore(ShopType.TAVERN_BRAWL_STORE);
@@ -95330,17 +95995,160 @@ index 7db7ab1..cc66a68 100644
  
  	private void UpdateDeckUI(bool animate)
  	{
-@@ -1605,6 +1606,10 @@ public class TavernBrawlDisplay : MonoBehaviour
+@@ -1277,6 +1280,8 @@ public class TavernBrawlDisplay : MonoBehaviour
+ 
+ 	private void CreateDeck()
+ 	{
++		m_isTransitioning = true;
++
+ 		PresenceMgr.Get().SetStatus(Global.PresenceStatus.TAVERN_BRAWL_DECKEDITOR);
+ 		CollectionManagerDisplay collectionManagerDisplay = CollectionManager.Get().GetCollectibleDisplay() as CollectionManagerDisplay;
+ 		if (collectionManagerDisplay != null)
+@@ -1598,6 +1603,8 @@ public class TavernBrawlDisplay : MonoBehaviour
+ 	{
+ 		if (response != AlertPopup.Response.CANCEL)
+ 		{
++			m_isTransitioning = true;
++
+ 			CollectionDeckTray.Get().DeleteEditingDeck();
+ 			CollectionManagerDisplay collectionManagerDisplay = CollectionManager.Get().GetCollectibleDisplay() as CollectionManagerDisplay;
+ 			if (collectionManagerDisplay != null)
+@@ -1605,6 +1612,10 @@ public class TavernBrawlDisplay : MonoBehaviour
  				collectionManagerDisplay.OnDoneEditingDeck();
  			}
  		}
 +		else
-+        {
++		{
 +			AccessibleCollectionManager.Get().OnDeleteDeckCanceled();
-+        }
++		}
  	}
  
  	private void OnDeckCreated(long deckID, string name)
+@@ -1613,6 +1624,8 @@ public class TavernBrawlDisplay : MonoBehaviour
+ 		if (collectionDeck != null && deckID == collectionDeck.ID)
+ 		{
+ 			SwitchToEditDeckMode(collectionDeck, isNewDeck: true);
++
++			m_isTransitioning = false;
+ 		}
+ 	}
+ 
+@@ -1934,4 +1947,80 @@ public class TavernBrawlDisplay : MonoBehaviour
+ 	{
+ 		m_chalkboardFX.SetActive(value: false);
+ 	}
++
++	#region Accessibility
++
++	private enum State {MAIN_MENU, READING_DESCRIPTION}
++
++	private State m_curState;
++
++	private AccessibleMenu m_mainMenu;
++	private AccessibleMultilineText m_accessibleDescription;
++	private bool m_isTransitioning;
++
++	private void ReadScreen()
++	{
++		if (m_isTransitioning)
++		{
++			return;
++		}
++
++		m_accessibleDescription = new AccessibleMultilineText(this, m_chalkboardHeader.Text, m_chalkboardInfo.Text);
++		m_mainMenu = new AccessibleMenu(this, m_chalkboardHeader.Text, ExitScene);
++		m_mainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_ITEM_READ_DESCRIPTION), ReadInfo);
++		if (m_playButton != null && m_playButton.isActiveAndEnabled && m_playButton.IsEnabled()) 
++		{
++			m_mainMenu.AddOption(m_playButton.m_newPlayButtonText.Text, m_playButton.TriggerRelease);
++		}
++		if (m_createDeckButton != null && m_createDeckButton.isActiveAndEnabled && m_createDeckButton.IsEnabled())
++		{
++			m_mainMenu.AddOption(m_createDeckButton.GetText(), m_createDeckButton.TriggerRelease);
++		}
++		if (m_editDeckButton != null && m_editDeckButton.isActiveAndEnabled && m_editDeckButton.IsEnabled())
++		{
++			m_mainMenu.AddOption(m_editDeckButton.GetText(), m_editDeckButton.TriggerRelease);
++		}
++
++		m_mainMenu.StartReading();
++		m_curState = State.MAIN_MENU;
++	}
++
++	private void ReadInfo()
++	{
++		m_accessibleDescription.ReadAllLines();
++		m_curState = State.READING_DESCRIPTION;
++	}
++
++
++	public void HandleInput()
++	{
++		switch (m_curState)
++		{
++			case State.MAIN_MENU:
++			m_mainMenu.HandleAccessibleInput();
++			break;
++			case State.READING_DESCRIPTION:
++			if (AccessibleKey.BACK.IsPressed())
++			{
++				ReadScreen();
++			}
++			else
++			{
++				m_accessibleDescription.HandleAccessibleInput();
++			}
++			break;
++		}
++
++	}
++
++	public string GetHelp()
++	{
++		throw new NotImplementedException();
++	}
++
++	public void OnGainedFocus()
++	{
++		ReadScreen();
++	}
++	#endregion
+ }
+diff --git a/Assembly-CSharp/TavernGuideInnerTray.cs b/Assembly-CSharp/TavernGuideInnerTray.cs
+index 286f656..6276fb4 100644
+--- a/Assembly-CSharp/TavernGuideInnerTray.cs
++++ b/Assembly-CSharp/TavernGuideInnerTray.cs
+@@ -60,15 +60,7 @@ public class TavernGuideInnerTray : MonoBehaviour
+ 		TavernGuideQuestSetDataModel tavernGuideQuestSetDataModel = m_widget.GetDataModel<EventDataModel>()?.Payload as TavernGuideQuestSetDataModel;
+ 		if (tavernGuideQuestSetDataModel != null)
+ 		{
+-			StartClaimSequence(TavernGuideManager.Get().GetRewardAchievementFromTavernGuideQuestId(tavernGuideQuestSetDataModel.ID));
+-		}
+-	}
+-
+-	private void StartClaimSequence(int achievementId)
+-	{
+-		if (achievementId != 0)
+-		{
+-			AchievementManager.Get().ClaimAchievementReward(achievementId);
++			TavernGuideTabDisplay.ClaimQuestSetReward(TavernGuideManager.Get().GetRewardAchievementFromTavernGuideQuestId(tavernGuideQuestSetDataModel.ID));
+ 		}
+ 	}
+ 
+@@ -77,12 +69,7 @@ public class TavernGuideInnerTray : MonoBehaviour
+ 		TavernGuideQuestDataModel tavernGuideQuestDataModel = m_widget.GetDataModel<EventDataModel>()?.Payload as TavernGuideQuestDataModel;
+ 		if (tavernGuideQuestDataModel != null)
+ 		{
+-			string deepLink = tavernGuideQuestDataModel.Quest.DeepLink;
+-			if (!string.IsNullOrEmpty(deepLink))
+-			{
+-				DeepLinkManager.ExecuteDeepLink(deepLink.Substring("hearthstone://".Length).Split('/').ToList()
+-					.ToArray(), DeepLinkManager.DeepLinkSource.TAVERN_GUIDE, tavernGuideQuestDataModel.ID);
+-			}
++			TavernGuideTabDisplay.ExecuteDeeplink(tavernGuideQuestDataModel);
+ 		}
+ 	}
+ 
 diff --git a/Assembly-CSharp/TemporaryAccountManager.cs b/Assembly-CSharp/TemporaryAccountManager.cs
 index 1014335..dab5190 100644
 --- a/Assembly-CSharp/TemporaryAccountManager.cs
