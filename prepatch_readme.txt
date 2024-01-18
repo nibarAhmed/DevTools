@@ -172,6 +172,12 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2024-01-18
+
+- Updated to Hearthstone version 28.4.0.192412 (contributed by Endefx)
+- Fixed an issue where multi-class cards would be read as neutral in some contexts (contributed by Endefx)
+- Added a shortcut (T) to quickly access tavern brawl from the main menu (contributed by Endefx)
+
 ### 2023-12-24
 
 - Updated HearthstoneAccess to support the new player experience (contributed by Endefx)
