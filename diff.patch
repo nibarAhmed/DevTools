@@ -7366,7 +7366,7 @@ index 0000000..4d6a89d
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHub.cs b/Assembly-CSharp/Accessibility/AccessibleHub.cs
 new file mode 100644
-index 0000000..a48980d
+index 0000000..d1e52db
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHub.cs
 @@ -0,0 +1,296 @@
@@ -7428,7 +7428,7 @@ index 0000000..a48980d
 +            if (box.m_BattleGroundsButton.IsEnabled())
 +                m_mainMenu.AddOption(AccessibleKey.HUB_BATTLEGROUNDS, LocalizedText.HUB_BATTLEGROUNDS_OPTION, OnClickBattlegrounds);
 +            if (box.m_TavernBrawlButton.IsEnabled())
-+                m_mainMenu.AddOption(LocalizedText.HUB_TAVERN_BRAWL_OPTION, OnClickTavernBrawl);
++                m_mainMenu.AddOption(AccessibleKey.HUB_TAVERN_BRAWL, LocalizedText.HUB_TAVERN_BRAWL_OPTION, OnClickTavernBrawl);
 +            if (box.m_CollectionButton.IsEnabled())
 +                m_mainMenu.AddOption(AccessibleKey.HUB_MY_COLLECTION, LocalizedText.HUB_MY_COLLECTION_OPTION, OnClickMyCollection);
 +            if (box.m_OpenPacksButton.IsEnabled())
@@ -11638,10 +11638,10 @@ index 0000000..c463868
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleKey.cs b/Assembly-CSharp/Accessibility/AccessibleKey.cs
 new file mode 100644
-index 0000000..597b0d1
+index 0000000..f5ad614
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleKey.cs
-@@ -0,0 +1,426 @@
+@@ -0,0 +1,427 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using UnityEngine;
@@ -11708,6 +11708,7 @@ index 0000000..597b0d1
 +        public static AccessibleKey HUB_BATTLEGROUNDS = CreateKey(KeyCode.B);
 +        public static AccessibleKey HUB_MODES = CreateKey(KeyCode.M);
 +        public static AccessibleKey HUB_OPEN_PACKS = CreateKey(KeyCode.O);
++        public static AccessibleKey HUB_TAVERN_BRAWL = CreateKey(KeyCode.T);
 +    #endregion
 +
 +    #region My Collection
