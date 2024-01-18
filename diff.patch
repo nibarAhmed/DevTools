@@ -3031,10 +3031,10 @@ index 0000000..38de124
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCollectibleCard.cs b/Assembly-CSharp/Accessibility/AccessibleCollectibleCard.cs
 new file mode 100644
-index 0000000..a426041
+index 0000000..b767e13
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCollectibleCard.cs
-@@ -0,0 +1,348 @@
+@@ -0,0 +1,353 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -3171,7 +3171,12 @@ index 0000000..a426041
 +
 +        private string GetClassName()
 +        {
-+            return GameStrings.GetClassName(m_card.GetEntityDef().GetClass());
++            var entityDef = m_card.GetEntityDef();
++            if (entityDef.IsMultiClass())
++            {
++                return PackOpeningCard.GetFamilyClassNames(entityDef);
++            }
++            return GameStrings.GetClassName(entityDef.GetClass());
 +        }
 +
 +        private List<string> GetLinesForTraditionalHeroSkin()
@@ -87076,7 +87081,7 @@ index b9b0c5f..748eac9 100644
  		{
  			if (packs <= 0)
 diff --git a/Assembly-CSharp/PackOpeningCard.cs b/Assembly-CSharp/PackOpeningCard.cs
-index c5ab465..8c8745c 100644
+index c5ab465..0aa98e0 100644
 --- a/Assembly-CSharp/PackOpeningCard.cs
 +++ b/Assembly-CSharp/PackOpeningCard.cs
 @@ -39,13 +39,13 @@ public class PackOpeningCard : MonoBehaviour
@@ -87174,7 +87179,7 @@ index c5ab465..8c8745c 100644
  	}
  
 -	private string GetFamilyClassNames()
-+	private static string GetFamilyClassNames(EntityDef entityDef)
++	internal static string GetFamilyClassNames(EntityDef entityDef)
  	{
 -		if (m_entityDef.HasTag(GAME_TAG.GRIMY_GOONS))
 +		if (entityDef.HasTag(GAME_TAG.GRIMY_GOONS))
