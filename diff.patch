@@ -27163,15 +27163,16 @@ index 0000000..7422d75
 +}
 diff --git a/Assembly-CSharp/Accessibility/Shop/AccessibleShopUtils.cs b/Assembly-CSharp/Accessibility/Shop/AccessibleShopUtils.cs
 new file mode 100644
-index 0000000..142ebaf
+index 0000000..788ddef
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Shop/AccessibleShopUtils.cs
-@@ -0,0 +1,358 @@
+@@ -0,0 +1,204 @@
 +﻿using Blizzard.T5.Services;
 +using Hearthstone.DataModels;
 +using Hearthstone.UI;
 +using System;
 +using System.Collections.Generic;
++using System.Linq;
 +using System.Text;
 +using UnityEngine;
 +
@@ -27179,12 +27180,17 @@ index 0000000..142ebaf
 +{
 +	class AccessibleShopUtils
 +	{
-+		internal static bool CanProductOrVariantsBeBoughtWithGoldOrRunestones(ProductDataModel dataModel)
++		internal static bool IsAccessibleCurrency(CurrencyType currency)
++		{
++			return currency == CurrencyType.GOLD || currency == CurrencyType.ROW_RUNESTONES;
++		}
++
++		internal static bool CanProductOrVariantsBeBoughtAccessibly(ProductDataModel dataModel)
 +		{
 +			var prices = dataModel.Prices;
 +			var variants = dataModel.Variants;
 +
-+			if (HasGoldPrice(prices) || HasRunestonePrice(prices))
++			if (HasAccessiblePrice(prices))
 +			{
 +				return true;
 +			}
@@ -27193,7 +27199,7 @@ index 0000000..142ebaf
 +			{
 +				foreach (var variant in variants)
 +				{
-+					if (HasGoldPrice(variant.Prices) || HasRunestonePrice(variant.Prices))
++					if (HasAccessiblePrice(variant.Prices))
 +					{
 +						return true;
 +					}
@@ -27203,14 +27209,14 @@ index 0000000..142ebaf
 +			return false;
 +		}
 +
-+		internal static bool CanVariantBeBoughtWithGoldOrRunestones(ProductDataModel dataModel)
++		internal static bool CanVariantBeBoughtAccessibly(ProductDataModel dataModel)
 +		{
 +			var prices = dataModel.Prices;
 +
-+			return HasGoldPrice(prices) || HasRunestonePrice(prices);
++			return HasAccessiblePrice(prices);
 +		}
 +
-+		internal static bool CanBeBoughtWithGoldOrRunestones(ShopSlot slot)
++		internal static bool CanBeBoughtAccessibly(ShopSlot slot)
 +		{
 +			if (!IsAvailable(slot))
 +			{
@@ -27224,16 +27230,16 @@ index 0000000..142ebaf
 +				return false;
 +			}
 +
-+			return CanProductOrVariantsBeBoughtWithGoldOrRunestones(dataModel);
++			return CanProductOrVariantsBeBoughtAccessibly(dataModel);
 +		}
 +
-+		internal static List<ShopSlot> FilterSlotsWhichCanBeBoughtWithGoldOrRunestones(List<ShopSlot> slots)
++		internal static List<ShopSlot> FilterSlotsWhichCanBeBoughtAccessibly(List<ShopSlot> slots)
 +		{
 +			var ret = new List<ShopSlot>();
 +
 +			foreach (var slot in slots)
 +			{
-+				if (CanBeBoughtWithGoldOrRunestones(slot))
++				if (CanBeBoughtAccessibly(slot))
 +				{
 +					ret.Add(slot);
 +				}
@@ -27242,83 +27248,25 @@ index 0000000..142ebaf
 +			return ret;
 +		}
 +
-+		internal static bool IsCardPackSlot(ShopSlot slot)
++		internal static string GetBuyText(PriceDataModel price)
 +		{
-+			return IsSlotWithSingleRewardType(slot, RewardItemType.BOOSTER);
-+		}
-+
-+		internal static bool IsMiniSetSlot(ShopSlot slot)
-+		{
-+			return IsSlotWithSingleRewardType(slot, RewardItemType.MINI_SET);
-+		}
-+
-+		internal static bool IsHeroSkinSlot(ShopSlot slot)
-+		{
-+			return IsSlotWithSingleRewardType(slot, RewardItemType.HERO_SKIN);
-+		}
-+
-+		internal static bool IsBundle(ShopSlot slot)
-+		{
-+			var dataModel = slot.BrowserButtonDataModel.DisplayProduct;
-+
-+			if (dataModel == null)
-+			{
-+				return false;
-+			}
-+
-+			var items = dataModel.Items;
-+			if (items == null)
-+			{
-+				return false;
-+			}
-+
-+			return items.Count > 1;
-+		}
-+
-+		internal static string GetBuyText(ProductDataModel product)
-+		{
-+			var goldCost = GetGoldCost(product);
-+			var runestoneCost = GetRunestoneCost(product);
-+
-+			if (goldCost == 0 && runestoneCost == 0)
++			var cost = Mathf.RoundToInt(price.Amount);
++			if (cost == 0)
 +			{
 +				return LocalizationUtils.Get(LocalizationKey.UI_SHOP_ITEM_GET_FOR_FREE);
 +			}
-+			else if (goldCost > 0)
++			else if (price.Currency == CurrencyType.GOLD)
 +			{
-+				return LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_GOLD, goldCost);
++				return LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_GOLD, cost);
 +			}
-+			else if (runestoneCost > 0)
++			else if (price.Currency == CurrencyType.ROW_RUNESTONES)
 +			{
-+				return LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_RUNESTONES, runestoneCost);
++				return LocalizationUtils.Format(LocalizationKey.UI_SHOP_ITEM_BUY_FOR_N_RUNESTONES, cost);
 +			}
 +			else
 +			{
 +				return "";
 +			}
-+		}
-+
-+		private static bool IsSlotWithSingleRewardType(ShopSlot slot, RewardItemType type)
-+		{
-+			var dataModel = slot.BrowserButtonDataModel.DisplayProduct;
-+
-+			if (dataModel == null)
-+			{
-+				return false;
-+			}
-+
-+			var items = dataModel.Items;
-+			if (items == null)
-+			{
-+				return false;
-+			}
-+
-+			if (items.Count != 1)
-+			{
-+				return false;
-+			}
-+
-+			return items[0].ItemType == type;
 +		}
 +
 +		internal static bool IsAvailable(ShopSlot slot)
@@ -27331,81 +27279,31 @@ index 0000000..142ebaf
 +			return dataModel?.Availability == ProductAvailability.CAN_PURCHASE;
 +		}
 +
-+		private static bool HasGoldPrice(DataModelList<PriceDataModel> prices)
++	private static bool HasAccessiblePrice(DataModelList<PriceDataModel> prices)
++	{
++		foreach (var price in prices)
 +		{
-+			if (prices == null)
++			if (IsAccessibleCurrency(price.Currency))
 +			{
-+				return false;
++				return true;
 +			}
-+
-+			foreach (var price in prices)
-+			{
-+				if (price.Currency == CurrencyType.GOLD)
-+				{
-+					return true;
-+				}
-+			}
-+
-+			return false;
 +		}
++		return false;
++	}
 +
-+		private static bool HasRunestonePrice(DataModelList<PriceDataModel> prices)
-+		{
-+			if (prices == null)
-+			{
-+				return false;
-+			}
-+
-+			foreach (var price in prices)
-+			{
-+				if (price.Currency == CurrencyType.ROW_RUNESTONES)
-+				{
-+					return true;
-+				}
-+			}
-+
-+			return false;
-+		}
-+
-+		internal static List<ProductDataModel> GetVariantsWhichCanBeBoughtWithGoldOrRunestones(ProductDataModel product)
++		internal static List<ProductDataModel> GetVariantsWhichCanBeBoughtAccessibly(ProductDataModel product)
 +		{
 +			var ret = new List<ProductDataModel>();
 +
 +			foreach (var variant in product.Variants)
 +			{
-+				if (IsAvailable(variant) && CanVariantBeBoughtWithGoldOrRunestones(variant))
++				if (IsAvailable(variant) && CanVariantBeBoughtAccessibly(variant))
 +				{
 +					ret.Add(variant);
 +				}
 +			}
 +
 +			return ret;
-+		}
-+
-+		internal static long GetGoldCost(ProductDataModel variant)
-+		{
-+			foreach (var price in variant.Prices)
-+			{
-+				if (price.Currency == CurrencyType.GOLD)
-+				{
-+					return Mathf.RoundToInt(price.Amount);
-+				}
-+			}
-+
-+			return 0;
-+		}
-+
-+		internal static long GetRunestoneCost(ProductDataModel variant)
-+		{
-+			foreach (var price in variant.Prices)
-+			{
-+				if (price.Currency == CurrencyType.ROW_RUNESTONES)
-+				{
-+					return Mathf.RoundToInt(price.Amount);
-+				}
-+			}
-+
-+			return 0;
 +		}
 +
 +		internal static List<string> CreateMultilineDescriptionForVariant(ProductDataModel variant)
@@ -27443,61 +27341,9 @@ index 0000000..142ebaf
 +			return ServiceManager.Get<CurrencyManager>().GetBalance(CurrencyType.ROW_RUNESTONES);
 +		}
 +
-+		internal static (bool, CurrencyType) HasEnoughToBuyVariant(ProductDataModel variant)
++		internal static bool HasEnoughToBuyVariant(PriceDataModel price)
 +		{
-+			var prices = variant.Prices;
-+			var curGoldBalance = GetGoldBalance();
-+			var curRunestoneBalance = GetRunestoneBalance();
-+
-+			foreach (var price in prices)
-+			{
-+				if (price.Currency == CurrencyType.GOLD)
-+				{
-+					return price.Amount <= curGoldBalance ? (true, CurrencyType.GOLD) : (false, CurrencyType.GOLD);
-+				}
-+				if (price.Currency == CurrencyType.ROW_RUNESTONES)
-+				{
-+					return price.Amount <= curRunestoneBalance ? (true, CurrencyType.ROW_RUNESTONES) : (false, CurrencyType.ROW_RUNESTONES);
-+				}
-+			}
-+
-+			return (false, CurrencyType.NONE);
-+		}
-+
-+		internal static int GetGoldPriceOptionForVariant(ProductDataModel variant)
-+		{
-+			var prices = variant.Prices;
-+			var curBalance = GetGoldBalance();
-+
-+			for (int i = 0; i < prices.Count; i++)
-+			{
-+				var price = prices[i];
-+
-+				if (price.Currency == CurrencyType.GOLD && price.Amount <= curBalance)
-+				{
-+					return i;
-+				}
-+			}
-+
-+			return -1;
-+		}
-+
-+		internal static int GetRunestonePriceOptionForVariant(ProductDataModel variant)
-+		{
-+			var prices = variant.Prices;
-+			var curBalance = GetRunestoneBalance();
-+
-+			for (int i = 0; i < prices.Count; i++)
-+			{
-+				var price = prices[i];
-+
-+				if (price.Currency == CurrencyType.ROW_RUNESTONES && price.Amount <= curBalance)
-+				{
-+					return i;
-+				}
-+			}
-+
-+			return -1;
++			return ShopUtils.GetDeficit(price) == 0;
 +		}
 +
 +		internal static void ReadGold(AccessibleComponent speaker)
@@ -83873,7 +83719,7 @@ index 20c9368..d95c4aa 100644
  			HideHelpPopups();
  			m_helpPopupType = Option.HAS_SEEN_MERC_APPEARANCE_TUTORIAL;
 diff --git a/Assembly-CSharp/MiniSetProductPage.cs b/Assembly-CSharp/MiniSetProductPage.cs
-index cee9e77..f7ec70b 100644
+index cee9e77..6b72b86 100644
 --- a/Assembly-CSharp/MiniSetProductPage.cs
 +++ b/Assembly-CSharp/MiniSetProductPage.cs
 @@ -5,6 +5,7 @@ using Blizzard.T5.AssetManager;
@@ -83935,7 +83781,7 @@ index cee9e77..f7ec70b 100644
  			break;
  		}
  	}
-@@ -120,4 +121,80 @@ public class MiniSetProductPage : ProductPage
+@@ -120,4 +121,79 @@ public class MiniSetProductPage : ProductPage
  		product.FlavorText = GameStrings.FormatPlurals("GLUE_STORE_MINI_SET_CARD_COUNT", GameStrings.MakePlurals(num), num);
  		m_cardList.SetData(list, boosterId);
  	}
@@ -83947,11 +83793,10 @@ index cee9e77..f7ec70b 100644
 +	protected override void SetupVariantMenuOptions()
 +	{
 +		var variant = m_productSelection.Variant;
-+		var buyText = AccessibleShopUtils.GetBuyText(variant);
 +
 +		m_readingVariantMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_ITEM_READ_DESCRIPTION), () => ReadVariantDescription(variant));
 +		m_readingVariantMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_READ_CARDS), () => ReadCards());
-+		m_readingVariantMenu.AddOption(buyText, () => BuyVariant());
++		SetupPriceMenuOptions(variant);
 +	}
 +
 +	private void ReadCards()
@@ -89033,7 +88878,7 @@ index 95afcd9..3c67f8a 100644
  				{
  					if (text.ToLower() == "gold")
 diff --git a/Assembly-CSharp/ProductPage.cs b/Assembly-CSharp/ProductPage.cs
-index aeb9add..9aba3c6 100644
+index aeb9add..f69ac76 100644
 --- a/Assembly-CSharp/ProductPage.cs
 +++ b/Assembly-CSharp/ProductPage.cs
 @@ -7,6 +7,7 @@ using Blizzard.T5.Services;
@@ -89104,7 +88949,7 @@ index aeb9add..9aba3c6 100644
  			return true;
  		}
  		return false;
-@@ -560,4 +580,253 @@ public class ProductPage : MonoBehaviour
+@@ -560,4 +580,265 @@ public class ProductPage : MonoBehaviour
  			m_openWhenReadyCoroutine = null;
  		}
  	}
@@ -89130,12 +88975,11 @@ index aeb9add..9aba3c6 100644
 +
 +	private AccessibleMultilineText m_variantDescription;
 +
-+	protected void BuyVariant()
++	protected void BuyVariant(PriceDataModel price)
 +	{
-+		var variant = GetSelectedVariant();
-+		(var hasEnough, var currency) = AccessibleShopUtils.HasEnoughToBuyVariant(variant);
++		var hasEnough = AccessibleShopUtils.HasEnoughToBuyVariant(price);
 +
-+		if (currency == CurrencyType.GOLD)
++		if (price.Currency == CurrencyType.GOLD)
 +		{
 +			if (!hasEnough)
 +			{
@@ -89143,11 +88987,10 @@ index aeb9add..9aba3c6 100644
 +			}
 +			else
 +			{
-+				var price = AccessibleShopUtils.GetGoldPriceOptionForVariant(variant);
-+				TryBuy(price);
++				TryBuy(GetSelectedVariant().Prices.IndexOf(price));
 +			}
 +		}
-+		else if (currency == CurrencyType.ROW_RUNESTONES)
++		else if (price.Currency == CurrencyType.ROW_RUNESTONES)
 +		{
 +			if (!hasEnough)
 +			{
@@ -89155,8 +88998,7 @@ index aeb9add..9aba3c6 100644
 +			}
 +			else
 +			{
-+				var price = AccessibleShopUtils.GetRunestonePriceOptionForVariant(variant);
-+				TryBuy(price);
++				TryBuy(GetSelectedVariant().Prices.IndexOf(price));
 +			}
 +		}
 +	}
@@ -89178,7 +89020,7 @@ index aeb9add..9aba3c6 100644
 +			return;
 +		}
 +
-+		if (AccessibleShopUtils.IsAvailable(product) && AccessibleShopUtils.CanVariantBeBoughtWithGoldOrRunestones(product))
++		if (AccessibleShopUtils.IsAvailable(product) && AccessibleShopUtils.CanVariantBeBoughtAccessibly(product))
 +		{
 +			ChooseVariant(product, false);
 +		}
@@ -89186,7 +89028,7 @@ index aeb9add..9aba3c6 100644
 +
 +	private void ReadProductPageWithVariants(ProductDataModel product)
 +	{
-+		var availableVariants = AccessibleShopUtils.GetVariantsWhichCanBeBoughtWithGoldOrRunestones(product);
++		var availableVariants = AccessibleShopUtils.GetVariantsWhichCanBeBoughtAccessibly(product);
 +
 +		if (availableVariants.Count == 0)
 +		{
@@ -89237,14 +89079,29 @@ index aeb9add..9aba3c6 100644
 +	protected virtual void SetupVariantMenuOptions()
 +	{
 +		var variant = GetSelectedVariant();
-+		var buyText = AccessibleShopUtils.GetBuyText(variant);
 +
 +		m_readingVariantMenu.Clear();
 +		m_readingVariantMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_ITEM_READ_DESCRIPTION), () => ReadVariantDescription(variant));
-+		m_readingVariantMenu.AddOption(buyText, () => BuyVariant());
++		SetupPriceMenuOptions(variant);
++
 +		if (variant.ProductSupportsQuantitySelect())
 +		{
 +			m_readingVariantMenu.AddOption(GameStrings.Get("GLUE_STORE_QUANTITY_HEADLINE"), () => ShowQuantityPromptForVariant(m_productSelection.VariantIndex));
++		}
++	}
++
++	protected void SetupPriceMenuOptions(ProductDataModel variant)
++	{
++		foreach (var price in variant.Prices)
++		{
++			if (AccessibleShopUtils.IsAccessibleCurrency(price.Currency))
++			{
++				m_readingVariantMenu.AddOption(AccessibleShopUtils.GetBuyText(price), () => BuyVariant(price));
++				if (price.Amount == 0f)
++				{
++					break;
++				}
++			}
 +		}
 +	}
 +
@@ -93235,7 +93092,7 @@ index 05a7a78..578acdf 100644
 +    }
  }
 diff --git a/Assembly-CSharp/SellableDeckProductPage.cs b/Assembly-CSharp/SellableDeckProductPage.cs
-index f46de8a..92ed10b 100644
+index f46de8a..57bd99d 100644
 --- a/Assembly-CSharp/SellableDeckProductPage.cs
 +++ b/Assembly-CSharp/SellableDeckProductPage.cs
 @@ -1,6 +1,7 @@
@@ -93298,7 +93155,7 @@ index f46de8a..92ed10b 100644
  	}
  
  	private void ApplyPopupRendering()
-@@ -685,4 +686,80 @@ public class SellableDeckProductPage : ProductPage, IPopupRendering
+@@ -685,4 +686,79 @@ public class SellableDeckProductPage : ProductPage, IPopupRendering
  		m_useMultiDeckInterface = num > 1;
  		return num;
  	}
@@ -93310,11 +93167,10 @@ index f46de8a..92ed10b 100644
 +	protected override void SetupVariantMenuOptions()
 +	{
 +		var variant = m_productSelection.Variant;
-+		var buyText = AccessibleShopUtils.GetBuyText(variant);
 +
 +		m_readingVariantMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_ITEM_READ_DESCRIPTION), () => ReadVariantDescription(variant));
 +		m_readingVariantMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_READ_CARDS), () => ReadCards());
-+		m_readingVariantMenu.AddOption(buyText, () => BuyVariant());
++		SetupPriceMenuOptions(variant);
 +	}
 +
 +	private void ReadCards()
@@ -93828,7 +93684,7 @@ index ac066ae..fac8653 100644
  	public LettuceTeam Team { get; set; }
  
 diff --git a/Assembly-CSharp/Shop.cs b/Assembly-CSharp/Shop.cs
-index c577113..cdb55d9 100644
+index c577113..62059ff 100644
 --- a/Assembly-CSharp/Shop.cs
 +++ b/Assembly-CSharp/Shop.cs
 @@ -9,14 +9,15 @@ using Hearthstone.DataModels;
@@ -94165,7 +94021,7 @@ index c577113..cdb55d9 100644
 +		{
 +			slots.AddRange(section.GetActiveSlots());
 +		}
-+		slots = AccessibleShopUtils.FilterSlotsWhichCanBeBoughtWithGoldOrRunestones(slots);
++		slots = AccessibleShopUtils.FilterSlotsWhichCanBeBoughtAccessibly(slots);
 +
 +		m_productMenu = new AccessibleMenu(this, "", BackFromProductMenu);
 +		foreach (var slot in slots)
