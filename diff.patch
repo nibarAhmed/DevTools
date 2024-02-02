@@ -17457,10 +17457,10 @@ index 0000000..2189930
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs
 new file mode 100644
-index 0000000..2e5cc8b
+index 0000000..bf77060
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs
-@@ -0,0 +1,330 @@
+@@ -0,0 +1,336 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -17470,12 +17470,12 @@ index 0000000..2e5cc8b
 +{
 +    class AccessibleBattlegroundsCard : AccessibleCard
 +    {
-+		internal AccessibleBattlegroundsCard(AccessibleComponent parent, Card card) : base(parent, card)
++        internal AccessibleBattlegroundsCard(AccessibleComponent parent, Card card) : base(parent, card)
 +        {
 +        }
 +
-+		internal override List<string> GetLines()
-+		{
++        internal override List<string> GetLines()
++        {
 +            if (m_card.GetEntity().IsHero())
 +            {
 +                return GetLinesForHero();
@@ -17491,44 +17491,44 @@ index 0000000..2e5cc8b
 +            else if (m_card.GetEntity().IsSecret())
 +            {
 +                if (m_card.GetEntity().IsControlledByFriendlySidePlayer())
-+				{
++                {
 +                    return GetLinesForSpell();
-+				}
++                }
 +                else
-+				{
-+					return GetLinesForOpponentSecret();
-+				}
-+			}
++                {
++                    return GetLinesForOpponentSecret();
++                }
++            }
 +            else if (m_card.GetEntity().IsSpell() || m_card.GetEntity().GetCardType() == TAG_CARDTYPE.BATTLEGROUND_SPELL)
-+			{
++            {
 +                return GetLinesForSpell();
-+			}
++            }
 +            else if (m_card.GetEntity().IsBattlegroundQuestReward())
-+			{
++            {
 +                return GetLinesForBattlegroundsQuestReward();
-+			}
++            }
 +            else
 +            {
 +                return GetLinesForNormalCard();
 +            }
-+		}
++        }
 +
-+		private List<string> GetLinesForBuddyMeter()
-+		{
++        private List<string> GetLinesForBuddyMeter()
++        {
 +            var ret = new List<string>();
 +
 +            var heroCard = GameState.Get().GetFriendlySidePlayer().GetHero();
 +
-+			var progress = heroCard.GetTag(GAME_TAG.BACON_HERO_BUDDY_PROGRESS);
++            var progress = heroCard.GetTag(GAME_TAG.BACON_HERO_BUDDY_PROGRESS);
 +            ret.Add(LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_BUDDY_METER, progress));
 +
 +            ret.AddRange(AccessibleCardUtils.GetHeroBuddyCardLinesForHeroCard(heroCard));
 +
 +            return ret;
-+		}
++        }
 +
-+		private List<string> GetLinesForSpell()
-+		{
++        private List<string> GetLinesForSpell()
++        {
 +            // Recruitment Map -> Spell -> 3 gold -> description
 +            // Note: Handles player secrets as well
 +
@@ -17536,9 +17536,15 @@ index 0000000..2e5cc8b
 +            lines.AddRange(GetHeader());
 +
 +            if (!AccessibleCardUtils.IsCostHidden(m_card))
-+			{
-+                lines.Add(AccessibleCardUtils.GetCost(m_card));
-+			}
++            {
++                var cost = AccessibleCardUtils.GetCost(m_card);
++                var effects = GetEffects();
++                if (effects.Length > 0)
++                {
++                    cost += $" {effects}";
++                }
++                lines.Add(cost);
++            }
 +
 +            AccessibleCardUtils.AddLineIfExists(GetDescription(), lines);
 +
@@ -17547,9 +17553,9 @@ index 0000000..2e5cc8b
 +            lines.Add(GetTier());
 +
 +            return lines;
-+		}
++        }
 +
-+		private List<string> GetLinesForNormalCard()
++        private List<string> GetLinesForNormalCard()
 +        {
 +            // (Golden) Tarecgosa -> x atk x health -> description -> Dragon -> Tier 3 -> Minion (handles buddy as well if necessary)
 +
@@ -17592,15 +17598,15 @@ index 0000000..2e5cc8b
 +        private List<string> GetLinesForHero()
 +        {
 +            if (IsControlledByTavernBob())
-+			{
++            {
 +                return GetLinesForTavernBob();
-+			}
++            }
 +
-+			return GetLinesForHeroInPlayZone();
-+		}
++            return GetLinesForHeroInPlayZone();
++        }
 +
-+		private List<string> GetLinesForChooseHero()
-+		{
++        private List<string> GetLinesForChooseHero()
++        {
 +            var lines = new List<string>();
 +
 +            var entity = m_card.GetEntity();
@@ -17610,41 +17616,41 @@ index 0000000..2e5cc8b
 +            var armor = entity.GetArmor();
 +
 +            if (armor > 0)
-+			{
++            {
 +                lines.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_ARMOR, armor));
-+			}
++            }
 +
 +            try
-+			{
++            {
 +                var cardId = entity.GetCardId();
 +                lines.AddRange(AccessibleCardUtils.GetHeroPowerCardLinesForHeroCard(cardId));
 +                if (GameState.Get().BattlegroundAllowBuddies())
 +                {
 +                    lines.AddRange(AccessibleCardUtils.GetHeroBuddyCardLinesForHeroCard(entity));
 +                }
-+			}
++            }
 +            catch (Exception e)
-+			{
++            {
 +                AccessibilityUtils.LogFatalError(e);
-+			}
++            }
 +
 +            return lines;
-+		}
-+
-+		private List<string> GetLinesForHeroInPlayZone()
-+        {
-+            if (m_card.GetEntity().IsControlledByFriendlySidePlayer())
-+			{
-+                return GetLinesForPlayerHero();
-+			}
-+            else
-+			{
-+                return GetLinesForOpponentHero();
-+			}
 +        }
 +
-+		private List<string> GetLinesForOpponentHero()
-+		{
++        private List<string> GetLinesForHeroInPlayZone()
++        {
++            if (m_card.GetEntity().IsControlledByFriendlySidePlayer())
++            {
++                return GetLinesForPlayerHero();
++            }
++            else
++            {
++                return GetLinesForOpponentHero();
++            }
++        }
++
++        private List<string> GetLinesForOpponentHero()
++        {
 +            // Opponent's Hero -> AFK -> Tier 3 -> x health -> <player name>
 +            var lines = new List<string>();
 +            lines.AddRange(GetHeader());
@@ -17669,16 +17675,16 @@ index 0000000..2e5cc8b
 +                AccessibleCardUtils.AddLineIfExists(GetEffects(), lines);
 +            }
 +
-+			if (AccessibilityUtils.IsInPvPGame())
-+			{
-+				lines.Add(m_card.GetController().GetName());
-+			}
++            if (AccessibilityUtils.IsInPvPGame())
++            {
++                lines.Add(m_card.GetController().GetName());
++            }
 +
-+			return lines;
-+		}
++            return lines;
++        }
 +
-+		private List<string> GetLinesForPlayerHero()
-+		{
++        private List<string> GetLinesForPlayerHero()
++        {
 +            // Your Hero -> Tier 3 -> x health -> AFK -> <player name>
 +            var lines = new List<string>();
 +            lines.AddRange(GetHeader());
@@ -17703,15 +17709,15 @@ index 0000000..2e5cc8b
 +
 +            lines.Add(m_card.GetEntity().GetEntityDef().GetName());
 +
-+			if (AccessibilityUtils.IsInPvPGame())
-+			{
-+				lines.Add(m_card.GetController().GetName());
-+			}
++            if (AccessibilityUtils.IsInPvPGame())
++            {
++                lines.Add(m_card.GetController().GetName());
++            }
 +
-+			return lines;
-+		}
++            return lines;
++        }
 +
-+		private List<string> GetLinesForTavernBob()
++        private List<string> GetLinesForTavernBob()
 +        {
 +            var lines = new List<string>();
 +
@@ -17719,46 +17725,46 @@ index 0000000..2e5cc8b
 +
 +            lines.Add(m_card.GetEntity().GetEntityDef().GetName());
 +
-+			return lines;
++            return lines;
 +        }
 +
-+		private string GetControllerTier()
-+		{
++        private string GetControllerTier()
++        {
 +            return GetPlayerTier(m_card.GetController());
-+		}
++        }
 +
 +        private string GetFriendlySidePlayerTier()
-+		{
++        {
 +            return GetPlayerTier(GameState.Get().GetFriendlySidePlayer());
 +
-+		}
++        }
 +
-+		private string GetPlayerTier(Player player)
-+		{
++        private string GetPlayerTier(Player player)
++        {
 +            return FormatTier(player.GetTag(GAME_TAG.PLAYER_TECH_LEVEL));
-+		}
++        }
 +
 +        private string GetTier()
-+		{
++        {
 +            return FormatTier(m_card.GetEntity().GetTag(GAME_TAG.TECH_LEVEL));
-+		}
++        }
 +
 +        private string FormatTier(int tier)
-+		{
++        {
 +            return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_CARD_TIER, tier);
-+		}
++        }
 +
 +        private bool IsControlledByTavernBob()
-+		{
++        {
 +            return AccessibleGameplayUtils.IsInBattlegroundsShopPhase() && !m_card.GetEntity().IsControlledByFriendlySidePlayer();
-+		}
++        }
 +
-+		private List<string> GetHeaderWithRarity()
-+		{
++        private List<string> GetHeaderWithRarity()
++        {
 +            if (!m_card.GetEntity().IsMinion())
-+			{
++            {
 +                return GetHeader();
-+			}
++            }
 +
 +            var ret = new List<string>();
 +
@@ -17767,18 +17773,18 @@ index 0000000..2e5cc8b
 +            AddTrailingHeader(ret);
 +
 +            return ret;
-+		}
++        }
 +
 +        // Used for quickly describing the opponent's board when combat phase starts
 +        public string GetMinionSummary()
-+		{
++        {
 +            var name = AccessibleCardUtils.GetInGameCardNameWithPremium(m_card);
 +
 +            var effects = GetEffectsNotInEntityDef();
 +            var resources = GetResources();
 +
 +            return $"{name} {resources} {effects}";
-+		}
++        }
 +
 +        protected List<string> GetLinesForBattlegroundsQuestReward()
 +        {
@@ -17789,7 +17795,7 @@ index 0000000..2e5cc8b
 +
 +            return lines;
 +        }
-+	}
++    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsChooseHeroCard.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsChooseHeroCard.cs
 new file mode 100644
