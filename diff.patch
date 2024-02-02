@@ -620,10 +620,10 @@ index 0000000..fbe9535
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibilityMgr.cs b/Assembly-CSharp/Accessibility/AccessibilityMgr.cs
 new file mode 100644
-index 0000000..48f7eac
+index 0000000..60503f8
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibilityMgr.cs
-@@ -0,0 +1,681 @@
+@@ -0,0 +1,652 @@
 +﻿using System;
 +using System.Collections;
 +using System.Collections.Generic;
@@ -653,9 +653,6 @@ index 0000000..48f7eac
 +        private static bool s_textInputAllowed;
 +
 +        private static bool s_transitioningUIs;
-+
-+        // TODO: Refactor entire input handling
-+        private static KeyCode s_keyPendingRelease; // Used for blocking input handling until a certain key is released. Quick workaround caused by UniversalInputManager.cs refactor in 24.2
 +
 +        internal static void Initialize(GameObject rootGameObject)
 +        {
@@ -878,18 +875,6 @@ index 0000000..48f7eac
 +        {
 +            if (IsTextInputAllowed())
 +			{
-+                return;
-+			}
-+
-+            // TODO: Refactor input handling once we have time. 24.2 changed KeyUp events to KeyDown on GUI elements (e.g. text) which broke everything.
-+            // This is a quick fix for ignoring KeyUp events for which the KeyDown event was meaningful for UI (e.g. pressing Enter after typing in a piece of text)
-+            if (s_keyPendingRelease != KeyCode.None)
-+			{
-+                if (Input.GetKeyUp(s_keyPendingRelease))
-+				{
-+					s_keyPendingRelease = KeyCode.None;
-+				}
-+
 +                return;
 +			}
 +
@@ -1288,20 +1273,6 @@ index 0000000..48f7eac
 +		{
 +            AccessibilityUtils.LogDebug("Transitioning UIs");
 +            s_transitioningUIs = true;
-+		}
-+
-+		internal static bool GetGUIKeyDown(KeyCode kc)
-+		{
-+            if (Input.GetKeyDown(kc))
-+			{
-+                if (!Input.GetKeyUp(kc)) // Test suite can often send KeyDown and KeyUp in the same frame
-+				{
-+					s_keyPendingRelease = kc;
-+				}
-+				return true;
-+			}
-+
-+            return false;
 +		}
 +	}
 +}
@@ -3884,10 +3855,10 @@ index 0000000..529f312
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 0000000..3e594f0
+index 0000000..a6f657c
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2889 @@
+@@ -0,0 +1,2890 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -4384,7 +4355,7 @@ index 0000000..3e594f0
 +
 +            if (m_curState == AccessibleGameState.CONFIRMING_END_TURN)
 +            {
-+                if (AccessibleKey.CONFIRM.IsPressedDown() || AccessibleKey.END_TURN.IsPressedDown())
++                if (AccessibleKey.CONFIRM.IsPressed() || AccessibleKey.END_TURN.IsPressed())
 +                {
 +                    EndTurn();
 +                    return;
@@ -4392,6 +4363,7 @@ index 0000000..3e594f0
 +                else if (Input.anyKeyDown)
 +                {
 +                    m_confirmingEndTurn = false;
++                    UpdateState();
 +                }
 +            }
 +
@@ -4785,12 +4757,12 @@ index 0000000..3e594f0
 +                return;
 +            }
 +
-+            if (AccessibleKey.FORCE_END_TURN.IsPressedDown())
++            if (AccessibleKey.FORCE_END_TURN.IsPressed())
 +            {
 +                EndTurn();
 +            }
 +
-+            if (AccessibleKey.END_TURN.IsPressedDown())
++            if (AccessibleKey.END_TURN.IsPressed())
 +            {
 +                if (EndTurnButton.Get().HasNoMorePlays())
 +                {
@@ -11638,10 +11610,10 @@ index 0000000..c463868
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleKey.cs b/Assembly-CSharp/Accessibility/AccessibleKey.cs
 new file mode 100644
-index 0000000..f5ad614
+index 0000000..54c003e
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleKey.cs
-@@ -0,0 +1,427 @@
+@@ -0,0 +1,410 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using UnityEngine;
@@ -11836,7 +11808,7 @@ index 0000000..f5ad614
 +        {
 +            if (!m_enabled)
 +            {
-+                if (IsKeyUp(m_keyCode))
++                if (IsKeyDown(m_keyCode))
 +                {
 +                    AccessibilityUtils.LogDebug($"ZYY Tried to press {m_keyCode} but it was disabled");
 +                }
@@ -11845,51 +11817,51 @@ index 0000000..f5ad614
 +
 +            if (m_ignoreAllModifierKeys)
 +			{
-+                return IsKeyUp(m_keyCode);
++                return IsKeyDown(m_keyCode);
 +			}
 +            else if (m_requiresShift && m_requiresCtrl && m_requiresAlt)
 +            {
-+                return IsHoldingShift() && IsHoldingCtrl() && IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return IsHoldingShift() && IsHoldingCtrl() && IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else if (m_requiresShift && m_requiresCtrl && !m_requiresAlt)
 +            {
-+                return IsHoldingShift() && IsHoldingCtrl() && !IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return IsHoldingShift() && IsHoldingCtrl() && !IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else if (m_requiresShift && !m_requiresCtrl && m_requiresAlt)
 +            {
-+                return IsHoldingShift() && !IsHoldingCtrl() && IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return IsHoldingShift() && !IsHoldingCtrl() && IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else if (m_requiresShift && !m_requiresCtrl && !m_requiresAlt)
 +            {
-+                return IsHoldingShift() && !IsHoldingCtrl() && !IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return IsHoldingShift() && !IsHoldingCtrl() && !IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else if (!m_requiresShift && m_requiresCtrl && m_requiresAlt)
 +            {
-+                return !IsHoldingShift() && IsHoldingCtrl() && IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return !IsHoldingShift() && IsHoldingCtrl() && IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else if (!m_requiresShift && m_requiresCtrl && !m_requiresAlt)
 +            {
-+                return !IsHoldingShift() && IsHoldingCtrl() && !IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return !IsHoldingShift() && IsHoldingCtrl() && !IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else if (!m_requiresShift && !m_requiresCtrl && m_requiresAlt)
 +            {
-+                return !IsHoldingShift() && !IsHoldingCtrl() && IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return !IsHoldingShift() && !IsHoldingCtrl() && IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +            else // No modifier keys are being pressed
 +            {
-+                return !IsHoldingShift() && !IsHoldingCtrl() && !IsHoldingAlt() && IsKeyUp(m_keyCode);
++                return !IsHoldingShift() && !IsHoldingCtrl() && !IsHoldingAlt() && IsKeyDown(m_keyCode);
 +            }
 +        }
 +
-+        private bool IsKeyUp(KeyCode keyCode)
++        private bool IsKeyDown(KeyCode keyCode)
 +        {
-+            if (keyCode == KeyCode.Return && Input.GetKeyUp(KeyCode.KeypadEnter))
++            if (keyCode == KeyCode.Return && Input.GetKeyDown(KeyCode.KeypadEnter))
 +            {
 +                // Quick fix as some players asked for this
 +                return true;
 +            }
 +
-+            return Input.GetKeyUp(keyCode);
++            return Input.GetKeyDown(keyCode);
 +        }
 +
 +        public bool IsDown()
@@ -11906,23 +11878,6 @@ index 0000000..f5ad614
 +            else
 +            {
 +                return !IsHoldingShift() && Input.GetKey(m_keyCode);
-+            }
-+        }
-+
-+        public bool IsPressedDown()
-+        {
-+            if (!m_enabled)
-+            {
-+                return false;
-+            }
-+
-+            if (m_requiresShift)
-+            {
-+                return IsHoldingShift() && Input.GetKeyDown(m_keyCode);
-+            }
-+            else
-+            {
-+                return !IsHoldingShift() && Input.GetKeyDown(m_keyCode);
 +            }
 +        }
 +
@@ -17889,10 +17844,10 @@ index 0000000..20d9067
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 0000000..e76fb65
+index 0000000..105dcd8
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1615 @@
+@@ -0,0 +1,1611 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -18523,14 +18478,10 @@ index 0000000..e76fb65
 +        {
 +            // Note: OriginalKey is used to make it so e.g. pressing U twice forces a tavern upgrade the same way that U+Enter would as players
 +            // are used to this due to the end turn behaviour
-+            if (AccessibleKey.CONFIRM.IsPressed() || originalKey.IsPressedDown())
++            if (AccessibleKey.CONFIRM.IsPressed() || originalKey.IsPressed())
 +            {
 +                confirmAction();
 +                return true;
-+			}
-+            else if (AccessibleKey.CONFIRM.IsPressedDown())
-+			{
-+                // No-op as we need to cancel on Up, not Down
 +			}
 +			else if (Input.anyKeyDown)
 +            {
@@ -18780,7 +18731,7 @@ index 0000000..e76fb65
 +            HandleValidOptionsSelectionInput();
 +            HandleZoneSelection();
 +
-+            if (AccessibleKey.FREEZE_TAVERN.IsPressedDown())
++            if (AccessibleKey.FREEZE_TAVERN.IsPressed())
 +			{
 +                QueryFreezeOrUnfreezeTavern();
 +			}
@@ -18788,7 +18739,7 @@ index 0000000..e76fb65
 +			{
 +                ForceFreezeOrUnfreezeTavern();
 +			}
-+            else if (AccessibleKey.UPGRADE_TAVERN.IsPressedDown())
++            else if (AccessibleKey.UPGRADE_TAVERN.IsPressed())
 +			{
 +                QueryUpgradeTavern();
 +			}
@@ -18796,7 +18747,7 @@ index 0000000..e76fb65
 +			{
 +                ForceUpgradeTavern();
 +			}
-+            else if (AccessibleKey.REFRESH_TAVERN.IsPressedDown())
++            else if (AccessibleKey.REFRESH_TAVERN.IsPressed())
 +			{
 +                QueryRefreshTavern();
 +			}
@@ -98855,7 +98806,7 @@ index 3e67592..007bac1 100644
  	}
  }
 diff --git a/Assembly-CSharp/UniversalInputManager.cs b/Assembly-CSharp/UniversalInputManager.cs
-index c6f9b04..f6a9540 100644
+index c6f9b04..e8cd081 100644
 --- a/Assembly-CSharp/UniversalInputManager.cs
 +++ b/Assembly-CSharp/UniversalInputManager.cs
 @@ -6,6 +6,7 @@ using Blizzard.T5.Jobs;
@@ -98866,15 +98817,7 @@ index c6f9b04..f6a9540 100644
  
  public class UniversalInputManager : IHasUpdate, IService
  {
-@@ -263,6 +264,7 @@ public class UniversalInputManager : IHasUpdate, IService
- 		UpdateMouseOnOrOffScreen();
- 		UpdateInput();
- 		CleanDeadCameras();
-+
- 		if (m_inputFieldReady)
- 		{
- 			IgnoreGUIInput();
-@@ -975,6 +977,13 @@ public class UniversalInputManager : IHasUpdate, IService
+@@ -975,6 +976,13 @@ public class UniversalInputManager : IHasUpdate, IService
  		{
  			return;
  		}
@@ -98888,7 +98831,7 @@ index c6f9b04..f6a9540 100644
  		InputManager inputManager = InputManager.Get();
  		if ((inputManager != null && inputManager.HandleKeyboardInput()) || HearthstoneCheckoutBlocksInput())
  		{
-@@ -1122,6 +1131,8 @@ public class UniversalInputManager : IHasUpdate, IService
+@@ -1122,6 +1130,8 @@ public class UniversalInputManager : IHasUpdate, IService
  		m_inputCanceledCallback = null;
  		m_inputUnfocusedCallback = null;
  		_ = Application.isEditor;
@@ -98897,22 +98840,6 @@ index c6f9b04..f6a9540 100644
  	}
  
  	private bool IgnoreGUIInput()
-@@ -1232,13 +1243,13 @@ public class UniversalInputManager : IHasUpdate, IService
- 		{
- 			return false;
- 		}
--		if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
-+		if (AccessibilityMgr.GetGUIKeyDown(KeyCode.KeypadEnter) || AccessibilityMgr.GetGUIKeyDown(KeyCode.Return))
- 		{
- 			m_inputIgnoreState = TextInputIgnoreState.COMPLETE_KEY_UP;
- 			CompleteTextInput();
- 			return true;
- 		}
--		if (Input.GetKeyDown(KeyCode.Escape))
-+		if (AccessibilityMgr.GetGUIKeyDown(KeyCode.Escape))
- 		{
- 			m_inputIgnoreState = TextInputIgnoreState.CANCEL_KEY_UP;
- 			UserCancelTextInput();
 diff --git a/Assembly-CSharp/UserAttentionManager.cs b/Assembly-CSharp/UserAttentionManager.cs
 index 57555ae..eadc6b1 100644
 --- a/Assembly-CSharp/UserAttentionManager.cs
