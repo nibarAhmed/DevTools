@@ -12844,7 +12844,7 @@ index 0000000..a2fd21e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
 new file mode 100644
-index 0000000..7706a8d
+index 0000000..18c4c11
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
 @@ -0,0 +1,601 @@
@@ -12920,7 +12920,7 @@ index 0000000..7706a8d
 +
 +        internal string OnCardTriggered(PowerTaskList taskList)
 +        {
-+            var card = taskList.GetSourceEntity();
++            var card = taskList.GetSourceEntity()?.CloneForAccessibility();
 +
 +            if (card == null || m_describedTaskLists.Contains(taskList) || card.IsGame()) // Passive treasures in duels are revealed as part of a game entity trigger.
 +            {
@@ -12977,7 +12977,7 @@ index 0000000..7706a8d
 +
 +        internal string OnCardPlayed(PowerTaskList taskList)
 +        {
-+            var card = taskList.GetSourceEntity();
++            var card = taskList.GetSourceEntity()?.CloneForAccessibility();
 +            var blockStart = taskList.GetBlockStart();
 +
 +            AccessibilityUtils.LogDebug($"OnCardPlayed taskList ID: {taskList.GetId()}");
@@ -16127,10 +16127,10 @@ index 0000000..d7d60b6
 \ No newline at end of file
 diff --git a/Assembly-CSharp/Accessibility/AccessibleSpeechUtils.cs b/Assembly-CSharp/Accessibility/AccessibleSpeechUtils.cs
 new file mode 100644
-index 0000000..400b739
+index 0000000..5fb7c29
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleSpeechUtils.cs
-@@ -0,0 +1,343 @@
+@@ -0,0 +1,344 @@
 +﻿using System.Collections.Generic;
 +using System.Text;
 +using System.Text.RegularExpressions;
@@ -16264,7 +16264,8 @@ index 0000000..400b739
 +
 +            foreach (var card in cards)
 +            {
-+                var cardName = GetEntityName(card.GetEntity());
++                // Note: Have to clone the entity here because of dropped mulligan cards which are hidden by the time this is called.
++                var cardName = GetEntityName(card.GetEntity().CloneForAccessibility());
 +
 +                if (nameCounts.ContainsKey(cardName))
 +                {
