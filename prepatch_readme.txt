@@ -172,6 +172,13 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2024-02-02
+
+- If an item in the shop can be bought for either gold or runestones, both options will now be offered (contributed by Endefx)
+- Changed keyboard input handling to be more responsive and fixed an issue where modifier keys would have to be held longer than usual to be registered (contributed by Endefx)
+- Resolved more instances of the issue causing cards to be read as "UNKNOWN ENTITY [cardType=INVALID]" (contributed by Endefx)
+- In Battlegrounds, effects such as frozen and darkmoon tickets will now be read on tavern spells (contributed by Endefx)
+
 ### 2024-01-24
 
 - Updated to Hearthstone version 28.4.0.192896
@@ -209,6 +216,7 @@ In addition, the new player experience has been completely revamped. If you are 
 - Fixed an issue where trying to open a pack that is locked, for example when it is part of a preorder, would cause a nonsensical string to be spoken (contributed by Endefx)
 - The pack opening screen will once again automatically close after all packs have been opened (contributed by Endefx)
 
+
 ### 2023-11-09 (2)
 
 - Updated to Hearthstone version 28.0.0.189384 (contributed by Endefx)
@@ -237,7 +245,7 @@ Warning! Blizzard has completely rewritten the Hearthstone tutorial in this vers
 
 ### 2023-09-19 (2)
 
-- Fixed a regression in Battlegrounds where pressing the O key would erroniously announce that there are no anomalies (contributed by Endefx)
+- Fixed a regression in Battlegrounds where pressing the O key would erroneously announce that there are no anomalies (contributed by Endefx)
 
 ### 2023-09-19
 
@@ -271,7 +279,7 @@ Warning! Blizzard has completely rewritten the Hearthstone tutorial in this vers
 ### 2023-07-25
 
 - Updated to Hearthstone version 27.0.0.181554 (contributed by Endefx)
-- Fixed an issue causing multi-target cards to erroniously present the discover interface in some cases (contributed by Endefx)
+- Fixed an issue causing multi-target cards to erroneously present the discover interface in some cases (contributed by Endefx)
 - Fixed an issue preventing the "Choose a target" prompt from being announced for additional targets of multi-target cards (contributed by Endefx)
 - Fixed an issue where pressing the up and down arrow keys while choosing a target could skip over lines of the card being read (contributed by Endefx)
 
@@ -323,12 +331,12 @@ There are the following known issues in this version. They will be addressed in 
 
 - Updated to Hearthstone version 26.0.0.170824 (contributed by Endefx)
 - Added an option to change the speed of minion attacks with shift+f. You will need to experiment with the different values to determine the one that is most suitable for your hardware and network. (contributed by KeyWasFull)
-- Fixed an issue where pressing the escape key while in the sound options menu would erroniously open the game menu on top of it (contributed by Endefx)
+- Fixed an issue where pressing the escape key while in the sound options menu would erroneously open the game menu on top of it (contributed by Endefx)
 
 ### 2023-03-16
 
 - It is now possible to read the quests on the event tab (contributed by KeyWasFull)
-- Added a potential fix for the issue in Battlegrounds where the buddy button would not be read correctly in some cases (conttributed by Endefx)
+- Added a potential fix for the issue in Battlegrounds where the buddy button would not be read correctly in some cases (contributed by Endefx)
 - In battlegrounds, the minion type of buddies will now be read on the hero choice screen and the buddy button (contributed by Endefx)
 
 ### 2023-03-15 (2)
@@ -347,8 +355,8 @@ Fixed some issues with the adventure chooser (contributed by KeyWasFull)
 
 ### 2023-03-11
 
-- In option menus, the current value of checkboxes and dropdown controlls will now be read (contributed by Endefx)
-- Scrolling has been implemented in the social pannel. You will now be able to interract with all of your friends. (contributed by Endefx)
+- In option menus, the current value of checkboxes and dropdown controls will now be read (contributed by Endefx)
+- Scrolling has been implemented in the social panel. You will now be able to interact with all of your friends. (contributed by Endefx)
 - Fixed an issue that allowed the crafting button to be pressed even if there was not enough dust to craft the card (contributed by Endefx)
 - Changed the reading of minion enchantments to be more reliable (contributed by Endefx)
 
