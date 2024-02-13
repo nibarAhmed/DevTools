@@ -69,14 +69,17 @@ namespace CommonUtils
 
 			string productInfo = File.ReadAllText(productDbPath, Encoding.ASCII);
 
-			Regex regex = new Regex("([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)");
-			var versions = regex.Matches(productInfo);
-			if (versions.Count != 1)
+			Regex regex = new Regex("([0-9]+)_([0-9]+(?:\\.[0-9]+)+)");
+			var match = regex.Match(productInfo);
+			if (!match.Success)
 			{
 				throw new SystemException($"Could not extract version from {s_hearthstoneProductDbFileName}");
 			}
 
-			return versions[0].Value;
+			var HearthstoneVersion = match.Groups[2].Captures[0].Value;
+			var HearthstoneBuild = match.Groups[1].Captures[0].Value;
+
+			return $"{HearthstoneVersion}.{HearthstoneBuild}";
 		}
 
         public static List<string> FindHearthstoneCandidateDirectories()
