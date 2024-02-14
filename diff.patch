@@ -10427,10 +10427,10 @@ index 0000000..d81874c
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleJournal.cs b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
 new file mode 100644
-index 0000000..c463868
+index 0000000..1de5af8
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
-@@ -0,0 +1,1177 @@
+@@ -0,0 +1,1188 @@
 +﻿using System;
 +using System.Collections;
 +using System.Collections.Generic;
@@ -10571,12 +10571,12 @@ index 0000000..c463868
 +            m_mainMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.GLOBAL_JOURNAL), CloseJournal);
 +            if (SpecialEventManager.Get().GetCurrentSpecialEvent() != null)
 +            {
-+                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_EVENT_TAB_TITLE"), () => AccessibleWidgetUtils.ClickButton(eventButton));
++                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_EVENT_TAB_TITLE"), () => SwitchToTab(JournalTrayDisplay.JournalTab.Event, eventButton));
 +            }
 +
-+            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () => AccessibleWidgetUtils.ClickButton(questButton));
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () => SwitchToTab(JournalTrayDisplay.JournalTab.Quest, questButton));
 +            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), ReadRewardsTrack);
-+            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_ACHIEVEMENTS_TITLE"), () => AccessibleWidgetUtils.ClickButton(achievementButton));
++            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_ACHIEVEMENTS_TITLE"), () => SwitchToTab(JournalTrayDisplay.JournalTab.Achievment, achievementButton));
 +
 +            ReadMainMenu();
 +        }
@@ -10589,15 +10589,26 @@ index 0000000..c463868
 +            m_mainMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.GLOBAL_JOURNAL), CloseJournal);
 +            if (CanSeeTavernGuide())
 +            {
-+                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_TAVERN_GUIDE_TITLE"), () => AccessibleWidgetUtils.ClickButton(tavernGuideButton));
++                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_TAVERN_GUIDE_TITLE"), () => SwitchToTab(JournalTrayDisplay.JournalTab.TavernGuide, tavernGuideButton));
 +            }
 +            else if (GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.PLAYER_FLAGS, GameSaveKeySubkeyId.PLAYER_FLAGS_HAS_COMPLETED_TAVERN_GUIDE, out long value) && value == 1)
 +            {
-+                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () =>  AccessibleWidgetUtils.ClickButton(questButton));
++                m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_QUESTS_TITLE"), () =>  SwitchToTab(JournalTrayDisplay.JournalTab.Quest, questButton));
 +            }
 +
 +            m_mainMenu.AddOption(GameStrings.Get("GLUE_PROGRESSION_REWARDS_TITLE"), ReadRewardsTrack);
 +            ReadMainMenu();
++        }
++
++        private void SwitchToTab(JournalTrayDisplay.JournalTab target, PegUIElement switchButton)
++        {
++            var currentTab = m_JournalWidget.GetComponentInChildren<JournalTrayDisplay>().GetActiveJournalTab();
++            if (currentTab == target)
++            {
++                m_JournalWidget.StartCoroutine(OnTabChanged(m_JournalWidget.GetDataModel<JournalMetaDataModel>()));
++                return;
++            }
++            AccessibleWidgetUtils.ClickButton(switchButton);
 +        }
 +
 +        private bool CanSeeTavernGuide()
