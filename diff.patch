@@ -25179,10 +25179,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..1a66d68
+index 0000000..47d37c5
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1178 @@
+@@ -0,0 +1,1181 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25198,6 +25198,7 @@ index 0000000..1a66d68
 +    public static LocalizationKey PRESS_KEY_TO_CONTINUE = CreateKey("ACCESSIBILITY_PRESS_KEY_TO_CONTINUE");
 +    public static LocalizationKey PRESS_KEY_TO_FINISH = CreateKey("ACCESSIBILITY_PRESS_KEY_TO_FINISH");
 +    public static LocalizationKey PRESS_KEY_TO_GO_BACK = CreateKey("ACCESSIBILITY_PRESS_KEY_TO_GO_BACK");
++    public static LocalizationKey PRESS_KEY_TO_READ_DETAILS = CreateKey("ACCESSIBILITY_PRESS_KEY_TO_READ_DETAILS");
 +    public static LocalizationKey PRESS_KEY_TO_EXIT = CreateKey("ACCESSIBILITY_PRESS_KEY_TO_EXIT");
 +    public static LocalizationKey PRESS_KEY_ONCE_DONE = CreateKey("ACCESSIBILITY_PRESS_KEY_ONCE_DONE");
 +
@@ -25260,6 +25261,8 @@ index 0000000..1a66d68
 +    public static LocalizationKey GLOBAL_CLOSING_GAME = CreateKey("ACCESSIBILITY_GLOBAL_CLOSING_GAME");
 +    public static LocalizationKey GLOBAL_GAME_LOADED = CreateKey("ACCESSIBILITY_GLOBAL_GAME_LOADED");
 +    public static LocalizationKey GLOBAL_LOADING = CreateKey("ACCESSIBILITY_GLOBAL_LOADING");
++    public static LocalizationKey GLOBAL_GAME_QUEUE_WAIT_TIME = CreateKey("GLOBAL_GAME_QUEUE_WAIT_TIME");
++    public static LocalizationKey GLOBAL_GAME_QUEUE_TIME_IN_QUEUE = CreateKey("GLOBAL_GAME_QUEUE_TIME_IN_QUEUE");
 +    public static LocalizationKey GLOBAL_PLEASE_WAIT = CreateKey("ACCESSIBILITY_GLOBAL_PLEASE_WAIT");
 +    public static LocalizationKey GLOBAL_RECONNECTED = CreateKey("GLOBAL_RECONNECT_RECONNECTED_HEADER");
 +    public static LocalizationKey GLOBAL_CARD = CreateKey("ACCESSIBILITY_GLOBAL_CARD");
@@ -84013,7 +84016,7 @@ index 787f5a7..a0f88e3 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/MatchingPopupDisplay.cs b/Assembly-CSharp/MatchingPopupDisplay.cs
-index 937db6b..83a72e3 100644
+index 937db6b..2df594e 100644
 --- a/Assembly-CSharp/MatchingPopupDisplay.cs
 +++ b/Assembly-CSharp/MatchingPopupDisplay.cs
 @@ -4,8 +4,9 @@ using Blizzard.T5.Core.Utils;
@@ -84046,7 +84049,7 @@ index 937db6b..83a72e3 100644
  		base.Show();
  	}
  
-@@ -279,4 +285,18 @@ public class MatchingPopupDisplay : TransitionPopup
+@@ -279,4 +285,63 @@ public class MatchingPopupDisplay : TransitionPopup
  		}
  		return record.Players > 2;
  	}
@@ -84054,14 +84057,59 @@ index 937db6b..83a72e3 100644
 +	#region
 +
 +	public void HandleAccessibleInput()
-+    {
-+		HandleCancelButtonInput();
-+    }
++	{
++		if (AccessibleKey.BACK.IsPressed())
++		{
++			HandleCancelButtonInput();
++		}
++		else if (AccessibleKey.SPACE.IsPressed() && m_queueTab != null && m_queueTab.isActiveAndEnabled)
++		{
++			var lines = new List<string>();
++			if (m_queueTab.m_waitTime.isActiveAndEnabled && !m_queueTab.m_waitTime.isHidden())
++			{
++				lines.Add($"{LocalizationUtils.Format(LocalizationKey.GLOBAL_GAME_QUEUE_WAIT_TIME)}: {m_queueTab.m_waitTime.Text}");
++			}
 +
-+    public string GetAccessibleHelp()
-+    {
-+		return HandleCancelButtonHelp();
-+    }
++			if (m_queueTab.m_waitTime.isActiveAndEnabled && !m_queueTab.m_queueTime.isHidden())
++			{
++				lines.Add($"{LocalizationUtils.Format(LocalizationKey.GLOBAL_GAME_QUEUE_TIME_IN_QUEUE)}: {m_queueTab.m_queueTime.Text}");
++			}
++
++			if (lines.Count != 0)
++			{
++				AccessibilityMgr.Output(this, AccessibleSpeechUtils.CombineLines(lines));
++			}
++
++		}
++
++	}
++
++	public string GetAccessibleHelp()
++	{
++		var lines = new List<string>();
++		lines.Add(m_title.Text);
++
++		bool shouldShowPleaseWait = true;
++
++		if (m_cancelButton != null && m_cancelButton.isActiveAndEnabled)
++		{
++			lines.Add(LocalizationUtils.Format(LocalizationKey.GAMEPLAY_CANCEL_HELP, AccessibleKey.BACK));
++			shouldShowPleaseWait = false;
++		}
++
++		if (m_queueTab != null && m_queueTab.isActiveAndEnabled)
++		{
++			lines.Add(LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_READ_DETAILS, AccessibleKey.SPACE));
++			shouldShowPleaseWait = false;
++		}
++
++		if (shouldShowPleaseWait)
++		{
++			lines.Add(LocalizedText.GLOBAL_PLEASE_WAIT);
++		}
++
++		return AccessibleSpeechUtils.CombineLines(lines);
++	}
 +
 +	#endregion
  }
