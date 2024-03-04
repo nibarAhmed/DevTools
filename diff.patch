@@ -79061,7 +79061,7 @@ index cdc8555..15ea2f7 100644
 +}
 \ No newline at end of file
 diff --git a/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs b/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs
-index 8614747..84d19da 100644
+index 8614747..e475cc9 100644
 --- a/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs
 +++ b/Assembly-CSharp/Hearthstone/Progression/JournalPopup.cs
 @@ -7,6 +7,7 @@ using Hearthstone.DataModels;
@@ -79088,7 +79088,7 @@ index 8614747..84d19da 100644
  					m_journalMetaDatamodel.DoneChangingTabs = true;
  				}
 +
-+				AccessibleJournal.Get().OnJournalOpened(m_widget, GameUtils.HasCompletedApprentice() ? m_rewardTrackType : Global.RewardTrackType.APPRENTICE);
++				AccessibleJournal.Get().OnJournalOpened(m_widget, (!m_journalMetaDatamodel.IsApprenticeTrackActive && !m_journalMetaDatamodel.IsTavernGuideActive) ? m_rewardTrackType : Global.RewardTrackType.APPRENTICE);
  			}, null, callImmediatelyIfSet: true, doOnce: true);
  		}
  
