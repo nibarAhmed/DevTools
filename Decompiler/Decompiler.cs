@@ -22,7 +22,7 @@ namespace Decompiler
 
 		private readonly string _decompiledAssemblyCSharpVSProjectDirectory;
 
-		private const LanguageVersion HearthstoneLanguageVersion = LanguageVersion.CSharp7_3;
+		private const LanguageVersion HearthstoneLanguageVersion = LanguageVersion.CSharp9_0;
 
 		private class DecompilationProgressIndicator : IProgress<DecompilationProgress>
 		{
