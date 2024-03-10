@@ -25189,10 +25189,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..47d37c5
+index 0000000..b13c894
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1181 @@
+@@ -0,0 +1,1184 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25891,6 +25891,9 @@ index 0000000..47d37c5
 +    public static LocalizationKey UI_SOCIAL_CHAT_TYPE_MESSAGE_PROMPT = CreateKey("ACCESSIBILITY_UI_SOCIAL_CHAT_TYPE_MESSAGE_PROMPT");
 +    public static LocalizationKey UI_SOCIAL_INVITE_FRIEND_TO_BG = CreateKey("ACCESSIBILITY_UI_SOCIAL_INVITE_FRIEND_TO_BG");
 +    public static LocalizationKey UI_SOCIAL_FRIEND_NO_CHALLENGE = CreateKey("ACCESSIBILITY_UI_SOCIAL_FRIEND_NO_CHALLENGE");
++
++    // Reporting popup
++    public static LocalizationKey UI_REPORTING_POPUP_NO_SUBCOMPLAINTS_SELECTED = CreateKey("ACCESSIBILITY_UI_REPORTING_POPUP_NO_SUBCOMPLAINTS_SELECTED");
 +
 +    // Rewards Track
 +    public static LocalizationKey UI_REWARDS_TRACK_READ_LEVEL = CreateKey("ACCESSIBILITY_UI_REWARDS_TRACK_READ_LEVEL");
@@ -27520,6 +27523,201 @@ index 0000000..6733da9
 +        }
 +    }
 +}
+diff --git a/Assembly-CSharp/Accessibility/Social/AccessibleRecentPlayer.cs b/Assembly-CSharp/Accessibility/Social/AccessibleRecentPlayer.cs
+new file mode 100644
+index 0000000..4058781
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/Social/AccessibleRecentPlayer.cs
+@@ -0,0 +1,28 @@
++using System;
++using System.Collections.Generic;
++
++namespace Accessibility
++{
++    class AccessibleRecentPlayer : AccessibleItem
++    {
++        private BnetPlayer m_player;
++
++        internal AccessibleRecentPlayer(AccessibleComponent parent, BnetPlayer player) : base(parent)
++        {
++            m_player = player;
++        }
++
++        internal BnetPlayer GetPlayer()
++        {
++            return m_player;
++        }
++
++        internal override List<string> GetLines()
++        {
++            var ret = new List<string>();
++            ret.Add(m_player.GetBestName());
++            ret.Add(BnetRecentPlayerMgr.Get().GetRecentReason(m_player));
++            return ret;
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/Assembly-CSharp/Accessibility/Social/AccessibleReportingPopup.cs b/Assembly-CSharp/Accessibility/Social/AccessibleReportingPopup.cs
+new file mode 100644
+index 0000000..ca91db9
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/Social/AccessibleReportingPopup.cs
+@@ -0,0 +1,154 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using Blizzard.GameService.SDK.Client.Integration;
++
++namespace Accessibility
++{
++    class AccessibleReportingPopup : AccessibleUI
++    {
++        private enum State
++        {
++            COMPLAINT_MENU,
++            SUBCOMPLAINT_MENU
++        }
++
++        private State m_curState;
++
++        private BnetPlayer m_player;
++
++        private AccessibleMenu m_complaintMenu;
++
++        private ReportType.ComplaintType? m_selectedComplaint;
++
++        private AccessibleMenu m_subcomplaintMenu;
++
++        private List<AccessibleCheckBox> m_subcomplaintCheckboxes;
++
++        private HashSet<ReportType.SubcomplaintType> m_selectedSubcomplaints;
++
++        private Action m_onReportSubmitted;
++
++        private Action m_onReportCanceled;
++
++        private AccessibleReportingPopup(BnetPlayer player, Action onReportSubmitted = null, Action onReportCanceled = null)
++        {
++            m_player = player;
++            m_selectedSubcomplaints = new HashSet<ReportType.SubcomplaintType>();
++            m_onReportSubmitted = onReportSubmitted;
++            m_onReportCanceled = onReportCanceled;
++        }
++
++        internal static void show(BnetPlayer player, Action onReportSubmitted, Action onReportCanceled)
++        {
++            var popup = new AccessibleReportingPopup(player, onReportSubmitted, onReportCanceled);
++            popup.ReadPopup();
++        }
++
++        private void ReadPopup()
++        {
++            AccessibilityMgr.ShowUI(this);
++            AccessibilityMgr.Output(this, GameStrings.Format("GLOBAL_FRIENDLIST_REPORT_SELECT_HEADER_NONFRIEND", m_player.GetBestName()));
++            SetupComplaintMenu();
++            ReadComplaintMenu();
++        }
++
++        private void HidePopup(bool reportSubmitted)
++        {
++            AccessibilityMgr.HideUI(this);
++            if (reportSubmitted && m_onReportSubmitted != null)
++            {
++                m_onReportSubmitted();
++            }
++            else if (!reportSubmitted && m_onReportCanceled != null)
++            {
++                m_onReportCanceled();
++            }
++        }
++
++        private void SetupComplaintMenu()
++        {
++            m_complaintMenu = new AccessibleMenu(this, GameStrings.Get("GLOBAL_FRIENDLIST_REPORT_SELECT_REASON"), () => HidePopup(false));
++            foreach (var complaint in ReportingPopup.ReportReasons)
++            {
++                m_complaintMenu.AddOption(GameStrings.Get(ReportingPopup.ComplaintTypeLabels[complaint.Key]), () => SelectComplaint(complaint.Key, complaint.Value));
++            }
++        }
++
++        private void SelectComplaint(ReportType.ComplaintType complaint, List<ReportType.SubcomplaintType> subcomplaints)
++        {
++            m_selectedComplaint = complaint;
++            m_selectedSubcomplaints.Clear();
++            m_subcomplaintCheckboxes = new List<AccessibleCheckBox>();
++            foreach (var subcomplaint in subcomplaints)
++            {
++                m_subcomplaintCheckboxes.Add(new AccessibleCheckBox(this, GameStrings.Get(ReportingPopup.SubcomplaintTypeLabels[subcomplaint]), () => ToggleSubcomplaintSelection(subcomplaint), () => m_selectedSubcomplaints.Contains(subcomplaint)));
++            }
++
++            m_subcomplaintMenu = new AccessibleMenu(this, GameStrings.Get("GLOBAL_FRIENDLIST_REPORT_SELECT_OPTIONS"), ReadComplaintMenu);
++            foreach (var checkbox in m_subcomplaintCheckboxes)
++            {
++                m_subcomplaintMenu.AddOption(checkbox.GetText, checkbox.Toggle);
++            }
++
++            m_subcomplaintMenu.AddOption(GameStrings.Get("GLOBAL_BUTTON_SUBMIT"), SubmitReport);
++            m_subcomplaintMenu.StartReading();
++            m_curState = State.SUBCOMPLAINT_MENU;
++        }
++
++        private void ToggleSubcomplaintSelection(ReportType.SubcomplaintType subcomplaint)
++        {
++            if (!m_selectedSubcomplaints.Remove(subcomplaint))
++            {
++                m_selectedSubcomplaints.Add(subcomplaint);
++            }
++        }
++
++        private void SubmitReport()
++        {
++            if (m_selectedSubcomplaints.Count == 0)
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.UI_REPORTING_POPUP_NO_SUBCOMPLAINTS_SELECTED));
++                return;
++            }
++
++            AccessibilityUtils.LogDebug($"Reporting player {m_player.GetBestName()}: complaint type = {Enum.GetName(typeof(ReportType.ComplaintType), m_selectedComplaint.Value)}, subcomplaints = {String.Join(", ", m_selectedSubcomplaints.Select((s) => Enum.GetName(typeof(ReportType.SubcomplaintType), s)))}");
++            BattleNet.Get().SubmitReport(m_player.GetAccountId(), m_selectedComplaint.Value, new List<ReportType.SubcomplaintType>(m_selectedSubcomplaints));
++            AccessibilityMgr.Output(this, GameStrings.Get("GLOBAL_FRIENDLIST_REPORT_SELECT_COMPLETE"));
++            HidePopup(true);
++        }
++
++        private void ReadComplaintMenu()
++        {
++            m_complaintMenu.StartReading();
++            m_curState = State.COMPLAINT_MENU;
++        }
++
++        public string GetAccessibleHelp()
++        {
++            switch (m_curState)
++            {
++                case State.COMPLAINT_MENU:
++                return m_complaintMenu.GetHelp();
++                case State.SUBCOMPLAINT_MENU:
++                return m_subcomplaintMenu.GetHelp();
++                default:
++                return "";
++            }
++        }
++
++        public void HandleAccessibleInput()
++        {
++            switch (m_curState)
++            {
++                case State.COMPLAINT_MENU:
++                m_complaintMenu?.HandleAccessibleInput();
++                break;
++                case State.SUBCOMPLAINT_MENU:
++                m_subcomplaintMenu?.HandleAccessibleInput();
++                break;
++            }
++        }
++
++        }
++    }
 diff --git a/Assembly-CSharp/Accessibility/Testing/AccessibleQuestsTestingUtils.cs b/Assembly-CSharp/Accessibility/Testing/AccessibleQuestsTestingUtils.cs
 new file mode 100644
 index 0000000..7f013f8
@@ -68084,7 +68282,7 @@ index 0000000..0cb326f
 +    #endregion
 +}
 diff --git a/Assembly-CSharp/FriendListFrame.cs b/Assembly-CSharp/FriendListFrame.cs
-index 1bc5607..e77ab7d 100644
+index 1bc5607..9d338f1 100644
 --- a/Assembly-CSharp/FriendListFrame.cs
 +++ b/Assembly-CSharp/FriendListFrame.cs
 @@ -5,9 +5,11 @@ using Blizzard.GameService.SDK.Client.Integration;
@@ -68398,7 +68596,7 @@ index 1bc5607..e77ab7d 100644
  		m_friendToRemove = null;
  		m_removeFriendPopup = null;
  		if (this.RemoveFriendPopupClosed != null)
-@@ -2350,4 +2387,800 @@ public class FriendListFrame : MonoBehaviour
+@@ -2350,4 +2387,842 @@ public class FriendListFrame : MonoBehaviour
  			UpdatePortrait(medalIsDisplayable: false);
  		});
  	}
@@ -68416,6 +68614,7 @@ index 1bc5607..e77ab7d 100644
 +		ADDING_FRIENDS,
 +		REMOVING_FRIENDS,
 +		INTERACTING_WITH_FRIEND,
++		INTERACTING_WITH_RECENT,
 +		READING_NEARBY_LIST,
 +		READING_RECENT_LIST,
 +	}
@@ -68426,6 +68625,8 @@ index 1bc5607..e77ab7d 100644
 +
 +	private AccessibleMenu m_interactWithFriendMenu;
 +
++	private AccessibleMenu m_interactWithRecentMenu;
++
 +	private AccessibleMenu m_challengeFriendMenu;
 +
 +	private AccessibleMenu m_handleRequestMenu;
@@ -68433,6 +68634,8 @@ index 1bc5607..e77ab7d 100644
 +	private AccessibleListOfItems<AccessibleFriendListFriendFrame> m_accessibleFriends;
 +
 +	private AccessibleListOfItems<AccessibleFriendListRequestFrame> m_accessibleRequests;
++
++	private AccessibleListOfItems<AccessibleRecentPlayer> m_accessibleRecents;
 +
 +	private AccessiblePlayerProfile m_accessibleProfile;
 +
@@ -68450,6 +68653,7 @@ index 1bc5607..e77ab7d 100644
 +		m_curState = State.LOADING;
 +		m_accessibleFriends = new AccessibleListOfItems<AccessibleFriendListFriendFrame>(this, new List<AccessibleFriendListFriendFrame>());
 +		m_accessibleFriends.onReadItem = OnReadFriend;
++		m_accessibleRecents = new AccessibleListOfItems<AccessibleRecentPlayer>(this, new List<AccessibleRecentPlayer>());
 +
 +		AccessibilityMgr.ShowUI(this);
 +
@@ -68467,10 +68671,10 @@ index 1bc5607..e77ab7d 100644
 +			m_mainMenu.AddOption(nearbyHeader.m_Text.Text, ReadNearbyList);
 +        }
 +
-+		if (DoesHeaderExist(MobileFriendListItem.TypeFlags.RecentPlayer) && GetNearbyOrRecentPlayersCount(MobileFriendListItem.TypeFlags.RecentPlayer) > 0)
++        int recentCount = BnetRecentPlayerMgr.Get().GetRecentPlayers().Count;
++        if (recentCount > 0)
 +        {
-+            var recentHeader = FindOrCreateHeader(MobileFriendListItem.TypeFlags.RecentPlayer);
-+			m_mainMenu.AddOption(recentHeader.m_Text.Text, ReadRecentList);
++			m_mainMenu.AddOption(GameStrings.Format("GLOBAL_FRIENDLIST_RECENT_PLAYERS_HEADER", recentCount), ReadRecentList);
 +        }
 +
 +		var numFriends = BnetFriendMgr.Get().GetFriendCount();
@@ -68709,42 +68913,26 @@ index 1bc5607..e77ab7d 100644
 +
 +    private void ReadRecentList()
 +    {
-+		var recentPlayers = GetRecentPlayers();
-+		var renderedFriends = GetRenderedItems<FriendListFriendFrame>();
++		var recents = BnetRecentPlayerMgr.Get().GetRecentPlayers();
 +
-+		var addedFriends = new HashSet<BnetPlayer>();
++		var accessibleRecentPlayers = new List<AccessibleRecentPlayer>();
 +
-+		var recentFriendListFrames = new List<FriendListFriendFrame>();
-+		foreach (var rf in renderedFriends)
-+		{
-+			var bnetFriend = rf.GetFriend();
-+
-+			// TODO: Review this since the dedupe broke with 23.0
-+			if (recentPlayers.Contains(bnetFriend) && !addedFriends.Contains(bnetFriend))
-+			{
-+				recentFriendListFrames.Add(rf);
-+				addedFriends.Add(bnetFriend);
-+			}
-+		}
-+
-+		var accessibleRecentPlayers = new List<AccessibleFriendListFriendFrame>();
-+
-+		foreach(var player in recentFriendListFrames)
++		foreach(var player in recents)
 +        {
-+			accessibleRecentPlayers.Add(new AccessibleFriendListFriendFrame(this, player));
++			accessibleRecentPlayers.Add(new AccessibleRecentPlayer(this, player));
 +        }
 +
-+		m_accessibleFriends.UpdateItems(accessibleRecentPlayers);
-+		RemoveFriendListCallbacks();
-+		m_accessibleFriends.StartReadingFromIndex(0);
-+
-+		if (m_accessibleFriends.Count == 0)
-+		{
-+			return;
-+		}
++		m_accessibleRecents.UpdateItems(accessibleRecentPlayers);
++		m_accessibleRecents.StartReadingFromIndex(0);
 +
 +		m_curState = State.READING_RECENT_LIST;
 +    }
++
++	private void RereadRecentList()
++	{
++		m_accessibleRecents.StartReading();
++		m_curState = State.READING_RECENT_LIST;
++	}
 +
 +    private void RereadNearbyList()
 +    {
@@ -68757,6 +68945,44 @@ index 1bc5607..e77ab7d 100644
 +		m_accessibleFriends.StartReading();
 +		m_curState = State.READING_NEARBY_LIST;
 +    }
++
++	private void InteractWithRecent(AccessibleRecentPlayer recent)
++	{
++		SetupInteractWithRecentMenu(recent.GetPlayer());
++	}
++
++	private void SetupInteractWithRecentMenu(BnetPlayer recent)
++	{
++		m_interactWithRecentMenu = new AccessibleMenu(this, "", RereadRecentList);
++
++		if (BnetFriendMgr.Get().IsFriend(recent))
++		{
++			m_interactWithRecentMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SOCIAL_CHAT_SEND_MESSAGE), () => ChatWithRecentPlayer(recent));
++		}
++		else if (!BnetRecentPlayerMgr.Get().IsCurrentOpponent(recent))
++		{
++			m_interactWithRecentMenu.AddOption(GameStrings.Get("GLOBAL_ADDFRIEND_BUTTON"), () => AddRecentPlayerAsFriend(recent));
++		}
++		m_interactWithRecentMenu.AddOption(GameStrings.Get("GLOBAL_FRIENDLIST_CHALLENGE_MENU_REPORT_BUTTON"), () => ReportRecentPlayer(recent));
++		m_interactWithRecentMenu.StartReading();
++		m_curState = State.INTERACTING_WITH_RECENT;
++	}
++
++	private void ChatWithRecentPlayer(BnetPlayer recent)
++	{
++		ChatMgr.Get().OnFriendListFriendSelected(recent);
++	}
++
++	private void AddRecentPlayerAsFriend(BnetPlayer recent)
++	{
++		BnetFriendMgr.Get().SendInviteByBattleTag(recent.GetBattleTag().GetString());
++		ReadRecentList();
++	}
++
++	private void ReportRecentPlayer(BnetPlayer recent)
++	{
++		AccessibleReportingPopup.show(recent, RereadRecentList, () => SetupInteractWithRecentMenu(recent));
++	}
 +
 +    private void ReadProfile()
 +    {
@@ -68822,20 +69048,6 @@ index 1bc5607..e77ab7d 100644
 +		foreach (var item in nearbyItems)
 +		{
 +			ret.Add(item.GetNearbyPlayer());
-+		}
-+
-+		return ret;
-+	}
-+
-+	private List<BnetPlayer> GetRecentPlayers()
-+	{
-+		var ret = new List<BnetPlayer>();
-+
-+		var recentItems = GetNearbyOrRecentItems(MobileFriendListItem.TypeFlags.RecentPlayer);
-+
-+		foreach (var item in recentItems)
-+		{
-+			ret.Add(item.GetRecentPlayer());
 +		}
 +
 +		return ret;
@@ -68963,6 +69175,26 @@ index 1bc5607..e77ab7d 100644
 +		{
 +			m_handleRequestMenu?.HandleAccessibleInput();
 +		}
++		else if (m_curState == State.READING_RECENT_LIST)
++		{
++			if (AccessibleKey.CONFIRM.IsPressed())
++			{
++				var currentRecent = m_accessibleRecents.GetItemBeingRead();
++				InteractWithRecent(currentRecent);
++			}
++			else if (AccessibleKey.BACK.IsPressed())
++			{
++				ReadFriendsMenu();
++			}
++			else
++			{
++				m_accessibleRecents?.HandleAccessibleInput();
++			}
++		}
++		else if (m_curState == State.INTERACTING_WITH_RECENT)
++		{
++			m_interactWithRecentMenu?.HandleAccessibleInput();
++			}
 +    }
 +
 +	private void InteractWithFriend(FriendListFriendFrame curFriend)
@@ -69192,6 +69424,14 @@ index 1bc5607..e77ab7d 100644
 +		else if (m_curState == State.READING_FRIEND_INVITE)
 +		{
 +			return m_handleRequestMenu?.GetHelp();
++		}
++		else if (m_curState == State.READING_RECENT_LIST)
++		{
++			return m_accessibleRecents?.GetHelp(true);
++		}
++		else if (m_curState == State.INTERACTING_WITH_RECENT)
++		{
++			return m_interactWithRecentMenu?.GetHelp();
 +		}
 +
 +		return "";
@@ -94550,6 +94790,37 @@ index 4af7acd..b7e09d4 100644
  		}
  		foreach (RenderCommand opaqueRenderCommand2 in renderCommands.OpaqueRenderCommands)
  		{
+diff --git a/Assembly-CSharp/ReportingPopup.cs b/Assembly-CSharp/ReportingPopup.cs
+index 7d8ab29..8a99ba4 100644
+--- a/Assembly-CSharp/ReportingPopup.cs
++++ b/Assembly-CSharp/ReportingPopup.cs
+@@ -26,7 +26,7 @@ public class ReportingPopup : MonoBehaviour
+ 
+ 	public const string ReportDetailsSubmitReleasedEvent = "SELECT_DETAILS_SUBMIT_BUTTON_CLICKED";
+ 
+-	private static Dictionary<ReportType.ComplaintType, List<ReportType.SubcomplaintType>> ReportReasons = new Dictionary<ReportType.ComplaintType, List<ReportType.SubcomplaintType>>
++	internal static Dictionary<ReportType.ComplaintType, List<ReportType.SubcomplaintType>> ReportReasons = new Dictionary<ReportType.ComplaintType, List<ReportType.SubcomplaintType>>
+ 	{
+ 		{
+ 			ReportType.ComplaintType.INAPPROPRIATE_NAME,
+@@ -52,7 +52,7 @@ public class ReportingPopup : MonoBehaviour
+ 		}
+ 	};
+ 
+-	private static Dictionary<ReportType.ComplaintType, string> ComplaintTypeLabels = new Dictionary<ReportType.ComplaintType, string>
++	internal static Dictionary<ReportType.ComplaintType, string> ComplaintTypeLabels = new Dictionary<ReportType.ComplaintType, string>
+ 	{
+ 		{
+ 			ReportType.ComplaintType.INAPPROPRIATE_NAME,
+@@ -68,7 +68,7 @@ public class ReportingPopup : MonoBehaviour
+ 		}
+ 	};
+ 
+-	private static Dictionary<ReportType.SubcomplaintType, string> SubcomplaintTypeLabels = new Dictionary<ReportType.SubcomplaintType, string>
++	internal static Dictionary<ReportType.SubcomplaintType, string> SubcomplaintTypeLabels = new Dictionary<ReportType.SubcomplaintType, string>
+ 	{
+ 		{
+ 			ReportType.SubcomplaintType.BATTLETAG,
 diff --git a/Assembly-CSharp/Reward.cs b/Assembly-CSharp/Reward.cs
 index 69ec147..7185ea9 100644
 --- a/Assembly-CSharp/Reward.cs
