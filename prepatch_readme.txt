@@ -172,6 +172,12 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2024-03-11
+
+- Updated to Hearthstone version 29.0.0.195635 (contributed by Endefx)
+- When queueing for a match, you can now press space to announce the time you've spent in the queue as well as the estimated remaining time (contributed by Mazen)
+- It is now possible to interact with recent players in the social panel (contributed by Endefx)
+
 ### 2024-02-02
 
 - If an item in the shop can be bought for either gold or runestones, both options will now be offered (contributed by Endefx)
