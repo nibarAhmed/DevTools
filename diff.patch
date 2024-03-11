@@ -21069,7 +21069,7 @@ index 0000000..bfa0b40
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..49a6f30
+index 0000000..c3a2200
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 @@ -0,0 +1,2346 @@
@@ -22338,8 +22338,8 @@ index 0000000..49a6f30
 +            m_curState = State.EDIT_DECK_MENU;
 +
 +            var sideboardContent = collectionDeckTray.GetSideboardCardsContent();
-+            sideboardContent.UnregisterCardCountUpdated(OnCardCountUpdated);
-+            sideboardContent.RegisterCardCountUpdated(OnCardCountUpdated);
++            sideboardContent?.UnregisterCardCountUpdated(OnCardCountUpdated);
++            sideboardContent?.RegisterCardCountUpdated(OnCardCountUpdated);
 +
 +            CollectionDeckTray.Get().m_cardsContent.UnregisterCardCountUpdated(OnCardCountUpdated);
 +            CollectionDeckTray.Get().m_cardsContent.RegisterCardCountUpdated(OnCardCountUpdated);
