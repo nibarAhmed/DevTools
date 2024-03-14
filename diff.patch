@@ -21069,10 +21069,10 @@ index 0000000..bfa0b40
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..c3a2200
+index 0000000..cce100b
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2346 @@
+@@ -0,0 +1,2390 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -21316,7 +21316,7 @@ index 0000000..c3a2200
 +            AccessibilityUtils.LogDebug("CM OnPageChanged");
 +            AccessibilityUtils.LogDebug($"CM curPageNum {curPageNum}");
 +
-+            var classContext = m_curMode == Mode.TRADITIONAL || m_curMode == Mode.EMBEDDED ? GetTraditionalPageManager().m_currentClassContext as CollectionTabInfo? : null;
++            var classContext = ShouldAnnounceClass() ? GetTraditionalPageManager().m_currentClassContext as CollectionTabInfo? : null;
 +
 +            AccessibilityUtils.LogDebug($"CM classContext={classContext} | m_curClassContext={m_curClassContext}");
 +
@@ -21380,6 +21380,11 @@ index 0000000..c3a2200
 +            m_curClassContext = classContext?.tagClass;
 +            m_curPageNum = curPageNum;
 +            m_justPressedLeft = false;
++        }
++
++        private bool ShouldAnnounceClass()
++        {
++            return (m_curMode == Mode.TRADITIONAL || m_curMode == Mode.EMBEDDED) && (!CollectionDeckTray.Get()?.IsZilliaxSideboardOpen() ?? true);
 +        }
 +
 +        internal void OnCardBacksPageChanged(int curPageNum, List<CollectionCardActors> cardActors)
@@ -21815,6 +21820,11 @@ index 0000000..c3a2200
 +            if (filterTabManager?.IsFilterActive ?? false)
 +            {
 +                filterTabManager.ClearFilter(true);
++            }
++
++            if (CollectionDeckTray.Get()?.IsZilliaxSideboardOpen() ?? false)
++            {
++                GetTraditionalPageManager()?.m_ZilliaxModulesTab.TriggerRelease();
 +            }
 +        }
 +
@@ -22332,17 +22342,19 @@ index 0000000..c3a2200
 +            else
 +            {
 +                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_SIDEBOARD_OPTION), () => EditDeckSeeDeck());
++                if (collectionDeckTray.IsZilliaxSideboardOpen())
++                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_LOAD_SAVED_VERSION_OPTION), SetupSavedZilliaxVersions);
 +                m_editDeckMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_BACK_TO_DECK_OPTION), CloseSideboard);
 +            }
 +            m_editDeckMenu.StartReading();
 +            m_curState = State.EDIT_DECK_MENU;
 +
 +            var sideboardContent = collectionDeckTray.GetSideboardCardsContent();
-+            sideboardContent?.UnregisterCardCountUpdated(OnCardCountUpdated);
-+            sideboardContent?.RegisterCardCountUpdated(OnCardCountUpdated);
++            sideboardContent?.UnregisterCardCountUpdated(OnSideboardCardCountUpdated);
++            sideboardContent?.RegisterCardCountUpdated(OnSideboardCardCountUpdated);
 +
-+            CollectionDeckTray.Get().m_cardsContent.UnregisterCardCountUpdated(OnCardCountUpdated);
-+            CollectionDeckTray.Get().m_cardsContent.RegisterCardCountUpdated(OnCardCountUpdated);
++            CollectionDeckTray.Get().m_cardsContent.UnregisterCardCountUpdated(OnDeckCardCountUpdated);
++            CollectionDeckTray.Get().m_cardsContent.RegisterCardCountUpdated(OnDeckCardCountUpdated);
 +        }
 +
 +        private void SetupEditDeckFormatSwitcherButtons()
@@ -22368,23 +22380,47 @@ index 0000000..c3a2200
 +            SetupEditDeckMenu();
 +        }
 +
-+        private void OnCardCountUpdated(int cardCount, int maxCount)
++        private void SetupSavedZilliaxVersions()
++        {
++            GetTraditionalPageManager().m_ZilliaxBlueprintsTab.TriggerRelease();
++            EditDeckAddCards();
++        }
++
++        private void OnCardCountUpdated(int cardCount, int maxCount, bool isSideboard)
 +        {
 +            if (m_isTransitioning)
 +            {
 +                return;
 +            }
-+            if (m_curState == State.EDIT_DECK_SEE_DECK || m_curState == State.EDIT_DECK_SEE_COLLECTION)
++            if ((m_curState == State.EDIT_DECK_SEE_DECK || m_curState == State.EDIT_DECK_SEE_COLLECTION) && (!CollectionDeckTray.Get().IsSideboardOpen || isSideboard))
 +            {
 +                int deckSize = GetDeckSize();
-+                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK, cardCount, deckSize));
-+            }
 +
-+            // Update deck cards if needed
-+            if (m_curState == State.EDIT_DECK_SEE_DECK)
-+            {
-+                UpdateEditingDeckCardsAfterCardRemoved();
++                if (CollectionDeckTray.Get().IsZilliaxSideboardOpen())
++                {
++                    // This is needed because we only want to count functional modules for Zilliax.
++                    var sideboardDeck = CollectionManager.Get().GetEditedDeck().GetCurrentSideboardDeck() as ZilliaxSideboardDeck;
++                    cardCount = sideboardDeck.GetFunctionalModules().Count;
++                }
++                
++                AccessibilityMgr.Output(this, LocalizationUtils.Format(!isSideboard ? LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK : LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_SIDEBOARD, cardCount, deckSize));
++
++                // Update deck cards if needed
++                if (m_curState == State.EDIT_DECK_SEE_DECK)
++                {
++                    UpdateEditingDeckCardsAfterCardRemoved();
++                }
 +            }
++        }
++
++        private void OnDeckCardCountUpdated(int cardCount, int maxCount)
++        {
++            OnCardCountUpdated(cardCount, maxCount, false);
++        }
++
++        private void OnSideboardCardCountUpdated(int cardCount, int maxCount)
++        {
++            OnCardCountUpdated(cardCount, maxCount, true);
 +        }
 +
 +        private int GetDeckSize()
@@ -22392,6 +22428,11 @@ index 0000000..c3a2200
 +            var collectionDeckTray = CollectionDeckTray.Get();
 +            if (collectionDeckTray.IsSideboardOpen)
 +            {
++                if (collectionDeckTray.IsZilliaxSideboardOpen())
++                {
++                    // Technically 3 cards, however we don't support changing the cosmetic module
++                    return 2;
++                }
 +                return (collectionDeckTray.GetCurrentDeckContext() as SideboardDeck).DataModel.MaxCards;
 +            }
 +            return CollectionManager.Get().GetDeckSize();
@@ -22450,7 +22491,7 @@ index 0000000..c3a2200
 +
 +            if (editingDeckCards.Count == 0)
 +            {
-+                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_DECK));
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(!CollectionDeckTray.Get().IsSideboardOpen ? LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_DECK : LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_SIDEBOARD));
 +            }
 +            else
 +            {
@@ -22460,7 +22501,7 @@ index 0000000..c3a2200
 +                {
 +                    int cardCount = CountCards(editingDeckCards);
 +                    int deckSize = GetDeckSize();
-+                    AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK, cardCount, deckSize));
++                    AccessibilityMgr.Output(this, LocalizationUtils.Format(!CollectionDeckTray.Get().IsSideboardOpen ? LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK : LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_SIDEBOARD, cardCount, deckSize));
 +                }
 +
 +                m_editingDeckCards = new AccessibleListOfItems<AccessibleEditingDeckCard>(this, BuildAccessibleEditingDeckCards());
@@ -22522,8 +22563,11 @@ index 0000000..c3a2200
 +
 +        private void EditDeckAddCards()
 +        {
-+            AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, m_curPageNum));
-+            AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext ?? TAG_CLASS.NEUTRAL));
++            if (ShouldAnnounceClass())
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM, m_curPageNum));
++                AccessibilityMgr.Output(this, GameStrings.GetClassName(m_curClassContext ?? TAG_CLASS.NEUTRAL));
++            }
 +            m_curPageCollectibles.StartReading();
 +            m_curState = State.EDIT_DECK_SEE_COLLECTION;
 +        }
@@ -23462,7 +23506,7 @@ index 0000000..8116cec
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleEditingDeckCard.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleEditingDeckCard.cs
 new file mode 100644
-index 0000000..9bacae8
+index 0000000..94aad52
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleEditingDeckCard.cs
 @@ -0,0 +1,86 @@
@@ -23501,7 +23545,7 @@ index 0000000..9bacae8
 +        {
 +            var cardId = m_slot.CardID;
 +            var cardRecord = GameUtils.GetCardRecord(cardId);
-+            var cardEntityDef = DefLoader.Get().GetEntityDef(cardId);
++            var cardEntityDef = m_slot.GetEntityDef();
 +            var premium = m_cardTile != null ? m_cardTile.GetPremium() : m_slot.PreferredPremium;
 +
 +            m_collectibleCard = new CollectibleCard(cardRecord, cardEntityDef, premium);
@@ -25189,10 +25233,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..b13c894
+index 0000000..ae3fcc8
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1184 @@
+@@ -0,0 +1,1187 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25987,13 +26031,16 @@ index 0000000..b13c894
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_ADD_CARDS_OPTION = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_ADD_CARDS_OPTION");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_SIDEBOARD_OPTION = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_SIDEBOARD_OPTION");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_LOAD_SAVED_VERSION_OPTION = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_LOAD_SAVED_VERSION_OPTION");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_BACK_TO_DECK_OPTION = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_BACK_TO_DECK_OPTION");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_DECK = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_DECK");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_SIDEBOARD = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION_EMPTY_SIDEBOARD");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_INVALID_CARD = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_INVALID_CARD");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_SIDEBOARD = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_SIDEBOARD");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_RENAME_DECK_OPTION = CreateKey("GLUE_COLLECTION_DECK_RENAME");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_COPY_DECK_OPTION = CreateKey("GLUE_COLLECTION_DECK_COPY_TOOLTIP_HEADLINE");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_DECK");
++    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_SIDEBOARD = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_CARDS_IN_SIDEBOARD");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_EDIT_DECK_FORMAT_CHANGED = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_EDIT_DECK_FORMAT_CHANGED");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_COLLECTION_PAGE_NUM = CreateKey("GLUE_COLLECTION_PAGE_NUM");
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_READ_COLLECTION_HELP = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_READ_COLLECTION_HELP");
@@ -48552,7 +48599,7 @@ index d7fdacb..9307250 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/CollectionDeckTray.cs b/Assembly-CSharp/CollectionDeckTray.cs
-index 7ef496e..4f3f1c8 100644
+index 7ef496e..20d2192 100644
 --- a/Assembly-CSharp/CollectionDeckTray.cs
 +++ b/Assembly-CSharp/CollectionDeckTray.cs
 @@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
@@ -48604,7 +48651,16 @@ index 7ef496e..4f3f1c8 100644
  			break;
  		case TAG_SIDEBOARD_TYPE.ZILLIAX:
  			if ((bool)m_ZilliaxsideboardTray)
-@@ -593,6 +596,7 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -427,6 +430,8 @@ public class CollectionDeckTray : EditableDeckTray
+ 				{
+ 					m_scrollbar.Enable(enable: false);
+ 				}
++
++				AccessibleCollectionManager.Get().OnSideboardOpenedOrClosed(true);
+ 			}
+ 			break;
+ 		}
+@@ -593,6 +598,7 @@ public class CollectionDeckTray : EditableDeckTray
  			m_sideboardCardPopup = notificationManager.CreatePopupText(UserAttentionBlocker.NONE, position, SideboardPopupScale * Vector3.one, popupText);
  			m_sideboardCardPopup.ShowPopUpArrow(Notification.PopUpArrowDirection.Right);
  			NotificationManager.Get().DestroyNotification(m_sideboardCardPopup, SideboardPopupDelay);
@@ -48612,7 +48668,7 @@ index 7ef496e..4f3f1c8 100644
  		}
  	}
  
-@@ -969,16 +973,20 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -969,16 +975,20 @@ public class CollectionDeckTray : EditableDeckTray
  		m_runeIndicatorVisual.EnableRuneButtons();
  		m_cardsContent.UpdateCardList();
  		CheckNumCardsNeededToBuildDeck(deck);
@@ -48633,7 +48689,7 @@ index 7ef496e..4f3f1c8 100644
  		CollectionManager.Get().SetEditedDeck(deck);
  		CollectionManagerDisplay obj = CollectionManager.Get().GetCollectibleDisplay() as CollectionManagerDisplay;
  		obj.ShowDuelsDeckHeader();
-@@ -1166,31 +1174,31 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -1166,31 +1176,31 @@ public class CollectionDeckTray : EditableDeckTray
  		{
  			return;
  		}
@@ -48643,12 +48699,6 @@ index 7ef496e..4f3f1c8 100644
 +			if (m_runeIndicatorVisual != null)
  			{
 -				m_runeIndicatorVisual.DisableRuneButtons();
--			}
--			else
--			{
--				m_runeIndicatorVisual.Hide();
--				m_cardsContent.SetRuneIndicatorSpacerVisible(visible: false);
--				m_runeIndicatorVisual.EnableRuneButtons();
 +				if (TavernBrawlDisplay.IsTavernBrawlOpen())
 +				{
 +					m_runeIndicatorVisual.DisableRuneButtons();
@@ -48660,13 +48710,19 @@ index 7ef496e..4f3f1c8 100644
 +					m_runeIndicatorVisual.EnableRuneButtons();
 +				}
  			}
+-			else
++			if (!UniversalInputManager.UsePhoneUI && CollectionManager.Get().IsEditingDeathKnightDeck())
+ 			{
+-				m_runeIndicatorVisual.Hide();
+-				m_cardsContent.SetRuneIndicatorSpacerVisible(visible: false);
+-				m_runeIndicatorVisual.EnableRuneButtons();
+-			}
 -		}
 -		if (!UniversalInputManager.UsePhoneUI && CollectionManager.Get().IsEditingDeathKnightDeck())
 -		{
 -			CollectionDeckBoxVisual editingDeckBox = GetEditingDeckBox();
 -			if ((bool)editingDeckBox)
-+			if (!UniversalInputManager.UsePhoneUI && CollectionManager.Get().IsEditingDeathKnightDeck())
- 			{
+-			{
 -				editingDeckBox.ResetColliderHeight();
 +				CollectionDeckBoxVisual editingDeckBox = GetEditingDeckBox();
 +				if ((bool)editingDeckBox)
@@ -48683,7 +48739,7 @@ index 7ef496e..4f3f1c8 100644
  		CollectionDeck editedDeck = CollectionManager.Get().GetEditedDeck();
  		if (editedDeck == null)
  		{
-@@ -1255,7 +1263,7 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -1255,7 +1265,7 @@ public class CollectionDeckTray : EditableDeckTray
  		{
  			flag = deckRuleset.IsDeckValid(editedDeck);
  		}
@@ -48692,7 +48748,7 @@ index 7ef496e..4f3f1c8 100644
  		{
  			Options.Get().SetBool(Option.NEEDS_TO_MAKE_STANDARD_DECK, val: false);
  			Options.Get().SetLong(Option.LAST_CUSTOM_DECK_CHOSEN, editedDeck.ID);
-@@ -1264,7 +1272,7 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -1264,7 +1274,7 @@ public class CollectionDeckTray : EditableDeckTray
  			Notification notification = NotificationManager.Get().CreatePopupText(UserAttentionBlocker.SET_ROTATION_CM_TUTORIALS, relativePosition, NotificationManager.NOTIFICATITON_WORLD_SCALE, GameStrings.Get("GLUE_COLLECTION_TUTORIAL16"), convertLegacyPosition: false);
  			notification.ShowPopUpArrow(Notification.PopUpArrowDirection.RightDown);
  			notification.PulseReminderEveryXSeconds(3f);
@@ -48701,7 +48757,7 @@ index 7ef496e..4f3f1c8 100644
  			m_doneButton.GetComponentInChildren<HighlightState>().ChangeState(ActorStateType.HIGHLIGHT_PRIMARY_ACTIVE);
  		}
  		SaveCurrentDeckAndEnterDeckListMode();
-@@ -1600,6 +1608,7 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -1600,6 +1610,7 @@ public class CollectionDeckTray : EditableDeckTray
  		CollectionManager.Get().GetCollectibleDisplay().EnableInput(enable: true);
  		AllowInput(allowed: true);
  		completedCallback?.Invoke(addedCards, removedCards);
@@ -48709,7 +48765,7 @@ index 7ef496e..4f3f1c8 100644
  	}
  
  	public void PopulateTeam(IEnumerable<LettuceCollectionDisplay.TeamCopyingModule.TeamFill> fillCards, PopuplateDeckCompleteCallback completedCallback)
-@@ -1856,11 +1865,13 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -1856,11 +1867,13 @@ public class CollectionDeckTray : EditableDeckTray
  			HideDeckBigCard(cardTile);
  			return;
  		}
@@ -48723,7 +48779,7 @@ index 7ef496e..4f3f1c8 100644
  		else if (!(CollectionInputMgr.Get() == null) && !TavernBrawlDisplay.IsTavernBrawlViewing())
  		{
  			CollectionDeckTileActor actor = cardTile.GetActor();
-@@ -1933,17 +1944,17 @@ public class CollectionDeckTray : EditableDeckTray
+@@ -1933,17 +1946,17 @@ public class CollectionDeckTray : EditableDeckTray
  	private void ShowDeckBigCardForCardDef(DefLoader.DisposableCardDef cardDef, EntityDef entityDef, CollectionDeckTileActor actor, DeckTrayDeckTileVisual cardTile, float delay)
  	{
  		GhostCard.Type ghostTypeFromSlot = GhostCard.GetGhostTypeFromSlot(GetCurrentDeckContext(), cardTile.GetSlot());
@@ -48751,6 +48807,18 @@ index 7ef496e..4f3f1c8 100644
  
  	protected override void HideDeckBigCard(DeckTrayDeckTileVisual cardTile, bool force = false)
  	{
+@@ -2144,4 +2157,11 @@ public class CollectionDeckTray : EditableDeckTray
+ 		}
+ 		return m_ZilliaxsideboardTray.SavedZilliaxVersions;
+ 	}
++
++	#region Accessibility
++	internal bool IsZilliaxSideboardOpen()
++	{
++		return IsSideboardOpen && m_currentSideboardTray is ZilliaxDeckSideboardTray;
++	}
++	#endregion
+ }
 diff --git a/Assembly-CSharp/CollectionHeroPickerButtons.cs b/Assembly-CSharp/CollectionHeroPickerButtons.cs
 index 0682793..d290fea 100644
 --- a/Assembly-CSharp/CollectionHeroPickerButtons.cs
@@ -102597,3 +102665,45 @@ index 71db7d5..11cfb5a 100644
 +
 +	#endregion
  }
+diff --git a/Assembly-CSharp/ZilliaxDeckSideboardTray.cs b/Assembly-CSharp/ZilliaxDeckSideboardTray.cs
+index 5b18f93..6e64456 100644
+--- a/Assembly-CSharp/ZilliaxDeckSideboardTray.cs
++++ b/Assembly-CSharp/ZilliaxDeckSideboardTray.cs
+@@ -1,6 +1,7 @@
+ using System;
+ using System.Collections;
+ using System.Collections.Generic;
++using Accessibility;
+ using Assets;
+ using Blizzard.T5.Core;
+ using Hearthstone.UI;
+@@ -174,7 +175,7 @@ public class ZilliaxDeckSideboardTray : DeckSideboardTray
+ 			BuildSavedZilliaxVersions();
+ 		}
+ 		GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.HAS_SEEN_ZILLIAX_CUSTOMIZABLE_FTUE, out long value);
+-		m_hasSeenFTUE = value > 0;
++		m_hasSeenFTUE = AccessibilityMgr.IsAccessibilityEnabled() || value > 0;
+ 		if (!m_hasSeenFTUE)
+ 		{
+ 			if (!m_isFTUEInitialized)
+@@ -195,7 +196,7 @@ public class ZilliaxDeckSideboardTray : DeckSideboardTray
+ 		else
+ 		{
+ 			GameSaveDataManager.Get().GetSubkeyValue(GameSaveKeyId.FTUE, GameSaveKeySubkeyId.HAS_SEEN_ZILLIAX_CUSTOMIZABLE_SAVED_VERSIONS_FTUE, out long value2);
+-			if (value2 > 0)
++			if (AccessibilityMgr.IsAccessibilityEnabled() || value2 > 0)
+ 			{
+ 				SetCurrentFTUEStep(FTUEStep.COMPLETE);
+ 			}
+@@ -725,6 +726,11 @@ public class ZilliaxDeckSideboardTray : DeckSideboardTray
+ 		}
+ 		m_isAnimating = false;
+ 		m_constructionAnimationCoroutine = null;
++
++		// Just close the tray immediately, no point in the extra clicks for blind players.
++		yield return new WaitForSeconds(2);
++		Navigation.GoBack();
++		CollectionDeckTray.Get().OnSideboardDoneButtonPressed();
+ 	}
+ 
+ 	public void LoadNewActorAndConstructIt()
