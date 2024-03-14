@@ -12865,10 +12865,10 @@ index 0000000..a2fd21e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
 new file mode 100644
-index 0000000..18c4c11
+index 0000000..1b9911a
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
-@@ -0,0 +1,601 @@
+@@ -0,0 +1,602 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -13267,7 +13267,8 @@ index 0000000..18c4c11
 +                AccessibilityUtils.LogDebug($"OnBigCardPlayed called with null taskList");
 +            }
 +
-+            if (card == null || m_describedTaskLists.Contains(taskList))
++            // Note: Splendiferous Whizbang shows its deck with a metadata power as part of its own start of game trigger block, Which is marked as handled when we announce the trigger.
++            if (card == null || (m_describedTaskLists.Contains(taskList) && !taskList.IsTriggerBlock()))
 +            {
 +                return;
 +            }
