@@ -2163,7 +2163,7 @@ index 0000000..75b068e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCard.cs b/Assembly-CSharp/Accessibility/AccessibleCard.cs
 new file mode 100644
-index 0000000..e49aefb
+index 0000000..252d7c4
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCard.cs
 @@ -0,0 +1,287 @@
@@ -2250,7 +2250,7 @@ index 0000000..e49aefb
 +            }
 +            else
 +            {
-+                return m_card.GetEntity().GetEntityDef().GetName();
++                return m_card.GetEntity().GetName();
 +            }
 +        }
 +
