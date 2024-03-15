@@ -2163,10 +2163,10 @@ index 0000000..75b068e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCard.cs b/Assembly-CSharp/Accessibility/AccessibleCard.cs
 new file mode 100644
-index 0000000..252d7c4
+index 0000000..80c91f5
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCard.cs
-@@ -0,0 +1,287 @@
+@@ -0,0 +1,292 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -2228,6 +2228,11 @@ index 0000000..252d7c4
 +			{
 +                ret.Add(LocalizationUtils.Get(LocalizationKey.GLOBAL_READY));
 +			}
++
++            if (m_card.GetEntity().GetZone() == TAG_ZONE.SECRET && m_card.GetEntity().IsObjective())
++            {
++                ret.Add(m_card.GetEntity().GetCustomObjectiveBannerText());
++            }
 +		}
 +
 +		protected string GetName()
