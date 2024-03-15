@@ -172,6 +172,14 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2024-03-15
+
+- Added support for upcoming Zilliax Deluxe 3000 and Splendiferous Whizbang cards (contributed by Endefx)
+- Fixed a bug preventing dynamically updating card names from being read, which made the "Say my Name" tavern brawl unplayable (contributed by Endefx)
+- The remaining turns in play of objectives and paladin auras will now be announced (contributed by Endefx)
+- When a paladin aura or objective leaves play, this will now be announced (contributed by Endefx)
+- Fixed a bug that caused an erroneous hero death announcement when a hero card was played (contributed by Endefx)
+
 ### 2024-03-11
 
 - Updated to Hearthstone version 29.0.0.195635 (contributed by Endefx)
