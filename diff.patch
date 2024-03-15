@@ -7655,10 +7655,10 @@ index 0000000..52fc7d5
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleInGameState.cs b/Assembly-CSharp/Accessibility/AccessibleInGameState.cs
 new file mode 100644
-index 0000000..a24d831
+index 0000000..8a6ec1d
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleInGameState.cs
-@@ -0,0 +1,2324 @@
+@@ -0,0 +1,2332 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -7856,12 +7856,12 @@ index 0000000..a24d831
 +
 +            private static bool IsAliveZone(TAG_ZONE zone)
 +            {
-+                return zone == TAG_ZONE.PLAY; // Only PLAY should count as alive as e.g. in-hand cards are not "alive"
++                return zone == TAG_ZONE.PLAY || zone == TAG_ZONE.SECRET; //  E.g. in-hand cards are not "alive"
 +            }
 +
 +            private static bool IsAbleToLive(Entity entity)
 +            {
-+                return entity.IsCharacter() || entity.IsWeapon();
++                return entity.IsCharacter() || entity.IsWeapon() || entity.IsObjective();
 +            }
 +
 +            internal EntitySpeech GetDeathSpeech()
@@ -7876,6 +7876,10 @@ index 0000000..a24d831
 +                    {
 +                        return new EntitySpeech("");
 +                    }
++                }
++                else if (m_after.IsObjective())
++                {
++                    return new EntitySpeech(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_AURA_FADED), LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_AURAS_FADED));
 +                }
 +                else
 +                {
@@ -7895,14 +7899,14 @@ index 0000000..a24d831
 +                    return false;
 +                }
 +
-+                if (!before.IsWeapon())
-+                {
-+                    return true;
-+                }
-+
-+                if (after.GetController().GetWeaponCard() == null)
++                if (after.IsWeapon() && after.GetController().GetWeaponCard() == null)
 +                {
 +                    s_heroWeaponBroke.Add(after.GetController().GetHero());
++                }
++
++                if (before.IsHero() && before.GetZone() == TAG_ZONE.PLAY && after.GetZone() == TAG_ZONE.SETASIDE)
++                {
++                    return false; // Hero card
 +                }
 +
 +                return true;
@@ -9257,6 +9261,10 @@ index 0000000..a24d831
 +                    }
 +                    else if (after.GetZone() == TAG_ZONE.SETASIDE)
 +                    {
++                        if (after.IsHero() && before.GetZone() == TAG_ZONE.PLAY) // Guard against "Your hero died" messages when playing hero card
++                        {
++                            continue;
++                        }
 +                        var cardName = GetCardNameForZoneMovement(after);
 +
 +                        if (before.IsControlledByFriendlySidePlayer())
@@ -25239,10 +25247,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..ae3fcc8
+index 0000000..4be480a
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1187 @@
+@@ -0,0 +1,1189 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25542,6 +25550,8 @@ index 0000000..ae3fcc8
 +    public static LocalizationKey GAMEPLAY_DIFF_ENTITY_DIED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_ENTITY_DIED");
 +    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_ENTITIES_DIED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_ENTITIES_DIED");
 +    public static LocalizationKey GAMEPLAY_DIFF_WEAPON_BROKE = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_WEAPON_BROKE");
++    public static LocalizationKey GAMEPLAY_DIFF_AURA_FADED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_AURA_FADED");
++    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_AURAS_FADED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_AURAS_FADED");
 +    public static LocalizationKey GAMEPLAY_DIFF_ENTITY_TRANSFORMED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_ENTITY_TRANSFORMED");
 +    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_ENTITIES_TRANSFORMED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_ENTITIES_TRANSFORMED");
 +    public static LocalizationKey GAMEPLAY_DIFF_ENTITY_TOOK_N_DAMAGE = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_ENTITY_TOOK_N_DAMAGE");
