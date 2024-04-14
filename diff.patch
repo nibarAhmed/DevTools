@@ -17853,7 +17853,7 @@ index 0000000..20d9067
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 0000000..105dcd8
+index 0000000..65ef1cf
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 @@ -0,0 +1,1611 @@
@@ -17893,7 +17893,7 @@ index 0000000..105dcd8
 +
 +        private AccessibleInGameState m_lastDescribedState; // Used for storing the state of the board (i.e. Entity clones) at the start of a combat phase
 +
-+        private int m_numPlayersAlive; // Used for saying x players died at the start of recruit phase
++        private int m_numTeamsAlive; // Used for saying x players died at the start of recruit phase
 +
 +		internal override void OnBattlegroundsCombatPhasePopupShown()
 +		{
@@ -18039,16 +18039,16 @@ index 0000000..105dcd8
 +			{
 +				AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_RECRUIT_PHASE));
 +
-+                var numPlayersAlive = AccessibleBattlegroundsLeaderboardMgr.Get().GetNumPlayersAlive();
++                var numTeamsAlive = AccessibleBattlegroundsLeaderboardMgr.Get().GetNumTeamsAlive();
 +
-+                if (numPlayersAlive < m_numPlayersAlive)
++                if (numTeamsAlive < m_numTeamsAlive)
 +				{
-+                    var numPlayersDied = m_numPlayersAlive - numPlayersAlive;
-+					AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_COMBAT_PHASE_ENDED_N_PLAYERS_DIED, numPlayersDied));
-+					AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_COMBAT_PHASE_ENDED_N_PLAYERS_REMAINING, numPlayersAlive));
++                    var numTeamsDied = m_numTeamsAlive - numTeamsAlive;
++					AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_COMBAT_PHASE_ENDED_N_PLAYERS_DIED, numTeamsDied));
++					AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_COMBAT_PHASE_ENDED_N_PLAYERS_REMAINING, numTeamsAlive));
 +				}
 +
-+                m_numPlayersAlive = numPlayersAlive;
++                m_numTeamsAlive = numTeamsAlive;
 +			}
 +
 +			m_wasShopPhasePopupShown = true;
@@ -19504,22 +19504,22 @@ index 0000000..77e7858
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsLeaderboardMgr.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsLeaderboardMgr.cs
 new file mode 100644
-index 0000000..27a82f3
+index 0000000..1cb73f7
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsLeaderboardMgr.cs
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,158 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
 +namespace Accessibility
 +{
-+    class AccessibleBattlegroundsLeaderboardMgr
-+    {
++	class AccessibleBattlegroundsLeaderboardMgr
++	{
 +		private static AccessibleBattlegroundsLeaderboardMgr s_instance;
 +
 +		private bool m_readingLeaderboard;
 +
-+        private AccessibleListOfItems<AccessiblePlayerLeaderboardCard> m_accessibleCards;
++		private AccessibleListOfItems<AccessiblePlayerLeaderboardTeam> m_accessibleTeams;
 +
 +		internal static AccessibleBattlegroundsLeaderboardMgr Get()
 +		{
@@ -19531,49 +19531,48 @@ index 0000000..27a82f3
 +			return s_instance;
 +		}
 +
-+        public void ReadNextOpponent()
++		public void ReadNextOpponent()
 +		{
-+			var nextOpponentTile = PlayerLeaderboardManager.Get().GetNextOpponentTile();
-+			StartReadingLeaderboard(GetTileIndex(nextOpponentTile));
++			var nextOpponentTeam = PlayerLeaderboardManager.Get().GetNextOpponentTile().m_parent;
++			StartReadingLeaderboard(GetTeamIndex(nextOpponentTeam));
 +		}
 +
 +		public void ReadMyself()
 +		{
-+			var myTile = PlayerLeaderboardManager.Get().GetMyTile();
-+			StartReadingLeaderboard(GetTileIndex(myTile));
++			var myTeam = PlayerLeaderboardManager.Get().GetMyTile().m_parent;
++			StartReadingLeaderboard(GetTeamIndex(myTeam));
 +		}
 +
-+        public void ReadNextOpponentToEnd()
++		public void ReadNextOpponentToEnd()
 +		{
-+            ReadCard(PlayerLeaderboardManager.Get().GetNextOpponentTile());
++			ReadTeam(PlayerLeaderboardManager.Get().GetNextOpponentTile().m_parent);
 +		}
 +
-+        public void ReadMyselfToEnd()
++		public void ReadMyselfToEnd()
 +		{
-+            ReadCard(PlayerLeaderboardManager.Get().GetMyTile());
++			ReadTeam(PlayerLeaderboardManager.Get().GetMyTile().m_parent);
 +		}
 +
-+		private static void ReadCard(PlayerLeaderboardCard card)
++		private static void ReadTeam(PlayerLeaderboardTeam team)
 +		{
-+			if (card == null)
++			if (team == null)
 +			{
 +				return;
 +			}
 +
-+			AccessibleInputMgr.MoveMouseTo(card);
-+            var accessibleCard = new AccessiblePlayerLeaderboardCard(AccessibleGameplay.Get(), card);
-+            accessibleCard.ReadAllLines();
++			var accessibleTeam = CreateAccessibleTeam(team);
++			accessibleTeam.ReadAllLines();
 +		}
 +
-+		internal int GetNumPlayersAlive()
++		internal int GetNumTeamsAlive()
 +		{
-+			var tiles = PlayerLeaderboardManager.Get().m_playerTiles;
++			var teams = PlayerLeaderboardManager.Get().m_teams;
 +
 +			int ret = 0;
 +
-+			foreach(var tile in tiles)
++			foreach (var team in teams)
 +			{
-+				if (tile?.m_playerHeroEntity.GetRealTimeRemainingHP() > 0)
++				if (team?.Members[0].Entity.GetRealTimeRemainingHP() > 0)
 +				{
 +					ret++;
 +				}
@@ -19584,48 +19583,48 @@ index 0000000..27a82f3
 +
 +		internal bool HandleAccessibleInput()
 +		{
-+            if (AccessibleKey.BATTLEGROUNDS_READ_LEADERBOARD.IsPressed() && !m_readingLeaderboard)
-+            {
-+                StartReadingLeaderboard();
-+                return true;
-+            }
-+            else if (AccessibleKey.BACK.IsPressed() && m_readingLeaderboard)
-+            {
-+                StopReadingLeaderboard();
++			if (AccessibleKey.BATTLEGROUNDS_READ_LEADERBOARD.IsPressed() && !m_readingLeaderboard)
++			{
++				StartReadingLeaderboard();
++				return true;
++			}
++			else if (AccessibleKey.BACK.IsPressed() && m_readingLeaderboard)
++			{
++				StopReadingLeaderboard();
 +				AccessibleInputMgr.HideMouse();
-+                return true;
-+            }
++				return true;
++			}
 +			else if (m_readingLeaderboard)
 +			{
-+				AccessibleInputMgr.MoveMouseTo(m_accessibleCards.GetItemBeingRead().GetCard());
++				AccessibleInputMgr.MoveMouseTo(m_accessibleTeams.GetItemBeingRead().GetCard());
 +
-+				return m_accessibleCards.HandleAccessibleInput();
++				return m_accessibleTeams.HandleAccessibleInput();
 +			}
 +
-+            return false;
++			return false;
 +		}
 +
-+		internal void StartReadingLeaderboard(int fromIndex=0)
-+        {
-+            var tiles = PlayerLeaderboardManager.Get().m_playerTiles;
++		internal void StartReadingLeaderboard(int fromIndex = 0)
++		{
++			var teams = PlayerLeaderboardManager.Get().m_teams;
 +
-+            if (tiles == null || tiles.Count == 0)
++			if (teams == null || teams.Count == 0)
 +			{
-+                return;
++				return;
 +			}
 +
-+            var accessibleCards = new List<AccessiblePlayerLeaderboardCard>();
++			var accessibleTeams = new List<AccessiblePlayerLeaderboardTeam>();
 +
-+            foreach (var tile in tiles)
++			foreach (var team in teams)
 +			{
-+                accessibleCards.Add(new AccessiblePlayerLeaderboardCard(AccessibleGameplay.Get(), tile));
++				accessibleTeams.Add(CreateAccessibleTeam(team));
 +			}
 +
-+            m_accessibleCards = new AccessibleListOfItems<AccessiblePlayerLeaderboardCard>(AccessibleGameplay.Get(), accessibleCards);
-+            m_readingLeaderboard = true;
++			m_accessibleTeams = new AccessibleListOfItems<AccessiblePlayerLeaderboardTeam>(AccessibleGameplay.Get(), accessibleTeams);
++			m_readingLeaderboard = true;
 +
-+            m_accessibleCards.StartReadingFromIndex(fromIndex);
-+        }
++			m_accessibleTeams.StartReadingFromIndex(fromIndex);
++		}
 +
 +		internal void StopReadingLeaderboard()
 +		{
@@ -19637,21 +19636,33 @@ index 0000000..27a82f3
 +			return m_readingLeaderboard;
 +		}
 +
-+		private int GetTileIndex(PlayerLeaderboardCard tile)
++		private int GetTeamIndex(PlayerLeaderboardTeam team)
 +		{
-+            var tiles = PlayerLeaderboardManager.Get().m_playerTiles;
++			var teams = PlayerLeaderboardManager.Get().m_teams;
 +
-+			for (int i = 0; i < tiles.Count; i++)
++			for (int i = 0; i < teams.Count; i++)
 +			{
-+				var t = tiles[i];
++				var t = teams[i];
 +
-+				if (t == tile)
++				if (t == team)
 +				{
 +					return i;
 +				}
 +			}
 +
 +			return 0; // Allow StartReading to fail gracefully
++		}
++
++		private static AccessiblePlayerLeaderboardTeam CreateAccessibleTeam(PlayerLeaderboardTeam team)
++		{
++			switch (team)
++			{
++				case PlayerLeaderboardSoloTeam solo:
++					return new AccessiblePlayerLeaderboardSoloTeam(AccessibleGameplay.Get(), solo);
++				case PlayerLeaderboardDuosTeam duos:
++					return new AccessiblePlayerLeaderboardDuosTeam(AccessibleGameplay.Get(), duos);
++			}
++			return null;
 +		}
 +	}
 +}
@@ -19786,12 +19797,12 @@ index 0000000..24f90ee
 +    {
 +    }
 +}
-diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardCard.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardCard.cs
+diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardDuosTeam.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardDuosTeam.cs
 new file mode 100644
-index 0000000..5e37de9
+index 0000000..0eb7f59
 --- /dev/null
-+++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardCard.cs
-@@ -0,0 +1,154 @@
++++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardDuosTeam.cs
+@@ -0,0 +1,57 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -19800,40 +19811,132 @@ index 0000000..5e37de9
 +
 +namespace Accessibility
 +{
-+    class AccessiblePlayerLeaderboardCard : AccessibleItem
++    class AccessiblePlayerLeaderboardDuosTeam : AccessiblePlayerLeaderboardTeam
 +    {
-+        private readonly PlayerLeaderboardCard m_card;
++        private PlayerLeaderboardDuosTeam m_duosTeam;
 +
-+        internal AccessiblePlayerLeaderboardCard(AccessibleComponent parent, PlayerLeaderboardCard card) : base(parent)
++        internal AccessiblePlayerLeaderboardDuosTeam(AccessibleComponent parent, PlayerLeaderboardDuosTeam team) : base(parent, team)
 +        {
-+            m_card = card;
++            m_duosTeam = team;
++        }
++
++        internal override PlayerLeaderboardCard GetCard()
++        {
++            return m_duosTeam.Members[0];
 +        }
 +
 +        internal override List<string> GetLines()
 +        {
 +            var ret = new List<string>();
++            var defaultHeroEntity = GetCard().Entity;
 +
-+            AccessibleCardUtils.AddLineIfExists(GetName(), ret);
-+            AccessibleCardUtils.AddLineIfExists(GetPosition(), ret);
-+            AddHealthAndArmorLines(ret);
-+            AccessibleCardUtils.AddLineIfExists(GetTavernTier(), ret);
-+            AccessibleCardUtils.AddLineIfExists(GetRacesText(), ret);
-+            AccessibleCardUtils.AddLineIfExists(GetTriplesText(), ret);
++            AccessibleCardUtils.AddLineIfExists(GetTeamName(), ret);
++            AccessibleCardUtils.AddLineIfExists(GetPlace(), ret);
++            AddHealthAndArmorLines(defaultHeroEntity, ret);
 +
-+            AddCombatInfoLines(ret);
++            AddHeroSummary(m_duosTeam.Members[0], ret);
++            AddHeroSummary(m_duosTeam.Members[1], ret);
 +
 +            return ret;
 +        }
 +
-+		private void AddCombatInfoLines(List<string> ret)
-+		{
-+            var playerId = m_card.m_playerHeroEntity.GetTag(GAME_TAG.PLAYER_ID);
++        private void AddHeroSummary(PlayerLeaderboardCard card, List<string> ret)
++        {
++            var heroEntity = card.Entity;
++
++            AccessibleCardUtils.AddLineIfExists(GetName(heroEntity), ret);
++            AccessibleCardUtils.AddLineIfExists(GetTavernTier(heroEntity), ret);
++            AccessibleCardUtils.AddLineIfExists(GetRacesText(card.m_overlay.m_recentCombatsPanel), ret);
++            AccessibleCardUtils.AddLineIfExists(GetTriplesText(heroEntity), ret);
++
++            AddCombatInfoLines(heroEntity, ret);
++        }
++
++        private string GetTeamName()
++        {
++            var firstPlayerName = GetName(m_duosTeam.Members[0].Entity);
++            var secondPlayerName = GetName(m_duosTeam.Members[1].Entity);
++            return $"{firstPlayerName} {LocalizationUtils.Get(LocalizationKey.FORMATTING_LIST_FINAL_SEPARATOR)} {secondPlayerName}";
++        }
++    }
++}
+diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardSoloTeam.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardSoloTeam.cs
+new file mode 100644
+index 0000000..a07c57b
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardSoloTeam.cs
+@@ -0,0 +1,41 @@
++﻿using System;
++using System.Collections.Generic;
++using System.Text;
++using UnityEngine;
++using static FriendListFrame;
++
++namespace Accessibility
++{
++    class AccessiblePlayerLeaderboardSoloTeam : AccessiblePlayerLeaderboardTeam
++    {
++        private PlayerLeaderboardSoloTeam m_soloTeam;
++
++        internal AccessiblePlayerLeaderboardSoloTeam(AccessibleComponent parent, PlayerLeaderboardSoloTeam team) : base(parent, team)
++        {
++            m_soloTeam = team;
++        }
++
++        internal override PlayerLeaderboardCard GetCard()
++        {
++            return m_soloTeam.Members[0];
++        }
++
++        internal override List<string> GetLines()
++        {
++            var ret = new List<string>();
++            var heroEntity = GetCard().Entity;
++
++            AccessibleCardUtils.AddLineIfExists(GetName(heroEntity), ret);
++            AccessibleCardUtils.AddLineIfExists(GetPlace(), ret);
++            AddHealthAndArmorLines(heroEntity, ret);
++            AccessibleCardUtils.AddLineIfExists(GetTavernTier(heroEntity), ret);
++            AccessibleCardUtils.AddLineIfExists(GetRacesText(GetCard().m_overlay.m_recentCombatsPanel), ret);
++            AccessibleCardUtils.AddLineIfExists(GetTriplesText(heroEntity), ret);
++
++            AddCombatInfoLines(heroEntity, ret);
++
++            return ret;
++        }
++
++    }
++}
+diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardTeam.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardTeam.cs
+new file mode 100644
+index 0000000..8ee3f3f
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardTeam.cs
+@@ -0,0 +1,131 @@
++using System;
++using System.Collections.Generic;
++using UnityEngine;
++
++namespace Accessibility
++{
++    public abstract class AccessiblePlayerLeaderboardTeam : AccessibleItem
++    {
++        protected PlayerLeaderboardTeam m_team;
++
++        internal AccessiblePlayerLeaderboardTeam(AccessibleComponent parent, PlayerLeaderboardTeam team) : base(parent)
++        {
++            m_team = team;
++        }
++
++        protected void AddCombatInfoLines(Entity heroEntity, List<string> ret)
++        {
++            var playerId = heroEntity.GetTag(GAME_TAG.PLAYER_ID);
 +            var combatHistory = PlayerLeaderboardManager.Get().GetRecentCombatHistoryForPlayer(playerId);
 +
 +            if (combatHistory == null || combatHistory.Count == 0)
-+			{
++            {
 +                return;
-+			}
++            }
 +
 +            var lastCombat = combatHistory[combatHistory.Count - 1];
 +            var winStreak = lastCombat.winStreak;
@@ -19843,108 +19946,103 @@ index 0000000..5e37de9
 +            var lastCombatToRead = Math.Max(0, combatHistory.Count - PlayerLeaderboardRecentCombatsPanel.MAX_VISIBLE_COMBATS_PER_PANEL);
 +
 +            for (int i = combatHistory.Count - 1; i >= lastCombatToRead; i--)
-+			{
++            {
 +                var combat = combatHistory[i];
 +                var combatSummary = FormatCombatSummary(combat);
 +                AccessibleCardUtils.AddLineIfExists(combatSummary, ret);
-+			}
++            }
 +        }
 +
-+		private string FormatCombatSummary(PlayerLeaderboardRecentCombatsPanel.RecentCombatInfo combat)
-+		{
++        protected string FormatCombatSummary(PlayerLeaderboardRecentCombatsPanel.RecentCombatInfo combat)
++        {
 +            var opponentTile = PlayerLeaderboardManager.Get().GetTileForPlayerId(combat.opponentId);
 +
 +            if (opponentTile == null)
-+			{
++            {
 +                // Can happen at the start of the game and during the tutorial
 +                AccessibilityUtils.LogDebug($"Attempted to format combat against null opponent. ownerId={combat.ownerId} opponentId={combat.opponentId} isDefeated={combat.isDefeated}");
 +                return null;
-+			}
++            }
 +
 +            var opponentHeroName = opponentTile.GetHeroName();
 +
 +            if (combat.damageTarget == combat.ownerId)
-+			{
++            {
 +                return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_LEADERBOARDS_PLAYER_STATS_TOOK_DAMAGE, combat.damage, opponentHeroName);
-+			}
++            }
 +            else if (combat.damageTarget == combat.opponentId)
-+			{
++            {
 +                return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_LEADERBOARDS_PLAYER_STATS_DEALT_DAMAGE, combat.damage, opponentHeroName);
-+			}
++            }
 +            else
-+			{
++            {
 +                return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_LEADERBOARDS_PLAYER_STATS_TIED, opponentHeroName);
-+			}
-+		}
++            }
++        }
 +
-+		private string GetName()
-+		{
-+            var playerId = m_card.m_playerHeroEntity.GetTag(GAME_TAG.PLAYER_ID);
++        protected string GetName(Entity heroEntity)
++        {
++            var playerId = heroEntity.GetTag(GAME_TAG.PLAYER_ID);
 +            var playerName = GameState.Get().GetGameEntity().GetBestNameForPlayer(playerId);
-+            var asHeroText = GameStrings.Format("GAMEPLAY_BACON_ALTERNATE_PLAYER_NAME", m_card.GetHeroName());
++            var asHeroText = GameStrings.Format("GAMEPLAY_BACON_ALTERNATE_PLAYER_NAME", heroEntity.GetName());
 +
 +            return $"{playerName} {asHeroText}";
-+		}
++        }
 +
-+		private string GetPosition()
-+		{
-+            var place = m_card?.m_playerHeroEntity?.GetRealTimePlayerLeaderboardPlace() ?? 0;
++        protected string GetPlace()
++        {
++            var place = m_team.GetBestPlacement();
 +
 +            return TB_BaconShop.GetPlaceString(place);
-+		}
++        }
 +
-+		private void AddHealthAndArmorLines(List<string> ret)
-+		{
-+            var heroEntity = m_card.m_playerHeroEntity;
-+
++        protected void AddHealthAndArmorLines(Entity heroEntity, List<string> ret)
++        {
 +            if (heroEntity == null)
-+			{
++            {
 +                return;
-+			}
++            }
 +
 +            // Note: Kel'Thuzad sometimes has negative health for a while which is just weird
 +            var health = Math.Max(0, heroEntity.GetCurrentHealth());
 +
-+			ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_HEALTH, health));
++            ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_HEALTH, health));
 +
-+			var armor = heroEntity.GetArmor();
++            var armor = heroEntity.GetArmor();
 +
-+			if (armor > 0)
-+			{
-+				ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_ARMOR, armor));
-+			}
-+		}
++            if (armor > 0)
++            {
++                ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_ARMOR, armor));
++            }
++        }
 +
-+		private string GetTavernTier()
-+		{
-+            var tier = m_card?.m_playerHeroEntity?.GetRealTimePlayerTechLevel();
++        protected string GetTavernTier(Entity heroEntity)
++        {
++            var tier = heroEntity?.GetRealTimePlayerTechLevel();
 +
 +            if (tier == 0)
-+			{
++            {
 +                return "";
-+			}
++            }
 +
-+			return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_CARD_TIER, tier);
-+		}
++            return LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_CARD_TIER, tier);
++        }
 +
-+		private string GetRacesText()
-+		{
-+            return m_card.m_recentCombatsPanel?.m_accessibleRacesCounter;
-+		}
++        protected string GetRacesText(PlayerLeaderboardRecentCombatsPanel recentCombatsPanel)
++        {
++            return recentCombatsPanel.m_accessibleRacesCounter;
++        }
 +
-+		private string GetTriplesText()
-+		{
-+            var triples = PlayerLeaderboardCard.GetPlayerTriples(m_card.m_playerHeroEntity);
++        protected string GetTriplesText(Entity heroEntity)
++        {
++            var triples = heroEntity.GetTag(GAME_TAG.PLAYER_TRIPLES);
 +            var triplesCreatedLabel = LocalizationUtils.Get(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_LEADERBOARD_STATS_PLAYER_TRIPLES_CREATED);
 +
 +            return AccessibleSpeechUtils.CombineWordsWithColon(triplesCreatedLabel, triples.ToString());
 +        }
 +
-+        internal PlayerLeaderboardCard GetCard()
-+		{
-+            return m_card;
-+		}
-+	}
++        internal abstract PlayerLeaderboardCard GetCard();
++    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/BattlegroundsCardEffectInterpreter.cs b/Assembly-CSharp/Accessibility/Battlegrounds/BattlegroundsCardEffectInterpreter.cs
 new file mode 100644
@@ -91559,6 +91657,19 @@ index d105f67..2dfe4d7 100644
 +
 +	#endregion
  }
+diff --git a/Assembly-CSharp/PlayerLeaderboardPlayerOverlay.cs b/Assembly-CSharp/PlayerLeaderboardPlayerOverlay.cs
+index fa20d15..712133c 100644
+--- a/Assembly-CSharp/PlayerLeaderboardPlayerOverlay.cs
++++ b/Assembly-CSharp/PlayerLeaderboardPlayerOverlay.cs
+@@ -72,7 +72,7 @@ public class PlayerLeaderboardPlayerOverlay : MonoBehaviour
+ 
+ 	private VisualController m_recentCombatsPanelController;
+ 
+-	private PlayerLeaderboardRecentCombatsPanel m_recentCombatsPanel;
++	internal PlayerLeaderboardRecentCombatsPanel m_recentCombatsPanel;
+ 
+ 	private List<PlayerLeaderboardInformationPanel> m_additionalInfoPanels;
+ 
 diff --git a/Assembly-CSharp/PlayerLeaderboardRecentCombatsPanel.cs b/Assembly-CSharp/PlayerLeaderboardRecentCombatsPanel.cs
 index 760e004..6d4778a 100644
 --- a/Assembly-CSharp/PlayerLeaderboardRecentCombatsPanel.cs
