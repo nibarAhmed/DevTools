@@ -1,3 +1,10 @@
+### 2024-04-16
+
+- Updated to Hearthstone version 29.2.0.198037 (contributed by Endefx)
+- Players who have achieved the Legend rank can now read the rank of their opponent (contributed by Endefx)
+
+Note: the newly launched Battlegrounds Duos mode is not accessible at this time.
+
 ### 2024-03-15
 
 - Added support for upcoming Zilliax Deluxe 3000 and Splendiferous Whizbang cards (contributed by Endefx)
