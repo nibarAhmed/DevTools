@@ -17853,7 +17853,7 @@ index 0000000..20d9067
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 0000000..65ef1cf
+index 0000000..68f943a
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 @@ -0,0 +1,1611 @@
@@ -19285,7 +19285,7 @@ index 0000000..65ef1cf
 +				}
 +                else if (m_confirmingHero)
 +                {
-+                    m_mulliganConfirmButton.TriggerRelease();
++                    MulliganManager.Get().OnMulliganButtonReleased(null);
 +                }
 +                else
 +                {
@@ -19862,7 +19862,7 @@ index 0000000..0eb7f59
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardSoloTeam.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardSoloTeam.cs
 new file mode 100644
-index 0000000..a07c57b
+index 0000000..d0a53d2
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardSoloTeam.cs
 @@ -0,0 +1,41 @@
@@ -19897,7 +19897,7 @@ index 0000000..a07c57b
 +            AccessibleCardUtils.AddLineIfExists(GetPlace(), ret);
 +            AddHealthAndArmorLines(heroEntity, ret);
 +            AccessibleCardUtils.AddLineIfExists(GetTavernTier(heroEntity), ret);
-+            AccessibleCardUtils.AddLineIfExists(GetRacesText(GetCard().m_overlay.m_recentCombatsPanel), ret);
++            AccessibleCardUtils.AddLineIfExists(GetRacesText(GetCard().m_overlay?.m_recentCombatsPanel), ret);
 +            AccessibleCardUtils.AddLineIfExists(GetTriplesText(heroEntity), ret);
 +
 +            AddCombatInfoLines(heroEntity, ret);
@@ -19909,7 +19909,7 @@ index 0000000..a07c57b
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardTeam.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardTeam.cs
 new file mode 100644
-index 0000000..8ee3f3f
+index 0000000..efcb539
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessiblePlayerLeaderboardTeam.cs
 @@ -0,0 +1,131 @@
@@ -20030,7 +20030,7 @@ index 0000000..8ee3f3f
 +
 +        protected string GetRacesText(PlayerLeaderboardRecentCombatsPanel recentCombatsPanel)
 +        {
-+            return recentCombatsPanel.m_accessibleRacesCounter;
++            return recentCombatsPanel?.m_accessibleRacesCounter;
 +        }
 +
 +        protected string GetTriplesText(Entity heroEntity)
@@ -72942,7 +72942,7 @@ index 8110622..1e11b2d 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/GameState.cs b/Assembly-CSharp/GameState.cs
-index d995f2e..592e927 100644
+index 7365968..3574545 100644
 --- a/Assembly-CSharp/GameState.cs
 +++ b/Assembly-CSharp/GameState.cs
 @@ -11,6 +11,7 @@ using Blizzard.T5.Core;
@@ -80912,7 +80912,7 @@ index a168aca..f865d23 100644
  	}
  }
 diff --git a/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs b/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
-index 44d1800..1349423 100644
+index a72b12a..430ea84 100644
 --- a/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
 +++ b/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
 @@ -160,9 +160,9 @@ namespace Hearthstone.Core.Streaming
@@ -81077,7 +81077,7 @@ index be2b52c..1e2f333 100644
  		}
  
 diff --git a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
-index a1e2d51..0e55cc3 100644
+index 5c7eb22..a368b05 100644
 --- a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 +++ b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 @@ -1,5 +1,6 @@
@@ -81135,7 +81135,7 @@ index a1e2d51..0e55cc3 100644
  			catch (Exception ex)
  			{
 diff --git a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
-index 6024ac9..0cb1a59 100644
+index eca3a5c..db4b217 100644
 --- a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 +++ b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 @@ -5,6 +5,7 @@ using System.IO;
@@ -81193,7 +81193,7 @@ index 6024ac9..0cb1a59 100644
 +			// ExceptionReporterControl.Get().ExceptionReportInitialize(); // Remove so we don't send Blizzard exceptions that may be caused by us
 +			ExceptionReporterControl.Get().ExceptionReportInitializeDebug();
  			TelemetryManager.Client().SendSystemDetail(TelemetryUtil.GetUnitySystemInfo());
- 			HearthstonePerformance.Initialize(TestType, 3749400.ToString(), 197349);
+ 			HearthstonePerformance.Initialize(TestType, 3758606.ToString(), 198037);
  			HearthstonePerformance.Get()?.CaptureAppStartTime();
 @@ -279,6 +284,8 @@ namespace Hearthstone
  
@@ -81202,7 +81202,7 @@ index 6024ac9..0cb1a59 100644
 +			AccessibleHearthstoneApplication.OnClosing();
 +			AccessibilityMgr.Shutdown();
  			IsHearthstoneClosing = true;
- 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 197349, Log.UberText);
+ 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 198037, Log.UberText);
  			if (this.OnShutdown != null)
 @@ -514,7 +521,7 @@ namespace Hearthstone
  
@@ -81241,7 +81241,7 @@ index 6024ac9..0cb1a59 100644
 +			jobDefinition.AddJobFinishedEventListener(OnGameStringsLoaded);
 +			Processor.QueueJob("HearthstoneApplication.InitializeMode", Job_InitializeMode(), Array.Empty<IJobDependency>());
  			Processor.QueueJob(jobDefinition);
- 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 197349, Log.UberText));
+ 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 198037, Log.UberText));
  			Processor.QueueJob(HearthstoneJobs.CreateJobFromAction("HearthstoneApplication.SetWindowText", SetWindowText, jobDefinition.CreateDependency()));
 @@ -701,7 +709,12 @@ namespace Hearthstone
  			}
@@ -84346,7 +84346,7 @@ index 334f983..8e7a1fb 100644
  		private WidgetTemplate m_parentWidgetTemplate;
  
 diff --git a/Assembly-CSharp/HearthstoneCheckout.cs b/Assembly-CSharp/HearthstoneCheckout.cs
-index bf367f9..b34de9e 100644
+index 0b641c9..03c5876 100644
 --- a/Assembly-CSharp/HearthstoneCheckout.cs
 +++ b/Assembly-CSharp/HearthstoneCheckout.cs
 @@ -191,9 +191,6 @@ public class HearthstoneCheckout : blz_commerce_log_hook, ISceneEventObserver, I
@@ -87891,7 +87891,7 @@ index 912c7bd..e068a7a 100644
  
  	public MountType Mount { get; set; }
 diff --git a/Assembly-CSharp/MulliganManager.cs b/Assembly-CSharp/MulliganManager.cs
-index e507d5a..41a03b4 100644
+index e507d5a..689f6bb 100644
 --- a/Assembly-CSharp/MulliganManager.cs
 +++ b/Assembly-CSharp/MulliganManager.cs
 @@ -1,6 +1,7 @@
@@ -88169,6 +88169,15 @@ index e507d5a..41a03b4 100644
  			}
  			BeginDealNewCards();
  		}
+@@ -2685,7 +2720,7 @@ public class MulliganManager : MonoBehaviour
+ 		return result;
+ 	}
+ 
+-	private void OnMulliganButtonReleased(UIEvent e)
++	internal void OnMulliganButtonReleased(UIEvent e)
+ 	{
+ 		if (!InputManager.Get().PermitDecisionMakingInput())
+ 		{
 @@ -2700,16 +2735,16 @@ public class MulliganManager : MonoBehaviour
  				return;
  			}
@@ -89147,7 +89156,7 @@ index da08f09..ab1ab7c 100644
  	}
  
 diff --git a/Assembly-CSharp/Network.cs b/Assembly-CSharp/Network.cs
-index 68e3f4c..389da34 100644
+index 7528137..eb5839f 100644
 --- a/Assembly-CSharp/Network.cs
 +++ b/Assembly-CSharp/Network.cs
 @@ -36,6 +36,7 @@ using PegasusUtil;
@@ -90099,7 +90108,7 @@ index 44b6f1d..63ea7bb 100644
  			Option.DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
  			false
 diff --git a/Assembly-CSharp/OptionsMenu.cs b/Assembly-CSharp/OptionsMenu.cs
-index c62de98..1ad6126 100644
+index 2069ce6..0c749da 100644
 --- a/Assembly-CSharp/OptionsMenu.cs
 +++ b/Assembly-CSharp/OptionsMenu.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
@@ -99183,10 +99192,10 @@ index 2b1e7b0..65680c7 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/StoreManager.cs b/Assembly-CSharp/StoreManager.cs
-index 129e061..002e9a5 100644
+index 4182503..865aa71 100644
 --- a/Assembly-CSharp/StoreManager.cs
 +++ b/Assembly-CSharp/StoreManager.cs
-@@ -450,7 +450,7 @@ public class StoreManager : IProductAvailabilityApi
+@@ -454,7 +454,7 @@ public class StoreManager : IProductAvailabilityApi
  		return false;
  	}
  
@@ -99195,7 +99204,7 @@ index 129e061..002e9a5 100644
  	{
  		m_canCloseConfirmation = closeConfirmationUI;
  	}
-@@ -1037,7 +1037,7 @@ public class StoreManager : IProductAvailabilityApi
+@@ -1041,7 +1041,7 @@ public class StoreManager : IProductAvailabilityApi
  		}
  		else
  		{
@@ -99204,7 +99213,7 @@ index 129e061..002e9a5 100644
  		}
  		return string.Format(cultureInfo, format, costDisplay).Replace("  ", " ").Trim();
  	}
-@@ -1419,12 +1419,12 @@ public class StoreManager : IProductAvailabilityApi
+@@ -1423,12 +1423,12 @@ public class StoreManager : IProductAvailabilityApi
  		case ShopType.GENERAL_STORE:
  			if (!IsOpen())
  			{
@@ -99223,7 +99232,7 @@ index 129e061..002e9a5 100644
  			}
  			break;
  		case ShopType.ADVENTURE_STORE:
-@@ -1484,25 +1484,25 @@ public class StoreManager : IProductAvailabilityApi
+@@ -1488,25 +1488,25 @@ public class StoreManager : IProductAvailabilityApi
  			{
  				currentStore.Open();
  				if (m_currentShopType == ShopType.GENERAL_STORE && currentStore is Shop shop)
@@ -99259,7 +99268,7 @@ index 129e061..002e9a5 100644
  		currentStore?.BlockInterface(blocked);
  		Log.Store.Print("{0} took {1}s to load", m_currentShopType, Time.realtimeSinceStartup - m_showStoreStart);
  		m_waitingToShowStore = false;
-@@ -2173,9 +2173,9 @@ public class StoreManager : IProductAvailabilityApi
+@@ -2177,9 +2177,9 @@ public class StoreManager : IProductAvailabilityApi
  		if ((!ServiceManager.TryGet<IProductDataService>(out var service) || !service.HasProductsAvailable()) && (m_goldCostBooster == null || m_goldCostBooster.Count <= 0))
  		{
  			if (m_goldCostArena.HasValue)
@@ -99272,7 +99281,7 @@ index 129e061..002e9a5 100644
  			return false;
  		}
  		return true;
-@@ -2653,44 +2653,44 @@ public class StoreManager : IProductAvailabilityApi
+@@ -2657,44 +2657,44 @@ public class StoreManager : IProductAvailabilityApi
  		{
  			return;
  		}
@@ -99341,7 +99350,7 @@ index 129e061..002e9a5 100644
  			}
  		}
  		RemovePurchaseAuthCancelButton();
-@@ -2706,14 +2706,14 @@ public class StoreManager : IProductAvailabilityApi
+@@ -2710,14 +2710,14 @@ public class StoreManager : IProductAvailabilityApi
  		{
  			bool willAutoPurchase = service.HasAutoPurchase();
  			while (Status != TransactionStatus.READY || willAutoPurchase || (string.IsNullOrEmpty(currencyError) && currencyManager.IsAnyCurrencyCacheRefreshing()))
@@ -99361,7 +99370,7 @@ index 129e061..002e9a5 100644
  		}
  		else
  		{
-@@ -3240,20 +3240,20 @@ public class StoreManager : IProductAvailabilityApi
+@@ -3244,20 +3244,20 @@ public class StoreManager : IProductAvailabilityApi
  		Network.BattlePayConfig battlePayConfigResponse = Network.Get().GetBattlePayConfigResponse();
  		if (battlePayConfigResponse.Available)
  		{
@@ -99394,7 +99403,7 @@ index 129e061..002e9a5 100644
  			Log.Store.Print("Server responds that store is available.");
  			BattlePayAvailable = true;
  		}
-@@ -3480,15 +3480,15 @@ public class StoreManager : IProductAvailabilityApi
+@@ -3484,15 +3484,15 @@ public class StoreManager : IProductAvailabilityApi
  		if (store != null)
  		{
  			store.OnProductPurchaseAttempt += StartStoreBuy;
@@ -99419,7 +99428,7 @@ index 129e061..002e9a5 100644
  	}
  
  	private void OnSceneUnloaded(SceneMgr.Mode prevMode, PegasusScene prevScene, object userData)
-@@ -3574,10 +3574,10 @@ public class StoreManager : IProductAvailabilityApi
+@@ -3578,10 +3578,10 @@ public class StoreManager : IProductAvailabilityApi
  		Status = TransactionStatus.READY;
  		if (data != null)
  		{
@@ -99434,7 +99443,7 @@ index 129e061..002e9a5 100644
  	}
  
  	public void HandleCommerceSubmitFailure()
-@@ -3695,6 +3695,6 @@ public class StoreManager : IProductAvailabilityApi
+@@ -3699,6 +3699,6 @@ public class StoreManager : IProductAvailabilityApi
  
  	public bool WillStoreDisplayNotice(NetCache.ProfileNotice.NoticeOrigin noticeOrigin, NetCache.ProfileNotice.NoticeType noticeType, long noticeOriginData)
  	{
