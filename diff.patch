@@ -16529,10 +16529,10 @@ index 0000000..77efef0
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleTraditionalCard.cs b/Assembly-CSharp/Accessibility/AccessibleTraditionalCard.cs
 new file mode 100644
-index 0000000..a8b8819
+index 0000000..059c790
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleTraditionalCard.cs
-@@ -0,0 +1,375 @@
+@@ -0,0 +1,388 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -16656,6 +16656,7 @@ index 0000000..a8b8819
 +				{
 +					lines.Add(m_card.GetController().GetName());
 +					lines.Add(GameStrings.GetClassName(m_card.GetEntity().GetClass()));
++                    AccessibleCardUtils.AddLineIfExists(GetRankText(), lines);
 +				}
 +			}
 +            catch (Exception e)
@@ -16665,6 +16666,18 @@ index 0000000..a8b8819
 +
 +
 +			return lines;
++        }
++
++        private string GetRankText()
++        {
++            // We're only supposed to know the opponent's rank if we're in legend, however the server sends it regardless.
++
++            var controller = m_card.GetController();
++            if (controller.GetRank() != null && (controller.IsFriendlySide() || GameState.Get().GetFriendlySidePlayer().GetRank().GetCurrentMedalForCurrentFormatType().IsLegendRank()))
++            {
++                return AccessibleRankedUtils.GetRankText(controller.GetRank().GetCurrentMedalForCurrentFormatType());
++            }
++            return null;
 +        }
 +
 +		private List<string> GetLinesForHeroCard()
@@ -72942,7 +72955,7 @@ index 8110622..1e11b2d 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/GameState.cs b/Assembly-CSharp/GameState.cs
-index 7365968..3574545 100644
+index fc8cb7e..a3601c5 100644
 --- a/Assembly-CSharp/GameState.cs
 +++ b/Assembly-CSharp/GameState.cs
 @@ -11,6 +11,7 @@ using Blizzard.T5.Core;
@@ -80912,7 +80925,7 @@ index a168aca..f865d23 100644
  	}
  }
 diff --git a/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs b/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
-index a72b12a..430ea84 100644
+index 99a183e..f600de0 100644
 --- a/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
 +++ b/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
 @@ -160,9 +160,9 @@ namespace Hearthstone.Core.Streaming
@@ -81077,7 +81090,7 @@ index be2b52c..1e2f333 100644
  		}
  
 diff --git a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
-index 5c7eb22..a368b05 100644
+index bb2d54a..e0b2739 100644
 --- a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 +++ b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 @@ -1,5 +1,6 @@
@@ -81135,7 +81148,7 @@ index 5c7eb22..a368b05 100644
  			catch (Exception ex)
  			{
 diff --git a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
-index eca3a5c..db4b217 100644
+index cabd4b2..c5b7bc9 100644
 --- a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 +++ b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 @@ -5,6 +5,7 @@ using System.IO;
@@ -81193,7 +81206,7 @@ index eca3a5c..db4b217 100644
 +			// ExceptionReporterControl.Get().ExceptionReportInitialize(); // Remove so we don't send Blizzard exceptions that may be caused by us
 +			ExceptionReporterControl.Get().ExceptionReportInitializeDebug();
  			TelemetryManager.Client().SendSystemDetail(TelemetryUtil.GetUnitySystemInfo());
- 			HearthstonePerformance.Initialize(TestType, 3758606.ToString(), 198037);
+ 			HearthstonePerformance.Initialize(TestType, 3762761.ToString(), 198314);
  			HearthstonePerformance.Get()?.CaptureAppStartTime();
 @@ -279,6 +284,8 @@ namespace Hearthstone
  
@@ -81202,7 +81215,7 @@ index eca3a5c..db4b217 100644
 +			AccessibleHearthstoneApplication.OnClosing();
 +			AccessibilityMgr.Shutdown();
  			IsHearthstoneClosing = true;
- 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 198037, Log.UberText);
+ 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 198314, Log.UberText);
  			if (this.OnShutdown != null)
 @@ -514,7 +521,7 @@ namespace Hearthstone
  
@@ -81241,7 +81254,7 @@ index eca3a5c..db4b217 100644
 +			jobDefinition.AddJobFinishedEventListener(OnGameStringsLoaded);
 +			Processor.QueueJob("HearthstoneApplication.InitializeMode", Job_InitializeMode(), Array.Empty<IJobDependency>());
  			Processor.QueueJob(jobDefinition);
- 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 198037, Log.UberText));
+ 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 198314, Log.UberText));
  			Processor.QueueJob(HearthstoneJobs.CreateJobFromAction("HearthstoneApplication.SetWindowText", SetWindowText, jobDefinition.CreateDependency()));
 @@ -701,7 +709,12 @@ namespace Hearthstone
  			}
@@ -84346,7 +84359,7 @@ index 334f983..8e7a1fb 100644
  		private WidgetTemplate m_parentWidgetTemplate;
  
 diff --git a/Assembly-CSharp/HearthstoneCheckout.cs b/Assembly-CSharp/HearthstoneCheckout.cs
-index 0b641c9..03c5876 100644
+index 3efda14..3355ebc 100644
 --- a/Assembly-CSharp/HearthstoneCheckout.cs
 +++ b/Assembly-CSharp/HearthstoneCheckout.cs
 @@ -191,9 +191,6 @@ public class HearthstoneCheckout : blz_commerce_log_hook, ISceneEventObserver, I
@@ -89156,7 +89169,7 @@ index da08f09..ab1ab7c 100644
  	}
  
 diff --git a/Assembly-CSharp/Network.cs b/Assembly-CSharp/Network.cs
-index 7528137..eb5839f 100644
+index 333eda2..215fd1e 100644
 --- a/Assembly-CSharp/Network.cs
 +++ b/Assembly-CSharp/Network.cs
 @@ -36,6 +36,7 @@ using PegasusUtil;
@@ -90108,7 +90121,7 @@ index 44b6f1d..63ea7bb 100644
  			Option.DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
  			false
 diff --git a/Assembly-CSharp/OptionsMenu.cs b/Assembly-CSharp/OptionsMenu.cs
-index 2069ce6..0c749da 100644
+index ec6be56..874e090 100644
 --- a/Assembly-CSharp/OptionsMenu.cs
 +++ b/Assembly-CSharp/OptionsMenu.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
@@ -92253,10 +92266,10 @@ index 09c314b..d22998d 100644
  			if (practiceAIButton == m_selectedPracticeAIButton)
  			{
 diff --git a/Assembly-CSharp/PresenceMgr.cs b/Assembly-CSharp/PresenceMgr.cs
-index fcb4f41..36865d3 100644
+index 8f16c7a..dfc3582 100644
 --- a/Assembly-CSharp/PresenceMgr.cs
 +++ b/Assembly-CSharp/PresenceMgr.cs
-@@ -2744,6 +2744,12 @@ public class PresenceMgr
+@@ -2752,6 +2752,12 @@ public class PresenceMgr
  
  	public string GetStatusText(BnetPlayer player)
  	{
@@ -92269,7 +92282,7 @@ index fcb4f41..36865d3 100644
  		List<string> list = new List<string>();
  		string statusKey = null;
  		if (GetStatus_Internal(player, ref statusKey, list) == Global.PresenceStatus.UNKNOWN || !BnetPresenceMgr.Get().IsSubscribedToPlayer(player.GetHearthstoneGameAccountId()))
-@@ -2848,28 +2854,28 @@ public class PresenceMgr
+@@ -2856,28 +2862,28 @@ public class PresenceMgr
  		using (MemoryStream memoryStream = new MemoryStream(bytes))
  		{
  			using BinaryReader reader = new BinaryReader(memoryStream);
@@ -92313,7 +92326,7 @@ index fcb4f41..36865d3 100644
  			}
  		}
  		return presenceStatus;
-@@ -3016,20 +3022,20 @@ public class PresenceMgr
+@@ -3024,20 +3030,20 @@ public class PresenceMgr
  	{
  		using MemoryStream memoryStream = new MemoryStream();
  		using BinaryWriter binaryWriter = new BinaryWriter(memoryStream);
