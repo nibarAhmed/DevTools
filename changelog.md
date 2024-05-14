@@ -1,3 +1,7 @@
+### 2024-05-14
+
+- Updated to Hearthstone version 29.4.0.198933 (contributed by Endefx)
+
 ### 2024-04-16
 
 - Updated to Hearthstone version 29.2.0.198037 (contributed by Endefx)

@@ -172,10 +172,13 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2024-05-14
+
+- Updated to Hearthstone version 29.4.0.198933 (contributed by Endefx)
+
 ### 2024-04-16
 
 - Updated to Hearthstone version 29.2.0.198037 (contributed by Endefx)
-
 - Players who have achieved the Legend rank can now read the rank of their opponent (contributed by Endefx)
 
 Note: the newly launched Battlegrounds Duos mode is not accessible at this time.
