@@ -1892,10 +1892,10 @@ index 0000000..8851cfe
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleAdventureScene.cs b/Assembly-CSharp/Accessibility/AccessibleAdventureScene.cs
 new file mode 100644
-index 0000000..a15f41a
+index 0000000..deda317
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleAdventureScene.cs
-@@ -0,0 +1,323 @@
+@@ -0,0 +1,324 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -2068,16 +2068,16 @@ index 0000000..a15f41a
 +                var page = m_customDeckPages[i];
 +                var pageDecks = page.m_customDecks;
 +
-+                for (int j = 0; j < pageDecks.Count; j++, curIdx++)
++                for (int j = 0; j < pageDecks.Count; j++)
 +                {
 +                    var deck = pageDecks[j];
 +                    var deckId = deck.GetDeckID();
 +
-+                    if (deckId == -1L)
++                    if (deckId == -1L && !deck.IsLoanerDeck())
 +                    {
 +                        continue;
 +                    }
-+                    else if (deckId == selectedDeckId)
++                    if (deckId == selectedDeckId)
 +                    {
 +                        selectedDeckIdx = curIdx;
 +                    }
@@ -2087,6 +2087,7 @@ index 0000000..a15f41a
 +                    var accessibleDeck = new AccessibleCollectionDeckBoxVisual(this, deck);
 +
 +                    m_chooseDeckMenu.AddOption(accessibleDeck, () => SelectDeck(deck), () => ShowDeckPage(deckPageIdx));
++                    curIdx++;
 +                }
 +            }
 +
@@ -68349,7 +68350,7 @@ index 8110622..1e11b2d 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/GameState.cs b/Assembly-CSharp/GameState.cs
-index fe50b59..2a982ee 100644
+index d6d05e3..bea46c6 100644
 --- a/Assembly-CSharp/GameState.cs
 +++ b/Assembly-CSharp/GameState.cs
 @@ -11,6 +11,7 @@ using Blizzard.T5.Core;
@@ -76076,7 +76077,7 @@ index a168aca..f865d23 100644
  	}
  }
 diff --git a/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs b/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
-index f512fe3..0b6b0d7 100644
+index 9f1680f..c11f95c 100644
 --- a/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
 +++ b/Assembly-CSharp/Hearthstone/Core/Streaming/RuntimeAssetDownloader.cs
 @@ -161,9 +161,9 @@ namespace Hearthstone.Core.Streaming
@@ -76241,7 +76242,7 @@ index be2b52c..1e2f333 100644
  		}
  
 diff --git a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
-index fb7e114..052d794 100644
+index c2b4037..61912e5 100644
 --- a/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 +++ b/Assembly-CSharp/Hearthstone/ExceptionReporterControl.cs
 @@ -1,5 +1,6 @@
@@ -76299,7 +76300,7 @@ index fb7e114..052d794 100644
  			catch (Exception ex)
  			{
 diff --git a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
-index febbe3f..ede22e8 100644
+index 38bc1dc..38da127 100644
 --- a/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 +++ b/Assembly-CSharp/Hearthstone/HearthstoneApplication.cs
 @@ -5,6 +5,7 @@ using System.IO;
@@ -76357,7 +76358,7 @@ index febbe3f..ede22e8 100644
 +			// ExceptionReporterControl.Get().ExceptionReportInitialize(); // Remove so we don't send Blizzard exceptions that may be caused by us
 +			ExceptionReporterControl.Get().ExceptionReportInitializeDebug();
  			TelemetryManager.Client().SendSystemDetail(TelemetryUtil.GetUnitySystemInfo());
- 			HearthstonePerformance.Initialize(TestType, 3773079.ToString(), 198933);
+ 			HearthstonePerformance.Initialize(TestType, 3783351.ToString(), 199503);
  			HearthstonePerformance.Get()?.CaptureAppStartTime();
 @@ -279,6 +284,8 @@ namespace Hearthstone
  
@@ -76366,7 +76367,7 @@ index febbe3f..ede22e8 100644
 +			AccessibleHearthstoneApplication.OnClosing();
 +			AccessibilityMgr.Shutdown();
  			IsHearthstoneClosing = true;
- 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 198933, Log.UberText);
+ 			UberText.StoreCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, 199503, Log.UberText);
  			if (this.OnShutdown != null)
 @@ -514,7 +521,7 @@ namespace Hearthstone
  
@@ -76405,7 +76406,7 @@ index febbe3f..ede22e8 100644
 +			jobDefinition.AddJobFinishedEventListener(OnGameStringsLoaded);
 +			Processor.QueueJob("HearthstoneApplication.InitializeMode", Job_InitializeMode(), Array.Empty<IJobDependency>());
  			Processor.QueueJob(jobDefinition);
- 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 198933, Log.UberText));
+ 			Processor.QueueJob("UberText.LoadCachedData", UberText.Job_LoadCachedData(UberTextCacheFolderPath, UberTextCacheFilePath, PlatformFilePaths.PersistentDataPath, 199503, Log.UberText));
  			Processor.QueueJob(HearthstoneJobs.CreateJobFromAction("HearthstoneApplication.SetWindowText", SetWindowText, jobDefinition.CreateDependency()));
 @@ -701,7 +709,12 @@ namespace Hearthstone
  			}
@@ -79491,7 +79492,7 @@ index d104eb2..b489ff3 100644
  		private WidgetTemplate m_parentWidgetTemplate;
  
 diff --git a/Assembly-CSharp/HearthstoneCheckout.cs b/Assembly-CSharp/HearthstoneCheckout.cs
-index 2d69a9f..7d577ce 100644
+index bbdb9b5..c1ca93a 100644
 --- a/Assembly-CSharp/HearthstoneCheckout.cs
 +++ b/Assembly-CSharp/HearthstoneCheckout.cs
 @@ -191,9 +191,6 @@ public class HearthstoneCheckout : blz_commerce_log_hook, ISceneEventObserver, I
@@ -84328,7 +84329,7 @@ index e9d66ba..85b3962 100644
  	}
  
 diff --git a/Assembly-CSharp/Network.cs b/Assembly-CSharp/Network.cs
-index 90c30ea..37a06e2 100644
+index f3c7a15..f76892e 100644
 --- a/Assembly-CSharp/Network.cs
 +++ b/Assembly-CSharp/Network.cs
 @@ -36,6 +36,7 @@ using PegasusUtil;
@@ -85280,7 +85281,7 @@ index f4fe360..2ecd464 100644
  			Option.DEBUG_SHOW_BATTLEGROUND_SKIN_IDS,
  			false
 diff --git a/Assembly-CSharp/OptionsMenu.cs b/Assembly-CSharp/OptionsMenu.cs
-index 20afb86..9bc9186 100644
+index abe160e..ccb2b70 100644
 --- a/Assembly-CSharp/OptionsMenu.cs
 +++ b/Assembly-CSharp/OptionsMenu.cs
 @@ -6,9 +6,11 @@ using Blizzard.T5.Services;
