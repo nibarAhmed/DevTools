@@ -10520,10 +10520,10 @@ index 0000000..d81874c
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleJournal.cs b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
 new file mode 100644
-index 0000000..1de5af8
+index 0000000..800e6a1
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
-@@ -0,0 +1,1188 @@
+@@ -0,0 +1,1198 @@
 +﻿using System;
 +using System.Collections;
 +using System.Collections.Generic;
@@ -10624,7 +10624,7 @@ index 0000000..1de5af8
 +        {
 +            if (m_rewardTrackType == Assets.Global.RewardTrackType.BATTLEGROUNDS)
 +            {
-+                ReadBattlegroundsJournal();
++                ReadBattlegroundsRewardTrack();
 +            }
 +            else if (m_rewardTrackType == Assets.Global.RewardTrackType.APPRENTICE)
 +            {
@@ -10636,8 +10636,15 @@ index 0000000..1de5af8
 +            }
 +        }
 +
-+        private void ReadBattlegroundsJournal()
++        private void ReadBattlegroundsRewardTrack()
 +        {
++				RewardTrack RewardTrack =GetRewardTrack();;
++			if (RewardTrack == null || !RewardTrack.IsValid)
++			{
++                AccessibilityMgr.Output(null,"No reward track for some reason");
++				return ;
++			}
++            ReadRewardsTrack();
 +            return;
 +
 +            // TODO
@@ -11254,8 +11261,9 @@ index 0000000..1de5af8
 +        private void ReadRewardsTrack()
 +        {
 +            var numRewards = GetUnclaimedRewardsCount();
-+
-+            m_rewardsTrackMenu = new AccessibleMenu(this, "", ReadJournal);
++            Action backAction=ReadJournal;
++if (m_rewardTrackType == Assets.Global.RewardTrackType.BATTLEGROUNDS) backAction=CloseJournal;
++            m_rewardsTrackMenu = new AccessibleMenu(this, "", backAction);
 +
 +            m_rewardsTrackMenu.AddOption(LocalizationUtils.Format(LocalizationKey.UI_REWARDS_TRACK_CLAIM_REWARDS, numRewards), ClaimRewardsTrackRewards);
 +            m_rewardsTrackMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_REWARDS_TRACK_READ_LEVEL), ReadRewardsTrackLevel);
@@ -11344,12 +11352,14 @@ index 0000000..1de5af8
 +                var nextRewardLevel = nextReward.Level;
 +                var rewardState = GetRewardTrack().GetPlayerRewardTrackLevelState(nextRewardLevel);
 +                var forPaidTrack = true;
-+
-+                if (rewardState.HasFreeRewardStatus && !ProgressUtils.HasClaimedRewardTrackReward((RewardTrack.RewardStatus)rewardState.FreeRewardStatus))
++                if (rewardState.HasFreeRewardStatus && !ProgressUtils.HasClaimedRewardTrackReward((RewardTrack.RewardStatus)rewardState.FreeRewardStatus)&&m_rewardTrackType!=Assets.Global.RewardTrackType.BATTLEGROUNDS)
 +                {
 +                    forPaidTrack = false;
 +                }
-+
++                if(m_rewardTrackType==Assets.Global.RewardTrackType.BATTLEGROUNDS && nextReward.FreeRewardList != 0)
++                {
++forPaidTrack = false;//try to claim a free reward first if it exists, otherwise claim a paid reward. We check for existence when in battlegrounds, because most levels are only paid rewards.
++                                    }
 +                if (IsChooseOneReward(nextReward, forPaidTrack))
 +                {
 +                    ReadChooseOneRewards(nextReward, forPaidTrack);
@@ -11358,7 +11368,7 @@ index 0000000..1de5af8
 +                {
 +                    if (m_curState == State.EVENT_REWARD_TRACK) m_curState = State.CLAIMING_EVENT_REWARD;
 +                    else m_curState = State.CLAIMING_REWARD;
-+                    GetRewardTrack().ClaimReward(nextReward.RewardTrackId, nextReward.Level, forPaidTrack);
++                    GetRewardTrack().ClaimReward(GetRewardTrack().RewardTrackId, nextReward.Level, forPaidTrack);
 +                }
 +            }
 +        }
@@ -14831,10 +14841,10 @@ index 0000000..0166694
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleRewardItemDataModel.cs b/Assembly-CSharp/Accessibility/AccessibleRewardItemDataModel.cs
 new file mode 100644
-index 0000000..b381e88
+index 0000000..9e5c1a2
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleRewardItemDataModel.cs
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,200 @@
 +﻿using Assets;
 +using Hearthstone.DataModels;
 +using System;
@@ -14912,13 +14922,17 @@ index 0000000..b381e88
 +                    return AsList($"{m_reward.Quantity} Sellable deck{suffix}");*/
 +                case RewardItemType.BATTLEGROUNDS_HERO_SKIN:
 +                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_BATTLEGROUNDS_HERO_SKINS, m_reward.Quantity));
++                case RewardItemType.BATTLEGROUNDS_EMOTE:
++                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_BATTLEGROUNDS_EMOTES, m_reward.Quantity));
 +                case RewardItemType.BATTLEGROUNDS_GUIDE_SKIN:
 +                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_BATTLEGROUNDS_GUIDE_SKINS, m_reward.Quantity));
++                case RewardItemType.BATTLEGROUNDS_FINISHER:
++                    return AsList(LocalizationUtils.Format(LocalizationKey.UI_REWARD_N_BATTLEGROUNDS_STRIKES, m_reward.Quantity));
 +                case RewardItemType.DECK:
 +                    return GetLinesForDeckReward();
-+                    case RewardItemType.GAME_MODE:
++                case RewardItemType.GAME_MODE:
 +                    return GetLinesForGameModeReward();
-+                    case RewardItemType.LOANER_DECKS:
++                case RewardItemType.LOANER_DECKS:
 +                    return AsList(LocalizationUtils.Get(LocalizationKey.UI_REWARD_LOANER_DECKS));
 +                // TODO: ROW Runestones
 +                default:
@@ -25428,10 +25442,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..4be480a
+index 0000000..77717af
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1189 @@
+@@ -0,0 +1,1191 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -26114,6 +26128,8 @@ index 0000000..4be480a
 +    public static LocalizationKey UI_REWARD_N_MINI_SETS = CreateKey("ACCESSIBILITY_UI_REWARD_N_MINI_SETS");
 +    public static LocalizationKey UI_REWARD_N_BATTLEGROUNDS_HERO_SKINS = CreateKey("ACCESSIBILITY_UI_REWARD_N_BATTLEGROUNDS_HERO_SKINS");
 +    public static LocalizationKey UI_REWARD_N_BATTLEGROUNDS_GUIDE_SKINS = CreateKey("ACCESSIBILITY_UI_REWARD_N_BATTLEGROUNDS_GUIDE_SKINS");
++    public static LocalizationKey UI_REWARD_N_BATTLEGROUNDS_EMOTES = CreateKey("ACCESSIBILITY_UI_REWARD_N_BATTLEGROUNDS_EMOTES");
++    public static LocalizationKey UI_REWARD_N_BATTLEGROUNDS_STRIKES = CreateKey("ACCESSIBILITY_UI_REWARD_N_BATTLEGROUNDS_STRIKES");
 +    public static LocalizationKey UI_REWARD_DECK = CreateKey("ACCESSIBILITY_UI_REWARD_DECK");
 +    public static LocalizationKey UI_REWARD_LOANER_DECKS = CreateKey("ACCESSIBILITY_UI_REWARD_LOANER_DECKS");
 +    public static LocalizationKey UI_REWARD_GAME_MODE = CreateKey("ACCESSIBILITY_UI_REWARD_GAME_MODE");
@@ -35851,15 +35867,14 @@ index fed39a3..96ace9b 100644
 +	}
 +
 diff --git a/Assembly-CSharp/BaconScene.cs b/Assembly-CSharp/BaconScene.cs
-index ccea649..4a8722e 100644
+index ccea649..456782a 100644
 --- a/Assembly-CSharp/BaconScene.cs
 +++ b/Assembly-CSharp/BaconScene.cs
-@@ -2,9 +2,11 @@ using System.Collections;
+@@ -2,9 +2,10 @@ using System.Collections;
  using System.Collections.Generic;
  using PegasusUtil;
  using UnityEngine;
 +using Accessibility;
-+using System.Collections.Generic;
  
  [CustomEditClass]
 -public class BaconScene : BasicScene
@@ -35867,7 +35882,7 @@ index ccea649..4a8722e 100644
  {
  	private bool m_ratingInfoReceived;
  
-@@ -57,6 +59,169 @@ public class BaconScene : BasicScene
+@@ -57,6 +58,176 @@ public class BaconScene : BasicScene
  		{
  			yield return null;
  		}
@@ -35903,6 +35918,7 @@ index ccea649..4a8722e 100644
 +		m_curMenu.AddOption(GameStrings.Get("GLOBAL_OPTIONS"), OnClickOptions);
 +		if (!PartyManager.Get().IsInBattlegroundsParty())
 +		{
++			m_curMenu.AddOption(LocalizationUtils.Get(LocalizationKey.GLOBAL_JOURNAL), OnClickJournal);
 +			m_curMenu.AddOption(LocalizedText.HUB_MY_COLLECTION_OPTION, GetBaconDisplay().OpenBattlegroundsCollection);
 +			m_curMenu.AddOption(GameStrings.Get("GLUE_BACON_INFO_POPUP_PLAY_TUTORIAL"), GetBaconDisplay().PlayBaconTutorial);
 +		}
@@ -35910,6 +35926,12 @@ index ccea649..4a8722e 100644
 +		ReadMainMenu();
 +	}
 +
++    private void OnClickJournal()
++    {
++        var journalButton = GetBaconDisplay().GetComponentInChildren<Hearthstone.Progression.JournalButton>();
++        var journalButtonWidget = journalButton.GetComponent<Hearthstone.UI.Widget>();
++        AccessibleWidgetUtils.TriggerButtonClicked(journalButtonWidget);
++}
 +	private void ReadMainMenu()
 +	{
 +		m_curState = State.MAIN_MENU;
