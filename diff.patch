@@ -12889,10 +12889,10 @@ index 0000000..856c65b
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleMultilineText.cs b/Assembly-CSharp/Accessibility/AccessibleMultilineText.cs
 new file mode 100644
-index 0000000..061b95d
+index 0000000..57262f1
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleMultilineText.cs
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,48 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -12916,6 +12916,23 @@ index 0000000..061b95d
 +        {
 +            m_lines = new List<string>();
 +            m_lines.AddRange(lines);
++        }
++
++        internal AccessibleMultilineText(AccessibleComponent parent, params UberText[] texts) : base(parent)
++        {
++            m_lines = new List<string>();
++            foreach (var text in texts)
++            {
++                if (text != null && text.isActiveAndEnabled && !text.isHidden() && !string.IsNullOrEmpty(text.Text))
++                {
++                    m_lines.Add(text.Text);
++                }
++            }
++        }
++
++        internal void AddLine(string line)
++        {
++            m_lines.Add(line);
 +        }
 +
 +        internal override List<string> GetLines()
@@ -25442,10 +25459,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..77717af
+index 0000000..333c684
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1191 @@
+@@ -0,0 +1,1193 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25542,6 +25559,7 @@ index 0000000..77717af
 +    public static LocalizationKey GLOBAL_WILD = CreateKey("GLOBAL_WILD");
 +    public static LocalizationKey GLOBAL_TWIST = CreateKey("GLOBAL_TWIST");
 +    public static LocalizationKey GLOBAL_PLAY = CreateKey("GLOBAL_PLAY");
++    public static LocalizationKey GLUE_WINS = CreateKey("GLUE_WINS");
 +
 +    // Global cont'd
 +    public static LocalizationKey GLOBAL_ACCESSIBILITY_ON = CreateKey("ACCESSIBILITY_GLOBAL_ACCESSIBILITY_ON");
@@ -26146,6 +26164,7 @@ index 0000000..77717af
 +    public static LocalizationKey UI_SOCIAL_CHAT_MESSAGE_SENT = CreateKey("ACCESSIBILITY_UI_SOCIAL_CHAT_MESSAGE_SENT");
 +    public static LocalizationKey UI_SOCIAL_CHAT_SEND_MESSAGE = CreateKey("ACCESSIBILITY_UI_SOCIAL_CHAT_SEND_MESSAGE");
 +    public static LocalizationKey UI_SOCIAL_CHAT_TYPE_MESSAGE_PROMPT = CreateKey("ACCESSIBILITY_UI_SOCIAL_CHAT_TYPE_MESSAGE_PROMPT");
++    public static LocalizationKey UI_SOCIAL_INVITE_TO_BRAWL = CreateKey("ACCESSIBILITY_UI_SOCIAL_INVITE_TO_BRAWL");
 +    public static LocalizationKey UI_SOCIAL_INVITE_FRIEND_TO_BG = CreateKey("ACCESSIBILITY_UI_SOCIAL_INVITE_FRIEND_TO_BG");
 +    public static LocalizationKey UI_SOCIAL_FRIEND_NO_CHALLENGE = CreateKey("ACCESSIBILITY_UI_SOCIAL_FRIEND_NO_CHALLENGE");
 +
@@ -66270,7 +66289,7 @@ index 0000000..0cb326f
 +    #endregion
 +}
 diff --git a/Assembly-CSharp/FriendListFrame.cs b/Assembly-CSharp/FriendListFrame.cs
-index 9be4ad8..4fd9dd2 100644
+index 9be4ad8..ac4faca 100644
 --- a/Assembly-CSharp/FriendListFrame.cs
 +++ b/Assembly-CSharp/FriendListFrame.cs
 @@ -7,8 +7,9 @@ using Blizzard.T5.MaterialService.Extensions;
@@ -66573,7 +66592,7 @@ index 9be4ad8..4fd9dd2 100644
  		m_friendToRemove = null;
  		m_removeFriendPopup = null;
  		if (this.RemoveFriendPopupClosed != null)
-@@ -2352,4 +2388,842 @@ public class FriendListFrame : MonoBehaviour
+@@ -2352,4 +2388,906 @@ public class FriendListFrame : MonoBehaviour
  			UpdatePortrait(medalIsDisplayable: false);
  		});
  	}
@@ -67260,6 +67279,15 @@ index 9be4ad8..4fd9dd2 100644
 +					friendMenu.AddOption(GameStrings.Get("GLOBAL_CHAT_CHALLENGE"), () => ClickFriendChallengeButton(friend));
 +					break;
 +			}
++			if (flag)
++			{
++				bool response = CanBrawlPlayer(friend.GetFriend(), out string reason);
++				if ((response) || (!response && reason != null))
++				{
++					friendMenu.AddOption(LocalizationUtils.Format(LocalizationKey.UI_SOCIAL_INVITE_TO_BRAWL), () => InviteToTavernBrawl(friend));
++				}
++			}
++
 +			if (netObject.Games.BattlegroundsFriendlyChallenge && !flag2 && player.GetHearthstoneGameAccount().GetBattlegroundsTutorialComplete() && GameUtils.IsBattleGroundsTutorialComplete())
 +				friendMenu.AddOption(LocalizationUtils.Format(LocalizationKey.UI_SOCIAL_INVITE_FRIEND_TO_BG), () => InviteToBgParty(friend));
 +		}
@@ -67280,6 +67308,61 @@ index 9be4ad8..4fd9dd2 100644
 +
 +		m_curState = State.READING_FRIEND_INVITE;
 +	}
++
++	private bool CanBrawlPlayer(BnetPlayer player, out string reason)
++	{
++		reason = null;
++		if (!FriendChallengeMgr.Get().IsHearthstoneFriendlyChallengeAvailable(player) || !AccessibilityUtils.CanPlayTavernBrawl())
++		{
++			return false;
++		}
++		else if (!TavernBrawlManager.Get().HasUnlockedTavernBrawl(BrawlType.BRAWL_TYPE_TAVERN_BRAWL))
++		{
++			reason = "GLOBAL_FRIENDLIST_CHALLENGE_CHALLENGER_TAVERN_BRAWL_LOCKED";
++			return false;
++		}
++		else if (!TavernBrawlManager.Get().IsTavernBrawlActive(BrawlType.BRAWL_TYPE_TAVERN_BRAWL))
++		{
++			reason = "GLOBAL_FRIENDLIST_CHALLENGE_TOOLTIP_NO_TAVERN_BRAWL";
++			return false;
++		}
++		else if (!TavernBrawlManager.Get().CanChallengeToTavernBrawl(BrawlType.BRAWL_TYPE_TAVERN_BRAWL))
++		{
++			reason = "GLOBAL_FRIENDLIST_CHALLENGE_TOOLTIP_TAVERN_BRAWL_NOT_CHALLENGEABLE";
++			return false;
++		}
++		else if (TavernBrawlManager.Get().GetMission(BrawlType.BRAWL_TYPE_TAVERN_BRAWL).canCreateDeck && !TavernBrawlManager.Get().HasValidDeck(BrawlType.BRAWL_TYPE_TAVERN_BRAWL))
++		{
++			reason = "GLOBAL_FRIENDLIST_CHALLENGE_CHALLENGER_NO_TAVERN_BRAWL_DECK";
++			return false;
++		}
++		else
++		{
++			return true;
++		}
++	}
++
++	private void InviteToTavernBrawl(FriendListFriendFrame friend)
++	{
++		BnetPlayer player = friend.GetFriend();
++		if (!CanBrawlPlayer(player, out string reason))
++		{
++			if (reason != null)
++			{
++				AccessibilityMgr.Output(this, GameStrings.Format(reason, player.GetBestName()));
++			}
++			return;
++		}
++		else
++		{
++			TavernBrawlManager.Get().CurrentBrawlType = BrawlType.BRAWL_TYPE_TAVERN_BRAWL;
++			FriendChallengeMgr.Get().SendTavernBrawlChallenge(player, BrawlType.BRAWL_TYPE_TAVERN_BRAWL, TavernBrawlManager.Get().CurrentMission().seasonId, TavernBrawlManager.Get().CurrentMission().SelectedBrawlLibraryItemId);
++			friend.CloseFriendsListMenu();
++		}
++
++
++	}
++
 +
 +	private void InviteToBgParty(FriendListFriendFrame friend) {
 +				BnetPlayer player=friend.GetFriend();
@@ -95592,7 +95675,7 @@ index 20f0b12..3f25ce0 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/TavernBrawlDisplay.cs b/Assembly-CSharp/TavernBrawlDisplay.cs
-index 9ee3675..c00068e 100644
+index 9ee3675..08f0a11 100644
 --- a/Assembly-CSharp/TavernBrawlDisplay.cs
 +++ b/Assembly-CSharp/TavernBrawlDisplay.cs
 @@ -7,9 +7,10 @@ using Blizzard.T5.MaterialService.Extensions;
@@ -95790,7 +95873,7 @@ index 9ee3675..c00068e 100644
  		}
  	}
  
-@@ -1940,4 +1953,80 @@ public class TavernBrawlDisplay : MonoBehaviour
+@@ -1940,4 +1953,83 @@ public class TavernBrawlDisplay : MonoBehaviour
  	{
  		m_chalkboardFX.SetActive(value: false);
  	}
@@ -95812,10 +95895,14 @@ index 9ee3675..c00068e 100644
 +			return;
 +		}
 +
-+		m_accessibleDescription = new AccessibleMultilineText(this, m_chalkboardHeader.Text, m_chalkboardInfo.Text);
++		m_accessibleDescription = new AccessibleMultilineText(this, m_chalkboardHeader, m_chalkboardInfo, m_chalkboardEndInfo);
++		if (m_numWins != null && m_numWins.isActiveAndEnabled && !m_numWins.isHidden())
++		{
++			m_accessibleDescription.AddLine($"{LocalizationUtils.Get(LocalizationKey.GLUE_WINS)}: {m_numWins.Text}");
++		}
 +		m_mainMenu = new AccessibleMenu(this, m_chalkboardHeader.Text, ExitScene);
 +		m_mainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.UI_SHOP_ITEM_READ_DESCRIPTION), ReadInfo);
-+		if (m_playButton != null && m_playButton.isActiveAndEnabled && m_playButton.IsEnabled()) 
++		if (m_playButton != null && m_playButton.isActiveAndEnabled && m_playButton.IsEnabled())
 +		{
 +			m_mainMenu.AddOption(m_playButton.m_newPlayButtonText.Text, m_playButton.TriggerRelease);
 +		}
@@ -95837,7 +95924,6 @@ index 9ee3675..c00068e 100644
 +		m_accessibleDescription.ReadAllLines();
 +		m_curState = State.READING_DESCRIPTION;
 +	}
-+
 +
 +	public void HandleInput()
 +	{
