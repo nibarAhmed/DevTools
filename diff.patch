@@ -10520,7 +10520,7 @@ index 0000000..d81874c
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleJournal.cs b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
 new file mode 100644
-index 0000000..800e6a1
+index 0000000..3474fa4
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleJournal.cs
 @@ -0,0 +1,1198 @@
@@ -11569,7 +11569,7 @@ index 0000000..800e6a1
 +
 +        private RewardTrack GetRewardTrack()
 +        {
-+            if (m_curState == State.VIEWING_EVENT || m_curState == State.EVENT_REWARD_TRACK) return RewardTrackManager.Get().GetCurrentEventRewardTrack();
++            if (m_curState == State.VIEWING_EVENT || m_curState == State.EVENT_REWARD_TRACK || m_curState == State.CLAIMING_EVENT_REWARD) return RewardTrackManager.Get().GetCurrentEventRewardTrack();
 +            return RewardTrackManager.Get().GetRewardTrack(m_rewardTrackType);
 +        }
 +
