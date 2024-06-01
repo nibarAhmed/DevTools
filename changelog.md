@@ -1,3 +1,14 @@
+### 2024-06-01
+
+- Implemented full support for the "Whizbang’s Heroes" season in Twist (contributed by Endefx)
+- The Battlegrounds rewards track is now accessible (contributed by KeyWasFull)
+- You can now challenge your friends to tavern brawls (contributed by Mazen)
+- On the tavern brawl screen, more information will now be provided such as your number of wins in the current brawl and the time until it ends (contributed by Mazen)
+
+### 2024-05-17
+
+- Updated to Hearthstone version 29.4.0.199503
+
 ### 2024-05-14
 
 - Updated to Hearthstone version 29.4.0.198933 (contributed by Endefx)
