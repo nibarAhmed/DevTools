@@ -56240,7 +56240,7 @@ index acc4ef8..30fdcab 100644
 +		#endregion
  }
 diff --git a/Assembly-CSharp/DeckPickerTrayDisplay.cs b/Assembly-CSharp/DeckPickerTrayDisplay.cs
-index 9d357e7..1e00482 100644
+index 9d357e7..a9774c2 100644
 --- a/Assembly-CSharp/DeckPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/DeckPickerTrayDisplay.cs
 @@ -4,6 +4,7 @@ using System.Collections.Generic;
@@ -57979,7 +57979,7 @@ index 9d357e7..1e00482 100644
 +    {
 +        if (IsInHeroicTwistMode())
 +        {
-+            return LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURER_SCREEN_TITLE);
++            return LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_CHOOSE_ADVENTURER_TITLE);
 +        }
 +        return LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_DECK_TITLE);
 +    }
