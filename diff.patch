@@ -27338,7 +27338,7 @@ index 0000000..0f96e9c
 \ No newline at end of file
 diff --git a/Assembly-CSharp/Accessibility/Ranked/AccessibleRankedUtils.cs b/Assembly-CSharp/Accessibility/Ranked/AccessibleRankedUtils.cs
 new file mode 100644
-index 0000000..c3c4ae3
+index 0000000..7b4a53c
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Ranked/AccessibleRankedUtils.cs
 @@ -0,0 +1,116 @@
@@ -27454,7 +27454,7 @@ index 0000000..c3c4ae3
 +
 +		public static bool PlayerCanPlayTwist()
 +		{
-+            return CollectionManager.Get().AccountCanSeeTwist() && CollectionManager.Get().GetNumberOfTwistDecks() > 0;
++            return CollectionManager.Get().AccountCanSeeTwist() && (CollectionManager.Get().GetNumberOfTwistDecks() > 0 || RankMgr.IsCurrentTwistSeasonUsingHeroicDecks());
 +		}
 +	}
 +}
