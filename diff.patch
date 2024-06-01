@@ -2564,10 +2564,10 @@ index 0000000..80c91f5
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs b/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs
 new file mode 100644
-index 0000000..07c3710
+index 0000000..c4110da
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleCardUtils.cs
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,448 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -2708,6 +2708,21 @@ index 0000000..07c3710
 +            ret.Add(AccessibleSpeechUtils.CombineSentences(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_PLAYER_HERO_POWER), heroPowerName));
 +
 +            AddLineIfExists(GetEntityDefCost(entityDef), ret);
++            AddLineIfExists(entityDef.GetCardTextInHand(), ret);
++
++            return ret;
++        }
++
++        public static List<string> GetPassiveAbilityCardLinesForHeroCard(string heroCardId)
++        {
++            var ret = new List<string>();
++
++            var passiveAbilityCardId = GameUtils.GetHeroPassiveCardIdFromHero(heroCardId);
++            EntityDef entityDef = DefLoader.Get().GetEntityDef(passiveAbilityCardId);
++            var passiveAbilityName = entityDef.GetName();
++
++            ret.Add(AccessibleSpeechUtils.CombineSentences(LocalizationUtils.Get(LocalizationKey.SCREEN_TWIST_PASSIVE_ABILITY), passiveAbilityName));
++
 +            AddLineIfExists(entityDef.GetCardTextInHand(), ret);
 +
 +            return ret;
@@ -7217,10 +7232,10 @@ index 0000000..bfb9ba6
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleHorizontalMenu.cs b/Assembly-CSharp/Accessibility/AccessibleHorizontalMenu.cs
 new file mode 100644
-index 0000000..4d6a89d
+index 0000000..2d7ffcb
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleHorizontalMenu.cs
-@@ -0,0 +1,200 @@
+@@ -0,0 +1,205 @@
 +﻿using System;
 +using System.Collections.Generic;
 +
@@ -7418,6 +7433,11 @@ index 0000000..4d6a89d
 +        public int GetNumItems()
 +        {
 +            return m_options.Count;
++        }
++
++        public T GetOptionBeingRead()
++        {
++            return m_options[m_curOptionIdx].m_option;
 +        }
 +    }
 +}
@@ -21177,10 +21197,10 @@ index 0000000..b2631d1
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
 new file mode 100644
-index 0000000..bdabac2
+index 0000000..8a6cf4f
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,144 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using Hearthstone.Progression;
@@ -21200,19 +21220,28 @@ index 0000000..bdabac2
 +            m_inCollectionManager = inCollectionManager;
 +        }
 +
++        internal CollectionDeckBoxVisual GetDeck()
++        {
++            return m_deck;
++        }
++
 +        internal override List<string> GetLines()
 +        {
 +            if (m_inCollectionManager)
 +            {
 +                return GetLinesForCollectionManager();
 +            }
++            else if (m_deck.IsTwistHeroicDeck())
++            {
++                return GetLinesForTwistHeroicDeck();
++            }
 +            else
 +            {
-+                return GetLinesForDeckSelectionScreen();
++                return GetLinesForNormalDeck();
 +            }
 +        }
 +
-+        private List<string> GetLinesForDeckSelectionScreen()
++        private List<string> GetLinesForNormalDeck()
 +        {
 +            // Name and class
 +            var ret = GetCommonDeckLines();
@@ -21245,6 +21274,29 @@ index 0000000..bdabac2
 +            }
 +            return ret;
 +        }
++
++        private List<string> GetLinesForTwistHeroicDeck()
++        {
++            var ret = new List<string>();
++            ret.Add(m_deck.GetDeckNameText().Text);
++
++            var collectionDeck = m_deck.GetCollectionDeck();
++            var heroCard = DefLoader.Get().GetEntityDef(collectionDeck.HeroCardID);
++
++            if (collectionDeck.DeckTemplate_HasUnownedRequirements(out var requiredCardId))
++            {
++                var entityDef = DefLoader.Get().GetEntityDef(requiredCardId);
++                ret.Add(LocalizationUtils.Format(LocalizationKey.SCREEN_TWIST_HEROIC_DECK_LOCKED, entityDef.GetName()));
++            }
++
++            ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_HEALTH, heroCard.GetHealth()));
++            ret.Add(LocalizationUtils.Format(LocalizationKey.SCREEN_TWIST_CARDS_IN_DECK, collectionDeck.GetTotalCardCount()));
++            ret.AddRange(AccessibleCardUtils.GetHeroPowerCardLinesForHeroCard(collectionDeck.HeroCardID));
++            ret.AddRange(AccessibleCardUtils.GetPassiveAbilityCardLinesForHeroCard(collectionDeck.HeroCardID));
++            ret.Add(LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_READ_DETAILS, AccessibleKey.SPACE));
++            return ret;
++        }
++
 +
 +        private List<string> GetLinesForCollectionManager()
 +        {
@@ -21295,10 +21347,10 @@ index 0000000..bdabac2
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
 new file mode 100644
-index 0000000..cce100b
+index 0000000..5152955
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionManager.cs
-@@ -0,0 +1,2390 @@
+@@ -0,0 +1,2422 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -21386,6 +21438,8 @@ index 0000000..cce100b
 +
 +        private bool m_waitingForServerResponse; // Used to read things more intuitively when regaining focus in certain cases
 +
++        private bool m_isExecutingDeeplink; // Used to prevent spam while opening from a deeplink.
++
 +        private bool m_justCanceledDisenchantPopup;
 +
 +        private bool m_isTransitioning;
@@ -21419,6 +21473,11 @@ index 0000000..cce100b
 +            {
 +                AccessibilityMgr.SetScreen(this);
 +            }
++        }
++
++        internal void OpenFromDeeplink()
++        {
++            m_isExecutingDeeplink = true;
 +        }
 +
 +        private void SetMode()
@@ -21710,6 +21769,8 @@ index 0000000..cce100b
 +                return;
 +            }
 +
++            m_isExecutingDeeplink = false;
++
 +            AccessibilityUtils.LogDebug("CM OnCollectionManagerClosed");
 +            AccessibilityMgr.TransitioningScreens();
 +        }
@@ -21718,6 +21779,11 @@ index 0000000..cce100b
 +        {
 +            AccessibilityUtils.LogDebug("CM OnCollectibleDisplayReady");
 +            AccessibilityUtils.LogDebug($"{SceneMgr.Get().GetMode()}");
++
++            if (m_isExecutingDeeplink)
++            {
++                return;
++            }
 +
 +            if (m_curMode == Mode.TRADITIONAL)
 +            {
@@ -23000,6 +23066,11 @@ index 0000000..cce100b
 +                return;
 +            }
 +
++            if (m_isExecutingDeeplink)
++            {
++                return;
++                }
++
 +            SetupCraftingMenu();
 +        }
 +
@@ -23019,6 +23090,8 @@ index 0000000..cce100b
 +            {
 +                return;
 +            }
++
++            m_isExecutingDeeplink = false;
 +
 +            m_cardBeingRead = cardBeingRead;
 +            m_cardBeingReadPremium = cardBeingReadPremium;
@@ -23053,6 +23126,12 @@ index 0000000..cce100b
 +        {
 +            AccessibilityUtils.LogDebug($"PopState - cur: {m_curState} ; prev: {m_stateBeforeViewCard}");
 +            m_curState = m_stateBeforeViewCard;
++
++            if (m_curState == State.LOADING)
++            {
++                // Came here from deeplink
++                CollectionDeckTray.Get().OnBackOutOfCollectionScreen();
++                }
 +        }
 +
 +        private void CancelCraftMode()
@@ -23323,6 +23402,11 @@ index 0000000..cce100b
 +            else if (m_stateBeforeViewCard == State.EDIT_DECK_SEE_DECK)
 +            {
 +                EditDeckSeeDeck(isReread: true);
++            }
++            else if (m_stateBeforeViewCard == State.LOADING)
++            {
++                // Came here from deeplink
++                CollectionDeckTray.Get().OnBackOutOfCollectionScreen();
 +            }
 +            else
 +            {
@@ -25459,10 +25543,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..333c684
+index 0000000..0b7b939
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1193 @@
+@@ -0,0 +1,1199 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -26250,6 +26334,12 @@ index 0000000..333c684
 +    public static LocalizationKey SCREEN_CHOOSE_DECK_TITLE = CreateKey("GLUE_CHOOSE_YOUR_DECK");
 +    public static LocalizationKey SCREEN_CHOOSE_DECK_HERO_LEVEL = CreateKey("GLOBAL_PROGRESSION_TOOLTIP_CLASS_DEFAULT_DESC");
 +    public static LocalizationKey SCREEN_CHOOSE_DECK_COLLECTION_AVAILABLE = CreateKey("ACCESSIBILITY_CHOOSE_DECK_COLLECTION_AVAILABLE");
++
++    // Heroic Twist screen
++    public static LocalizationKey SCREEN_TWIST_CARDS_IN_DECK = CreateKey("ACCESSIBILITY_SCREEN_TWIST_CARDS_IN_DECK");
++    public static LocalizationKey SCREEN_TWIST_HEROIC_DECK_LOCKED = CreateKey("ACCESSIBILITY_SCREEN_TWIST_HEROIC_DECK_LOCKED");
++    public static LocalizationKey SCREEN_TWIST_CRAFT_CARD = CreateKey("ACCESSIBILITY_SCREEN_TWIST_CRAFT_CARD");
++    public static LocalizationKey SCREEN_TWIST_PASSIVE_ABILITY = CreateKey("ACCESSIBILITY_SCREEN_TWIST_PASSIVE_ABILITY");
 +
 +    // My collection screen
 +    public static LocalizationKey SCREEN_COLLECTION_MANAGER_BROWSE_COLLECTION = CreateKey("ACCESSIBILITY_SCREEN_COLLECTION_MANAGER_BROWSE_COLLECTION");
@@ -45856,7 +45946,7 @@ index 405ce09..6289055 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/CollectionDeckBoxVisual.cs b/Assembly-CSharp/CollectionDeckBoxVisual.cs
-index 7ae2e26..aa84b0b 100644
+index 7ae2e26..a3ddefe 100644
 --- a/Assembly-CSharp/CollectionDeckBoxVisual.cs
 +++ b/Assembly-CSharp/CollectionDeckBoxVisual.cs
 @@ -6,6 +6,7 @@ using Blizzard.T5.MaterialService.Extensions;
@@ -45887,7 +45977,7 @@ index 7ae2e26..aa84b0b 100644
  	}
  
  	private void PlayPopAnimation(string animationName)
-@@ -1969,4 +1974,16 @@ public class CollectionDeckBoxVisual : PegUIElement, IDraggableCollectionVisual
+@@ -1969,4 +1974,21 @@ public class CollectionDeckBoxVisual : PegUIElement, IDraggableCollectionVisual
  		}
  		return true;
  	}
@@ -45902,10 +45992,15 @@ index 7ae2e26..aa84b0b 100644
 +	{
 +		return GetCollectionDeck()?.IsLoanerDeck ?? false;
 +	}
++
++	public bool IsTwistHeroicDeck()
++	{
++		return GetCollectionDeck()?.IsTwistHeroicDeck ?? false;
++		}
 +	#endregion
  }
 diff --git a/Assembly-CSharp/CollectionDeckTray.cs b/Assembly-CSharp/CollectionDeckTray.cs
-index f961685..e7dccd1 100644
+index f961685..722f58c 100644
 --- a/Assembly-CSharp/CollectionDeckTray.cs
 +++ b/Assembly-CSharp/CollectionDeckTray.cs
 @@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
@@ -46063,6 +46158,15 @@ index f961685..e7dccd1 100644
  			m_doneButton.GetComponentInChildren<HighlightState>().ChangeState(ActorStateType.HIGHLIGHT_PRIMARY_ACTIVE);
  		}
  		SaveCurrentDeckAndEnterDeckListMode();
+@@ -1405,7 +1415,7 @@ public class CollectionDeckTray : EditableDeckTray
+ 		}
+ 	}
+ 
+-	private bool OnBackOutOfCollectionScreen()
++	internal bool OnBackOutOfCollectionScreen()
+ 	{
+ 		if (this == null || base.gameObject == null)
+ 		{
 @@ -1619,6 +1629,7 @@ public class CollectionDeckTray : EditableDeckTray
  		CollectionManager.Get().GetCollectibleDisplay().EnableInput(enable: true);
  		AllowInput(allowed: true);
@@ -47097,6 +47201,16 @@ index 57a4b58..3a41edd 100644
  	{
  		return CollectionManager.Get().GetOwnedCards().Count > 0;
  	}
+diff --git a/Assembly-CSharp/CollectionManagerJobs.cs b/Assembly-CSharp/CollectionManagerJobs.cs
+index e45753c..946b4b9 100644
+--- a/Assembly-CSharp/CollectionManagerJobs.cs
++++ b/Assembly-CSharp/CollectionManagerJobs.cs
+@@ -1,4 +1,5 @@
+ using System.Collections.Generic;
++using Accessibility;
+ using Blizzard.T5.Jobs;
+ using Hearthstone.Core;
+ 
 diff --git a/Assembly-CSharp/CollectionManagerScene.cs b/Assembly-CSharp/CollectionManagerScene.cs
 index 91be04c..85a09e0 100644
 --- a/Assembly-CSharp/CollectionManagerScene.cs
@@ -56126,7 +56240,7 @@ index acc4ef8..30fdcab 100644
 +		#endregion
  }
 diff --git a/Assembly-CSharp/DeckPickerTrayDisplay.cs b/Assembly-CSharp/DeckPickerTrayDisplay.cs
-index 9d357e7..93881fe 100644
+index 9d357e7..1e00482 100644
 --- a/Assembly-CSharp/DeckPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/DeckPickerTrayDisplay.cs
 @@ -4,6 +4,7 @@ using System.Collections.Generic;
@@ -57552,7 +57666,7 @@ index 9d357e7..93881fe 100644
  		}
  		GameSaveDataManager gameSaveDataManager = GameSaveDataManager.Get();
  		if (gameSaveDataManager != null)
-@@ -5434,4 +5452,495 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -5434,4 +5452,622 @@ public class DeckPickerTrayDisplay : AbsDeckPickerTrayDisplay
  			gameSaveDataManager.SaveSubkeys(list);
  		}
  	}
@@ -57570,7 +57684,9 @@ index 9d357e7..93881fe 100644
 +		FRIENDLY_CHOOSING_DECK,
 +		RANKED_MAIN_MENU,
 +		RANKED_CHOOSING_DECK,
-+		RANKED_READING_RANK_MEDAL
++		RANKED_READING_RANK_MEDAL,
++		TWIST_HEROIC_DECK_DETAILS_MENU,
++		TWIST_HEROIC_DECK_READING_DECK
 +	};
 +
 +	private AccessibleState m_curAccessibleState;
@@ -57756,12 +57872,17 @@ index 9d357e7..93881fe 100644
 +			var page = m_customPages[i];
 +			var pageDecks = page.m_customDecks;
 +
++			if (!m_formatConfig[VisualsFormatTypeExtensions.GetCurrentVisualsFormatType()].EnabledPageTypes.Contains(page.DeckPageType))
++			{
++				continue;
++			}
++
 +			for (int j = 0; j < pageDecks.Count; j++, curIdx++)
 +			{
 +				var deck = pageDecks[j];
 +				var deckId = deck.GetDeckID();
 +
-+				if (deckId == -1L && !deck.IsLoanerDeck())
++				if (deckId == -1L && !deck.IsLoanerDeck() && !deck.IsTwistHeroicDeck())
 +				{
 +					break;
 +				}
@@ -57837,20 +57958,33 @@ index 9d357e7..93881fe 100644
 +		AccessibilityMgr.Output(this, m_modeName.Text);
 +
 +		m_rankedMainMenu = new AccessibleMenu(this, "", m_backButton.TriggerRelease);
-+		m_rankedMainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_DECK_TITLE), RankedReadChooseDeck);
++		m_rankedMainMenu.AddOption(GetChooseDeckTitle(), RankedReadChooseDeck);
 +
 +		if (Options.GetInRankedPlayMode())
 +		{
 +			m_rankedMainMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_HEARTHSTONE_RANKED_READ_RANK), ReadCurrentRank);
 +		}
-+		m_rankedMainMenu.AddOption(GameStrings.Get("GLUE_BACON_INFO_POPUP_PLAY_TUTORIAL"), GameUtils.ReplayTraditionalTutorial);
++
++		if (Options.GetFormatType() == PegasusShared.FormatType.FT_STANDARD)
++		{
++			m_rankedMainMenu.AddOption(GameStrings.Get("GLUE_BACON_INFO_POPUP_PLAY_TUTORIAL"), GameUtils.ReplayTraditionalTutorial);
++		}
 +
 +		m_rankedMainMenu.AddOption(m_backButton.GetText(), m_backButton.TriggerRelease);
 +
 +		RankedReadMainMenu();
 +	}
 +
-+	private void ReadCurrentRank()
++	private string GetChooseDeckTitle()
++    {
++        if (IsInHeroicTwistMode())
++        {
++            return LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURER_SCREEN_TITLE);
++        }
++        return LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_DECK_TITLE);
++    }
++
++    private void ReadCurrentRank()
 +	{
 +		var lines = new List<string>();
 +
@@ -57868,7 +58002,7 @@ index 9d357e7..93881fe 100644
 +	{
 +		m_chosenDeck = false;
 +		m_curAccessibleState = AccessibleState.RANKED_CHOOSING_DECK;
-+		m_rankedChooseDeckMenu = new AccessibleHorizontalMenu<AccessibleCollectionDeckBoxVisual>(this, LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_DECK_TITLE), RankedReadMainMenu);
++		m_rankedChooseDeckMenu = new AccessibleHorizontalMenu<AccessibleCollectionDeckBoxVisual>(this, GetChooseDeckTitle(), RankedReadMainMenu);
 +
 +		var selectedDeckId = GetLastChosenDeckId();
 +		var selectedDeckIdx = 0;
@@ -57878,12 +58012,17 @@ index 9d357e7..93881fe 100644
 +			var page = m_customPages[i];
 +			var pageDecks = page.m_customDecks;
 +
++			if (!m_formatConfig[VisualsFormatTypeExtensions.GetCurrentVisualsFormatType()].EnabledPageTypes.Contains(page.DeckPageType))
++			{
++				continue;
++			}
++
 +			for (int j = 0; j < pageDecks.Count; j++, curIdx++)
 +			{
 +				var deck = pageDecks[j];
 +				var deckId = deck.GetDeckID();
 +
-+				if (deckId == -1L && !deck.IsLoanerDeck())
++				if (deckId == -1L && !deck.IsLoanerDeck() && !deck.IsTwistHeroicDeck())
 +				{
 +					break;
 +				}
@@ -57912,6 +58051,79 @@ index 9d357e7..93881fe 100644
 +
 +	#endregion
 +
++	#region twist
++	private AccessibleMenu m_heroicDeckDetailsMenu;
++
++	private AccessibleListOfItems<AccessibleEditingDeckCard> m_heroicDeckPreview;
++
++	private static bool IsInHeroicTwistMode()
++	{
++		return Options.GetFormatType() == PegasusShared.FormatType.FT_TWIST && RankMgr.IsCurrentTwistSeasonUsingHeroicDecks();
++	}
++
++
++	private void OnHeroicDeckDetailsRequested(CollectionDeckBoxVisual deck)
++	{
++		deck.TriggerRelease();
++
++		if (deck.IsDeckPlayable())
++		{
++			SetupHeroicDeckPreview();
++		}
++		else
++		{
++			SetupHeroicDeckDetailsMenu();
++		}
++	}
++
++	private void SetupHeroicDeckDetailsMenu()
++    {
++        var deck = m_selectedCustomDeckBox?.GetCollectionDeck();
++        if (deck == null)
++        {
++            return;
++        }
++
++        // Note: we only ever get here if the deck is locked, so requiredCardId will always be populated.
++        deck.DeckTemplate_HasUnownedRequirements(out string requiredCardId);
++        var entityDef = DefLoader.Get().GetEntityDef(requiredCardId);
++        m_heroicDeckDetailsMenu = new AccessibleMenu(this, "", RereadChooseDeckMenu);
++        m_heroicDeckDetailsMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_COLLECTION_MANAGER_EDIT_DECK_MENU_SEE_DECK_OPTION), SetupHeroicDeckPreview);
++        m_heroicDeckDetailsMenu.AddOption(LocalizationUtils.Format(LocalizationKey.SCREEN_TWIST_CRAFT_CARD, entityDef.GetName()), TwistDetailsDisplayManager.Get().m_twistCraftingButtonWidget.TriggerRelease);
++        m_curAccessibleState = AccessibleState.TWIST_HEROIC_DECK_DETAILS_MENU;
++        m_heroicDeckDetailsMenu.StartReading();
++    }
++
++	private void RereadChooseDeckMenu()
++	{
++		if (SceneMgr.Get().GetMode() == SceneMgr.Mode.TOURNAMENT)
++		{
++			m_curAccessibleState = AccessibleState.RANKED_CHOOSING_DECK;
++			m_rankedChooseDeckMenu.StartReading();
++		}
++		else if (SceneMgr.Get().GetMode() == SceneMgr.Mode.FRIENDLY)
++		{
++			m_curAccessibleState = AccessibleState.FRIENDLY_CHOOSING_DECK;
++			m_friendlyChooseDeckMenu.StartReading();
++		}
++	}
++
++    private void SetupHeroicDeckPreview()
++		{
++			var deck = m_selectedCustomDeckBox?.GetCollectionDeck();
++			if (deck == null)
++			{
++				return;
++			}
++
++			// TODO: Unify deck viewers
++			var accessibleCards = deck.GetSlots().Select((slot) => new AccessibleEditingDeckCard(this, slot, includeEligibility: false)).ToList();
++			m_heroicDeckPreview = new AccessibleListOfItems<AccessibleEditingDeckCard>(this, accessibleCards);
++			m_curAccessibleState = AccessibleState.TWIST_HEROIC_DECK_READING_DECK;
++			m_heroicDeckPreview.StartReading();
++		}
++		#endregion
++
 +	public void HandleInput()
 +	{
 +		if (m_curAccessibleState == AccessibleState.CREATE_DECK_MAIN_MENU)
@@ -57939,10 +58151,17 @@ index 9d357e7..93881fe 100644
 +		}
 +		else if (m_curAccessibleState == AccessibleState.FRIENDLY_CHOOSING_DECK)
 +		{
-+			                    if(AccessibleKey.HUB_MY_COLLECTION.IsPressed()) m_collectionButton.TriggerRelease();
-+			if (AccessibleKey.BACK.IsPressed())
++			if(AccessibleKey.HUB_MY_COLLECTION.IsPressed())
++			{
++				m_collectionButton.TriggerRelease();
++			}
++			else if (AccessibleKey.BACK.IsPressed())
 +			{
 +				FriendlyReadMainMenu();
++			}
++			else if (AccessibleKey.SPACE.IsPressed() && IsInHeroicTwistMode())
++			{
++				OnHeroicDeckDetailsRequested(m_friendlyChooseDeckMenu.GetOptionBeingRead().GetDeck());
 +			}
 +			else
 +			{
@@ -57955,10 +58174,17 @@ index 9d357e7..93881fe 100644
 +		}
 +		else if (m_curAccessibleState == AccessibleState.RANKED_CHOOSING_DECK)
 +		{
-+						                    if(AccessibleKey.HUB_MY_COLLECTION.IsPressed()) m_collectionButton.TriggerRelease();
-+			if (AccessibleKey.BACK.IsPressed())
++		if(AccessibleKey.HUB_MY_COLLECTION.IsPressed())
++		{
++			m_collectionButton.TriggerRelease();
++		}
++			else if (AccessibleKey.BACK.IsPressed())
 +			{
 +				RankedReadMainMenu();
++			}
++			else if (AccessibleKey.SPACE.IsPressed() && IsInHeroicTwistMode())
++			{
++				OnHeroicDeckDetailsRequested(m_rankedChooseDeckMenu.GetOptionBeingRead().GetDeck());
 +			}
 +			else
 +			{
@@ -57973,6 +58199,21 @@ index 9d357e7..93881fe 100644
 +			{
 +				RankedReadMainMenu();
 +			}
++		}
++		else if (m_curAccessibleState == AccessibleState.TWIST_HEROIC_DECK_READING_DECK)
++		{
++			if (AccessibleKey.BACK.IsPressed())
++			{
++				RereadChooseDeckMenu();
++			}
++			else
++			{
++				m_heroicDeckPreview?.HandleAccessibleInput();
++			}
++		}
++		else if (m_curAccessibleState == AccessibleState.TWIST_HEROIC_DECK_DETAILS_MENU)
++		{
++			m_heroicDeckDetailsMenu?.HandleAccessibleInput();
 +		}
 +	}
 +
@@ -59780,6 +60021,27 @@ index 64fca97..aeea7d9 100644
 +	#endregion
 +
  }
+diff --git a/Assembly-CSharp/DeepLinkManager.cs b/Assembly-CSharp/DeepLinkManager.cs
+index fc5991e..4f38149 100644
+--- a/Assembly-CSharp/DeepLinkManager.cs
++++ b/Assembly-CSharp/DeepLinkManager.cs
+@@ -1,6 +1,7 @@
+ using System;
+ using System.Collections;
+ using System.Collections.Generic;
++using Accessibility;
+ using Assets;
+ using Blizzard.T5.Configuration;
+ using Blizzard.T5.Core.Utils;
+@@ -415,6 +416,8 @@ public class DeepLinkManager
+ 	{
+ 		return delegate
+ 		{
++			AccessibleCollectionManager.Get().OpenFromDeeplink();
++
+ 			SceneMgr.Get().SetNextMode(SceneMgr.Mode.COLLECTIONMANAGER);
+ 			bool flag = false;
+ 			if (deepLink.Length > 1)
 diff --git a/Assembly-CSharp/DialogBase.cs b/Assembly-CSharp/DialogBase.cs
 index 790def1..8facf1a 100644
 --- a/Assembly-CSharp/DialogBase.cs
@@ -98338,7 +98600,7 @@ index 4c71f83..53dbd4a 100644
 +	#endregion
  }
 diff --git a/Assembly-CSharp/TwistDetailsDisplayManager.cs b/Assembly-CSharp/TwistDetailsDisplayManager.cs
-index 5e2239b..ff76803 100644
+index 5e2239b..8787980 100644
 --- a/Assembly-CSharp/TwistDetailsDisplayManager.cs
 +++ b/Assembly-CSharp/TwistDetailsDisplayManager.cs
 @@ -6,6 +6,7 @@ using Hearthstone.DataModels;
@@ -98349,6 +98611,15 @@ index 5e2239b..ff76803 100644
  
  public class TwistDetailsDisplayManager : MonoBehaviour
  {
+@@ -67,7 +68,7 @@ public class TwistDetailsDisplayManager : MonoBehaviour
+ 
+ 	private Widget m_twistDeckTrayDisplayWidget;
+ 
+-	private UIBButton m_twistCraftingButtonWidget;
++	internal UIBButton m_twistCraftingButtonWidget;
+ 
+ 	private Dictionary<GameObject, bool> m_cacheActiveStateForDeckDisplay = new Dictionary<GameObject, bool>();
+ 
 @@ -145,34 +146,34 @@ public class TwistDetailsDisplayManager : MonoBehaviour
  		m_twistPageHeaderWidget = widget;
  		if (m_twistRankedPlaySeason != null)
@@ -98410,6 +98681,18 @@ index 5e2239b..ff76803 100644
  		{
  			TwistSeasonInfoModel.ShouldShowTwistLoginPopup = true;
  		}
+@@ -531,6 +532,11 @@ public class TwistDetailsDisplayManager : MonoBehaviour
+ 
+ 	private void ShowTwistHeroicDeckListingTutorialIfNecessary()
+ 	{
++		if (AccessibilityMgr.IsAccessibilityEnabled())
++		{
++			return;
++		}
++
+ 		if (!(m_DeckListingButton_Bone == null) && !(m_deckListingTutorialPopup != null))
+ 		{
+ 			long value = 0L;
 diff --git a/Assembly-CSharp/UIBScrollable.cs b/Assembly-CSharp/UIBScrollable.cs
 index 540959d..8a4ccd0 100644
 --- a/Assembly-CSharp/UIBScrollable.cs
