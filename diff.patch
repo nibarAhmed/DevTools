@@ -1892,10 +1892,10 @@ index 0000000..8851cfe
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleAdventureScene.cs b/Assembly-CSharp/Accessibility/AccessibleAdventureScene.cs
 new file mode 100644
-index 0000000..deda317
+index 0000000..22f5407
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleAdventureScene.cs
-@@ -0,0 +1,324 @@
+@@ -0,0 +1,332 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -1915,7 +1915,7 @@ index 0000000..deda317
 +        private AccessibleHorizontalMenu<AccessiblePracticeAIButton> m_chooseOpponentMenu;
 +
 +        private AdventureChooserTray m_adventureChooserTray;
-+private AdventureData.Adventuresubscene m_curSubScene=AdventureData.Adventuresubscene.INVALID;
++        private AdventureData.Adventuresubscene m_curSubScene = AdventureData.Adventuresubscene.INVALID;
 +        private List<CustomDeckPage> m_customDeckPages;
 +
 +        private List<PracticeAIButton> m_practiceAIButtons;
@@ -1929,16 +1929,21 @@ index 0000000..deda317
 +            return s_instance;
 +        }
 +
-+public void ClearAdventureButtons() {
-+    adventures.Clear();
-+}
-+    public void AddAdventureButton(AdventureDef def) {
-+    if(!adventures.Contains(def)) {
-+        adventures.Add(def);
++        public void ClearAdventureButtons()
++        {
++            adventures.Clear();
++        }
 +
-+    }
-+}
-+        public void OnAdventureSceneShown() {
++        public void AddAdventureButton(AdventureDef def)
++        {
++            if (!adventures.Contains(def))
++            {
++                adventures.Add(def);
++            }
++        }
++
++        public void OnAdventureSceneShown()
++        {
 +            try
 +            {
 +                m_practiceAIButtons = null; // Cleanup in case of unlocked heroes
@@ -1958,7 +1963,7 @@ index 0000000..deda317
 +        {
 +            AccessibilityUtils.LogDebug($"OnSubSceneLoaded({subscene})");
 +            m_curState = State.LOADING;
-+m_curSubScene=subscene;
++            m_curSubScene = subscene;
 +            try
 +            {
 +                if (subscene == AdventureData.Adventuresubscene.CHOOSER)
@@ -1966,12 +1971,12 @@ index 0000000..deda317
 +                    AccessibilityMgr.SetScreen(this);
 +                    SetupAndReadChooseAdventureMenu();
 +                }
-+                else if (subscene == AdventureData.Adventuresubscene.PRACTICE||subscene == AdventureData.Adventuresubscene.MISSION_DECK_PICKER)
++                else if (subscene == AdventureData.Adventuresubscene.PRACTICE || subscene == AdventureData.Adventuresubscene.MISSION_DECK_PICKER)
 +                {
-+                                m_curState = State.CHOOSING_DECK;
++                    m_curState = State.CHOOSING_DECK;
 +
 +                    AccessibilityMgr.SetScreen(this);
-+//                    AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_PRACTICE_OPTION));
++                    //                    AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_PRACTICE_OPTION));
 +                }
 +            }
 +            catch (Exception e)
@@ -1985,20 +1990,18 @@ index 0000000..deda317
 +            m_curState = State.CHOOSING_ADVENTURE;
 +            m_curMenu = new AccessibleMenu(this, LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_TITLE), OnGoBackToHub);
 +
-+            //m_curMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_PRACTICE_OPTION), OnChoosePracticeAdventure);
-+            /*
-+            m_curMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_BOOK_OF_HEROES_OPTION), OnChooseBookOfHeroesAdventure);
-+            m_curMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_BOOK_OF_MERCENARIES_OPTION), OnChooseBookOfMercsAdventure);
-+            m_curMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_ASHES_PROLOGUE_OPTION), OnChooseAshesPrologueAdventure);
-+            m_curMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_CHOOSE_ADVENTURE_SCREEN_MENU_DEATH_KNIGHT_PROLOGUE_OPTION), OnChooseDeathKnightPrologueAdventure);
-+*/
-+AdventureModeDbId[] modes={AdventureModeDbId.DUNGEON_CRAWL,AdventureModeDbId.LINEAR,AdventureModeDbId.DUNGEON_CRAWL_HEROIC,AdventureModeDbId.EXPERT,AdventureModeDbId.INVALID,AdventureModeDbId.LINEAR_HEROIC,AdventureModeDbId.BONUS_CHALLENGE};
-+AdventureDbId[] supportedAdventures={AdventureDbId.BOH, AdventureDbId.BOM, AdventureDbId.PRACTICE, AdventureDbId.ROTLK, AdventureDbId.BTP,AdventureDbId.ICC};
-+            foreach(AdventureDef def in adventures) {
-+                    bool adventureSupported=Array.Exists(supportedAdventures,d=> d==def.GetAdventureId())||HearthstoneAccessConstants.DEV_MODE;
-+                for(int i=0; i<modes.Length; i++) {
-+                    AdventureModeDbId mode=modes[i];
-+                    if(def.GetSubDef(mode)!=null&&adventureSupported)                     m_curMenu.AddOption(def.GetAdventureName()+": "+def.GetSubDef(mode).GetDescription(),()=> ChooseAdventure(def.GetAdventureId(),def.GetSubDef(mode).GetAdventureModeId()));
++            AdventureModeDbId[] modes = { AdventureModeDbId.DUNGEON_CRAWL, AdventureModeDbId.LINEAR, AdventureModeDbId.DUNGEON_CRAWL_HEROIC, AdventureModeDbId.EXPERT, AdventureModeDbId.INVALID, AdventureModeDbId.LINEAR_HEROIC, AdventureModeDbId.BONUS_CHALLENGE };
++            AdventureDbId[] supportedAdventures = { AdventureDbId.BOH, AdventureDbId.BOM, AdventureDbId.PRACTICE, AdventureDbId.ROTLK, AdventureDbId.BTP, AdventureDbId.ICC, AdventureDbId.LOOT, AdventureDbId.GIL };
++            foreach (AdventureDef def in adventures)
++            {
++                bool adventureSupported = Array.Exists(supportedAdventures, d => d == def.GetAdventureId()) || HearthstoneAccessConstants.DEV_MODE;
++                for (int i = 0; i < modes.Length; i++)
++                {
++                    AdventureModeDbId mode = modes[i];
++                    if (def.GetSubDef(mode) != null && adventureSupported)
++                    {
++                        m_curMenu.AddOption(def.GetAdventureName() + ": " + def.GetSubDef(mode).GetDescription(), () => ChooseAdventure(def.GetAdventureId(), def.GetSubDef(mode).GetAdventureModeId()));
++                    }
 +                }
 +
 +            }
@@ -2015,11 +2018,16 @@ index 0000000..deda317
 +
 +        private void ChooseAdventure(AdventureDbId adventure, AdventureModeDbId mode)
 +        {
-+            AdventureConfig.Get().SetSelectedAdventureMode(adventure, mode);
-+            if(m_adventureChooserTray.m_ChooseButton.IsEnabled()) {
-+            m_adventureChooserTray.m_ChooseButton.TriggerRelease();
++            AdventureConfig adventureConfig = AdventureConfig.Get();
++            if (adventureConfig.GetSelectedAdventure() != adventure || adventureConfig.GetSelectedMode() != mode)
++            {
++                AdventureConfig.Get().SetSelectedAdventureMode(adventure, mode);
 +            }
-+            else AccessibilityMgr.Output(this,m_adventureChooserTray.m_ChooseButton.m_newPlayButtonText.Text);
++            if (m_adventureChooserTray.m_ChooseButton.IsEnabled())
++            {
++                m_adventureChooserTray.m_ChooseButton.TriggerRelease();
++            }
++            else AccessibilityMgr.Output(this, m_adventureChooserTray.m_ChooseButton.m_newPlayButtonText.Text);
 +        }
 +
 +        private void OnGoBackToHub()
@@ -2062,7 +2070,7 @@ index 0000000..deda317
 +            var deckPickerTrayDisplay = DeckPickerTrayDisplay.Get();
 +            var selectedDeckId = deckPickerTrayDisplay.GetLastChosenDeckId();
 +            var selectedDeckIdx = 0;
-+		if(DeckPickerTrayDisplay.Get().m_collectionButton.IsEnabled()) AccessibilityMgr.Output(this,LocalizationUtils.Format(LocalizationKey.SCREEN_CHOOSE_DECK_COLLECTION_AVAILABLE));
++            if (DeckPickerTrayDisplay.Get().m_collectionButton.IsEnabled()) AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.SCREEN_CHOOSE_DECK_COLLECTION_AVAILABLE));
 +            for (int i = 0, curIdx = 0; i < m_customDeckPages.Count; i++)
 +            {
 +                var page = m_customDeckPages[i];
@@ -2114,12 +2122,12 @@ index 0000000..deda317
 +
 +        public void HandleInput()
 +        {
-+//            		if(AccessibleKey.HUB_JOURNAL.IsPressed()) AccessibilityMgr.Output(null, "state is "+m_curState);
 +            if (m_curState == State.CHOOSING_DECK)
 +            {
 +                m_chooseDeckMenu?.HandleAccessibleInput();
-+                if(DeckPickerTrayDisplay.Get().m_collectionButton.IsEnabled()) {
-+                    if(AccessibleKey.HUB_MY_COLLECTION.IsPressed()) DeckPickerTrayDisplay.Get().m_collectionButton.TriggerRelease();
++                if (DeckPickerTrayDisplay.Get().m_collectionButton.IsEnabled())
++                {
++                    if (AccessibleKey.HUB_MY_COLLECTION.IsPressed()) DeckPickerTrayDisplay.Get().m_collectionButton.TriggerRelease();
 +                }
 +            }
 +            else if (m_curState == State.CHOOSING_OPPONENT)
@@ -2154,11 +2162,11 @@ index 0000000..deda317
 +        {
 +            try
 +            {
-+                                AccessibilityMgr.SetScreen(this);
++                AccessibilityMgr.SetScreen(this);
 +                m_customDeckPages = pages;
 +                m_practiceAIButtons = null; // Cleanup in case we go out of adventure and in again
 +                SetupChooseDeckMenu();
-+                m_curState=State.CHOOSING_DECK;
++                m_curState = State.CHOOSING_DECK;
 +            }
 +            catch (Exception e)
 +            {
@@ -2170,7 +2178,7 @@ index 0000000..deda317
 +        {
 +            chosenDeck = true;
 +            deck.TriggerRelease();
-+           if(m_curSubScene==AdventureData.Adventuresubscene.MISSION_DECK_PICKER) DeckPickerTrayDisplay.Get().m_playButton.TriggerRelease();
++            if (m_curSubScene == AdventureData.Adventuresubscene.MISSION_DECK_PICKER) DeckPickerTrayDisplay.Get().m_playButton.TriggerRelease();
 +        }
 +
 +        public void OnSelectedDeck(CollectionDeckBoxVisual deck)
@@ -32871,7 +32879,7 @@ index 9bd2f29..6751992 100644
  	protected override void Awake()
  	{
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
-index 06e27cf..a189cdd 100644
+index 06e27cf..19459fd 100644
 --- a/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 +++ b/Assembly-CSharp/AdventureDungeonCrawlDisplay.cs
 @@ -11,9 +11,10 @@ using PegasusClient;
@@ -33085,7 +33093,7 @@ index 06e27cf..a189cdd 100644
  	}
  
  	private void OnShowDeckButtonPress(UIEvent e)
-@@ -2356,6 +2346,16 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -2356,6 +2346,10 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  		{
  			Navigation.PushUnique(OnNavigateBackFromCurrentLoadoutState);
  		}
@@ -33093,40 +33101,10 @@ index 06e27cf..a189cdd 100644
 +		{
 +			yield return null;
 +		}
-+		if (!AccessibilityMgr.IsCurrentlyFocused(this))
-+		{
-+			AccessibilityMgr.SetScreen(this);
-+		}
-+		ChooseTreasure();
-+		ReadScreen();
  	}
  
  	private IEnumerator ShowHeroPowerOptionsWhenReady()
-@@ -2372,6 +2372,11 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
- 		{
- 			Navigation.PushUnique(OnNavigateBackFromCurrentLoadoutState);
- 		}
-+		if (!AccessibilityMgr.IsCurrentlyFocused(this))
-+		{
-+			AccessibilityMgr.SetScreen(this);
-+		}
-+		ChooseHeroPower();
- 	}
- 
- 	private IEnumerator ShowDeckOptionsWhenReady()
-@@ -2396,6 +2401,11 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
- 		m_currentLoadoutState = DungeonRunLoadoutState.LOADOUTCOMPLETE;
- 		m_playMat.ShowPVPDRActiveRun(GetPlayButtonTextForNextMission());
- 		m_playMat.PlayButton.SetText(GetPlayButtonTextForNextMission());
-+		if (IsDuels())
-+		{
-+			ReadDuelsMenu();
-+		}
-+
- 		if ((bool)UniversalInputManager.UsePhoneUI)
- 		{
- 			m_dungeonCrawlDeckSelect.deckTray.SetDungeonCrawlDeck(m_dungeonCrawlDeck, playGlowAnimation: false);
-@@ -2404,9 +2414,9 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -2404,9 +2398,9 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  				m_dungeonCrawlDeckSelect.heroDetails.UpdateHeroInfo(m_heroActor.GetEntityDef(), cardDef);
  			}
  			using DefLoader.DisposableCardDef cardDef2 = m_heroPowerActor.ShareDisposableCardDef();
@@ -33138,7 +33116,7 @@ index 06e27cf..a189cdd 100644
  
  	private void OnBossFullDefLoaded(string cardId, DefLoader.DisposableFullDef def, object userData)
  	{
-@@ -2533,8 +2543,8 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -2533,8 +2527,8 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  	{
  		GameUtils.SetParent(m_heroPowerBigCard, bone);
  		using DefLoader.DisposableFullDef heroPowerFullDef = DefLoader.Get().GetFullDef(GameUtils.TranslateDbIdToCardId((int)heroPowerDbId));
@@ -33149,7 +33127,7 @@ index 06e27cf..a189cdd 100644
  
  	private void OnHeroPowerOptionRollout(long heroPowerDbId, GameObject bone)
  	{
-@@ -2650,6 +2660,7 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -2650,6 +2644,7 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  			StartCoroutine(SetPlayMatStateFromGameSaveDataWhenReady());
  		}
  		PlayRewardSelectVO(optionData);
@@ -33157,7 +33135,7 @@ index 06e27cf..a189cdd 100644
  	}
  
  	private void PlayRewardSelectVO(AdventureDungeonCrawlRewardOption.OptionData optionData)
-@@ -2960,6 +2971,7 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -2960,6 +2955,7 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  
  	private void OnDeckCreated(long deckID, string name)
  	{
@@ -33165,33 +33143,14 @@ index 06e27cf..a189cdd 100644
  		if (m_seedDeckCreateRequested)
  		{
  			CollectionDeck deck = CollectionManager.Get().GetDeck(deckID);
-@@ -3177,6 +3189,9 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
- 		m_BackButton.SetEnabled(enabled: false);
- 		m_BackButton.Flip(faceUp: false);
- 		Navigation.PushBlockBackingOut();
-+
-+		AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.DUELS_HEROIC_RUN_ENDED, AccessibleKey.CONFIRM));
-+		m_curAccessibleState = AccessibleState.HEROIC_RUN_COMPLETED;
- 	}
- 
- 	public void EndDuelsSession(long noticeId = 0L)
-@@ -3260,6 +3275,8 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
- 			key = "GLUE_PVPDR_END_OF_RUN_TIER_1_WIN";
- 		}
- 		PvPDungeonRunScene.ShowDuelsMessagePopup(GameStrings.Format("GLUE_PVPDR_END_OF_RUN_HEADER", lastRunWins), GameStrings.Get(key), GameStrings.Format("GLUE_PVPDR_RATING_CHANGE", text), callback);
-+
-+		ReadDuelsRetireScreen(GameStrings.Format("GLUE_PVPDR_END_OF_RUN_HEADER", lastRunWins), GameStrings.Get(key), GameStrings.Format("GLUE_PVPDR_RATING_CHANGE", text));
- 	}
- 
- 	private void OnSessionEndComplete()
-@@ -3269,4 +3286,691 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
+@@ -3269,4 +3265,516 @@ public class AdventureDungeonCrawlDisplay : MonoBehaviour
  		Navigation.PopBlockBackingOut();
  		Navigation.GoBack();
  	}
 +
 +	#region Accessibility
 +
-+	private enum AccessibleState { WAITING, IS_VO_PLAYING, READING_DUELS_MENU, READING_PLAY_MENU, READING_DECK, CHOOSING_HERO_POWER, CHOOSING_TREASURE, CHOOSING_LOOT, RUN_COMPLETED, READING_STATS, CHOOSING_TREASURE_REWARD, HEROIC_RUN_COMPLETED};
++	private enum AccessibleState { WAITING, IS_VO_PLAYING, READING_PLAY_MENU, READING_DECK, CHOOSING_HERO_POWER, CHOOSING_TREASURE, CHOOSING_LOOT, RUN_COMPLETED, READING_STATS, CHOOSING_TREASURE_REWARD}
 +
 +	private AccessibleState m_curAccessibleState;
 +	private AccessibleState m_prevAccessibleState;
@@ -33199,8 +33158,6 @@ index 06e27cf..a189cdd 100644
 +	private AccessibleState m_stateAfterVO;
 +
 +	private AccessibleMenu m_accessibleMenu;
-+	private AccessibleMenu m_duelsMenu;
-+	private AccessibleMultilineText m_accessibleStats;
 +	private AccessibleListOfItems<AccessibleCollectibleCard> m_accessibleDeckTray;
 +	private AccessibleListOfItems<AccessibleCollectibleCard> m_accessibleLootTray;
 +
@@ -33219,7 +33176,6 @@ index 06e27cf..a189cdd 100644
 +	private AdventureDataDbfRecord m_adventureDataRecord;
 +
 +	private Boolean IsTreasureRewardChosen;
-+	//private static Boolean IsDeckBuilt;
 +	private static int LootToRead = 0;
 +	private static int readFirstTime;
 +	public static Boolean ReadMenu = true;
@@ -33227,55 +33183,12 @@ index 06e27cf..a189cdd 100644
 +
 +	private void ReadScreen()
 +    {
-+		var currentId = Enum.GetName(typeof(AdventureDbId), m_dungeonCrawlData.GetSelectedAdventure());
-+		AccessibilityUtils.LogDebug($"AdventureDungeonCrawlDisplay.ReadScreen: current adventure is {currentId}");
-+		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode() && !SceneMgr.Get().IsInTavernBrawlMode())
-+        {
-+			return;
-+        }
-+
 +		AccessibilityMgr.SetScreen(this);
 +
-+		if (ShouldShowRunCompletedScreen() && !IsDuels()) // üüü
++		if (ShouldShowRunCompletedScreen())
 +        {
 +			ReadCompletedScreen();
 +        }
-+		else if (IsDuels()) {
-+			if (m_curAccessibleState == AccessibleState.CHOOSING_HERO_POWER)
-+			{
-+				return;
-+			}
-+			else if (m_curAccessibleState == AccessibleState.CHOOSING_TREASURE)
-+			{
-+				return; // don't read the duels menu after choosing
-+			}
-+			else if (m_curAccessibleState == AccessibleState.CHOOSING_TREASURE_REWARD)
-+			{
-+				return;
-+			}
-+			else if (m_curAccessibleState == AccessibleState.CHOOSING_LOOT)
-+			{
-+				return;
-+			}
-+			else if (ShouldShowRunCompletedScreen())
-+			{
-+				PvPDungeonRunScene.IsRetired = true;
-+				if (PvPDungeonRunDisplay.Get().GetPVPDRLobbyDataModel().IsPaidEntry)
-+				{
-+					AccessibilityMgr.Output(this, LocalizationUtils.Format(LocalizationKey.DUELS_HEROIC_RUN_ENDED, AccessibleKey.CONFIRM));
-+				}
-+				return;
-+			}
-+			else if (m_playMat.GetPlayMatState() != AdventureDungeonCrawlPlayMat.PlayMatState.PVPDR_ACTIVE)
-+			{
-+				return;
-+			}
-+			else
-+			{
-+				ReadDuelsMenu(); // todo can we change this default option in order to stop the menu from appearing we we don't need it?
-+				//CreateDuelsMenu();
-+			}
-+		}
 +		else
 +        {
 +            ReadPlayMenu(); // TODO: Figure out a cleanway to delay this until VO plays that doesn't require refactoring playMat..
@@ -33294,17 +33207,6 @@ index 06e27cf..a189cdd 100644
 +    {
 +		var text = LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_ADVENTURE_COMPLETE);
 +		return AccessibleSpeechUtils.CombineSentences(text, LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_FINISH, AccessibleKey.CONFIRM));
-+    }
-+
-+    private void ReadDuelsRetireScreen(string header, string message, string ratingchange)
-+    {
-+		m_curAccessibleState = AccessibleState.RUN_COMPLETED;
-+		//m_stateAfterVO = AccessibleState.RUN_COMPLETED; // voiceover? n/a
-+		AccessibilityMgr.SetScreen(this);
-+		var outputmessage1 = AccessibleSpeechUtils.CombineSentences(header, message);
-+		var outputmessage2 = AccessibleSpeechUtils.CombineSentences(ratingchange, LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_FINISH, AccessibleKey.CONFIRM));
-+		AccessibilityMgr.Output(this, outputmessage1);
-+		AccessibilityMgr.Output(this, outputmessage2);
 +    }
 +
 +    private void ReadPlayMenu()
@@ -33363,13 +33265,13 @@ index 06e27cf..a189cdd 100644
 +		m_accessibleDeckTray.StartReading();
 +    }
 +
-+    private bool SupportedAdventure()
-+    {
-+		return m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.BOH||m_dungeonCrawlData.GetSelectedAdventure() == AdventureDbId.BOM;
-+    }
-+
-+	private void ChooseHeroPower()
++	internal void ChooseHeroPower()
 +	{
++		if (!AccessibilityMgr.IsCurrentlyFocused(this))
++		{
++			AccessibilityMgr.SetScreen(this);
++		}
++
 +		m_AccessibleHeroPower = new AccessibleHorizontalMenu<AccessibleArenaDraftCard>(this, GameStrings.Get("GLUE_ADVENTURE_DUNGEON_CRAWL_CHOOSE_HERO_POWER"), () => m_BackButton.TriggerRelease());
 +		foreach (var HeroPower in m_playMat.m_heroPowerOptions)
 +		{
@@ -33378,20 +33280,30 @@ index 06e27cf..a189cdd 100644
 +		m_curAccessibleState = AccessibleState.CHOOSING_HERO_POWER;
 +		m_AccessibleHeroPower.StartReading();
 +	}
-+	private void ChooseTreasure()
++
++	internal void ChooseTreasure()
 +	{
++		if (!AccessibilityMgr.IsCurrentlyFocused(this))
++		{
++			AccessibilityMgr.SetScreen(this);
++		}
++
 +		m_AccessibleTreasure = new AccessibleHorizontalMenu<AccessibleArenaDraftCard>(this, GameStrings.Get("GLUE_ADVENTURE_DUNGEON_CRAWL_CHOOSE_TREASURE_SATCHEL"), () => m_BackButton.TriggerRelease());
 +		foreach (var Treasure in m_playMat.m_treasureSatchelOptions)
 +		{
 +			m_AccessibleTreasure.AddOption(new AccessibleArenaDraftCard(this, Treasure.GetEntityDef()), () => Treasure.Select());
 +		}
 +		m_curAccessibleState = AccessibleState.CHOOSING_TREASURE;
++		m_stateAfterVO = AccessibleState.CHOOSING_TREASURE;
 +		m_AccessibleTreasure.StartReading();
-+		PvPDungeonRunScene.ReadMenu = true; // todo
 +	}
 +
-+	private void ChooseTreasureReward()
++	internal void ChooseTreasureReward()
 +	{
++		if (!AccessibilityMgr.IsCurrentlyFocused(this))
++		{
++			AccessibilityMgr.SetScreen(this);
++		}
 +		m_AccessibleTreasureReward = new AccessibleHorizontalMenu<AccessibleArenaDraftCard>(this, GameStrings.Get("GLUE_ADVENTURE_DUNGEON_CRAWL_CHOOSE_TREASURE"), () => m_BackButton.TriggerRelease());
 +
 +		foreach (var TreasureReward in m_playMat.m_rewardOptions)
@@ -33401,14 +33313,20 @@ index 06e27cf..a189cdd 100644
 +			m_AccessibleTreasureReward.AddOption(new AccessibleArenaDraftCard(this, TreasureOptionEntity), () => TreasureReward.m_chooseButton.TriggerRelease());
 +		}
 +		m_curAccessibleState = AccessibleState.CHOOSING_TREASURE_REWARD;
++		m_stateAfterVO = AccessibleState.CHOOSING_TREASURE_REWARD;
 +		m_AccessibleTreasureReward.StartReading();
 +	}
 +
 +
-+	private void ChooseLoot() // todo-loot List<long> classLootOptionsA, List<long> classLootOptionsB, List<long> classLootOptionsC // äää
++	internal void ChooseLoot()
 +	{
++		if (!AccessibilityMgr.IsCurrentlyFocused(this))
++		{
++			AccessibilityMgr.SetScreen(this);
++		}
 +		readFirstTime = 0;
 +		m_curAccessibleState = AccessibleState.CHOOSING_LOOT;
++		m_stateAfterVO = AccessibleState.CHOOSING_LOOT;
 +
 +		List<long> LootOptionsA = null;
 +		List<long> LootOptionsB = null;
@@ -33471,33 +33389,8 @@ index 06e27cf..a189cdd 100644
 +
 +	}
 +
-+
-+	private void ReadDuelsMenu()
-+	{
-+		m_curAccessibleState = AccessibleState.READING_DUELS_MENU;
-+
-+		try {
-+			m_curAccessibleState = AccessibleState.READING_DUELS_MENU;
-+			m_duelsMenu = new AccessibleMenu(this, GameStrings.Get("GLUE_PVPDR"), () => m_BackButton.TriggerRelease());
-+			m_duelsMenu.AddOption(GameStrings.Get(m_playMat.m_playButton.m_newPlayButtonText.Text), m_playMat.ClickPlayButton);
-+			m_duelsMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_ADVENTURE_MENU_READ_DECK_OPTION), ReadDeck);
-+			m_duelsMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_READ_STATS), OnReadStats);
-+			if (m_adventureDataRecord.DungeonCrawlIsRetireSupported)
-+			{
-+				m_duelsMenu.AddOption(LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_ADVENTURE_MENU_RETIRE_OPTION), () => RetireFromAdventure());
-+			}
-+			m_duelsMenu.AddOption(GameStrings.Get("GLOBAL_BACK"), () => m_BackButton.TriggerRelease());
-+			m_duelsMenu.StartReading();
-+		}
-+		catch (Exception e)
-+		{
-+			AccessibilityUtils.LogFatalError(e);
-+		}
-+	}
-+
 +    public void HandleInput()
 +    {
-+
 +		// Wait for VO to finish
 +		if (NotificationManager.Get().IsQuotePlaying)
 +		{
@@ -33515,6 +33408,18 @@ index 06e27cf..a189cdd 100644
 +			{
 +				ReadCompletedScreen();
 +			}
++			else if (m_stateAfterVO == AccessibleState.CHOOSING_LOOT)
++			{
++				ChooseLoot();
++				}
++				else if (m_stateAfterVO == AccessibleState.CHOOSING_TREASURE)
++				{
++					ChooseTreasure();
++				}
++				else if (m_stateAfterVO == AccessibleState.CHOOSING_TREASURE_REWARD)
++				{
++					ChooseTreasureReward();
++				}
 +			else
 +			{
 +				// Repeat menu
@@ -33524,7 +33429,7 @@ index 06e27cf..a189cdd 100644
 +		}
 +
 +		// Normal flow
-+		if (m_curAccessibleState == AccessibleState.READING_PLAY_MENU)
++				if (m_curAccessibleState == AccessibleState.READING_PLAY_MENU)
 +		{
 +			m_accessibleMenu.HandleAccessibleInput();
 +		}
@@ -33532,24 +33437,15 @@ index 06e27cf..a189cdd 100644
 +		{
 +			if (AccessibleKey.BACK.IsPressed())
 +			{
-+				if (IsDuels())
++				if (m_prevAccessibleState == AccessibleState.CHOOSING_TREASURE_REWARD)
 +				{
-+					if (m_prevAccessibleState == AccessibleState.CHOOSING_TREASURE_REWARD)
-+					{
-+						ChooseTreasureReward();
-+						m_curAccessibleState = AccessibleState.CHOOSING_TREASURE_REWARD;
-+
-+					}
-+					else if (m_prevAccessibleState == AccessibleState.CHOOSING_LOOT)
-+					{
-+						ChooseLoot();
-+						m_curAccessibleState = AccessibleState.CHOOSING_LOOT;
-+
-+					}
-+					else{
-+						m_duelsMenu.StartReading();
-+						m_curAccessibleState = AccessibleState.READING_DUELS_MENU;
-+					}
++					ChooseTreasureReward();
++					m_curAccessibleState = AccessibleState.CHOOSING_TREASURE_REWARD;
++				}
++				else if (m_prevAccessibleState == AccessibleState.CHOOSING_LOOT)
++				{
++					ChooseLoot();
++					m_curAccessibleState = AccessibleState.CHOOSING_LOOT;
 +				}
 +				else {
 +					m_accessibleMenu.StartReading();
@@ -33562,41 +33458,6 @@ index 06e27cf..a189cdd 100644
 +				var curCardIdx = m_accessibleDeckTray.GetItemBeingReadIndex();
 +				var cardTiles = m_dungeonCrawlDeckTray.GetCardsContent().GetCardTiles();
 +				AccessibleInputMgr.MoveMouseTo(cardTiles[curCardIdx]);
-+			}
-+		}
-+		else if (m_curAccessibleState == AccessibleState.READING_STATS)
-+		{
-+			if (AccessibleKey.BACK.IsPressed())
-+			{
-+				ReadDuelsMenu();
-+				m_curAccessibleState = AccessibleState.READING_DUELS_MENU;
-+			}
-+			else
-+			{
-+				m_accessibleStats?.HandleAccessibleInput();
-+			}
-+		}
-+		else if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.TRANSITIONING_FROM_PREV_STATE && IsTreasureRewardChosen == true )
-+		{
-+			m_curAccessibleState = AccessibleState.READING_DUELS_MENU; // after chosen loot crate read duels menu again -- todo not needed after first treasure -- but it reads main menu?!
-+		}
-+		else if (m_curAccessibleState == AccessibleState.RUN_COMPLETED)
-+		{
-+			PvPDungeonRunScene.IsRetired = true; // close the popup when returning to DungeonRun
-+			if (AccessibleKey.CONFIRM.IsPressed())
-+			{
-+				PvPDungeonRunScene.ReadMenu = true; // next run
-+				OnSessionEndComplete();
-+			}
-+		}
-+		else if (m_curAccessibleState == AccessibleState.HEROIC_RUN_COMPLETED)
-+		{
-+			if (AccessibleKey.CONFIRM.IsPressed())
-+			{
-+				var vaultButton = m_playMat.GetDuelsPlayMat().m_leverButton.GetPegUIElement();
-+				vaultButton.TriggerPress();
-+				vaultButton.TriggerRelease();
-+				m_curAccessibleState = AccessibleState.WAITING;
 +			}
 +		}
 +		else if (m_curAccessibleState == AccessibleState.CHOOSING_HERO_POWER)
@@ -33644,9 +33505,9 @@ index 06e27cf..a189cdd 100644
 +			}
 +			else if (AccessibleKey.TAKE_LOOT.IsPressed() || AccessibleKey.TAKE_LOOT_ALT.IsPressed())
 +			{
-+				m_curAccessibleState = AccessibleState.READING_DUELS_MENU;
++				m_curAccessibleState = AccessibleState.READING_PLAY_MENU;
 +				m_playMat.m_rewardOptions[LootToRead].m_chooseButton.TriggerRelease();
-+				ReadDuelsMenu(); // read play menu again after choosing treasure
++				ReadPlayMenu();
 +				LootToRead = 0; // read first loot crate again in next run, not the one we took
 +				return;
 +			}
@@ -33687,25 +33548,19 @@ index 06e27cf..a189cdd 100644
 +					break;
 +			}
 +		}
-+		else if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.PVPDR_ACTIVE)
++
++		else if (m_curAccessibleState == AccessibleState.RUN_COMPLETED)
 +		{
-+			if (IsDuels())
++			if (AccessibleKey.CONFIRM.IsPressed())
 +			{
-+				m_duelsMenu.HandleAccessibleInput();
-+			}
-+			else {
-+				m_accessibleMenu.HandleAccessibleInput();
++				m_BackButton.TriggerRelease();
 +			}
 +		}
-+		else if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.SHOWING_OPTIONS)
++
++
++		else if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.TRANSITIONING_FROM_PREV_STATE && IsTreasureRewardChosen == true )
 +		{
-+			if (IsTreasureRewardChosen == true)
-+			{
-+				ChooseLoot();
-+			}
-+			else {
-+				ChooseTreasureReward();
-+			}
++			m_curAccessibleState = AccessibleState.READING_PLAY_MENU; // after chosen loot crate read duels menu again -- todo not needed after first treasure -- but it reads main menu?!
 +		}
 +    }
 +
@@ -33715,25 +33570,7 @@ index 06e27cf..a189cdd 100644
 +        {
 +			return m_accessibleMenu.GetHelp();
 +        }
-+		else if (m_curAccessibleState == AccessibleState.READING_DUELS_MENU)
-+        {
-+			return m_duelsMenu.GetHelp();
-+        }
-+		else if (m_curAccessibleState == AccessibleState.HEROIC_RUN_COMPLETED)
-+		{
-+			return LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_CONTINUE, AccessibleKey.CONFIRM);
-+		}
 +
-+		if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.PVPDR_ACTIVE)
-+		{
-+			if(IsDuels())
-+			{
-+				return m_duelsMenu.GetHelp();
-+			}
-+			else {
-+				return m_accessibleMenu.GetHelp();
-+			}
-+		}
 +		else if (m_curAccessibleState == AccessibleState.RUN_COMPLETED)
 +        {
 +			return GetAdventureCompleteSpeech();
@@ -33793,25 +33630,6 @@ index 06e27cf..a189cdd 100644
 +		{
 +			m_AccessibleLoot.StartReading();
 +		}
-+		else if (m_curAccessibleState == AccessibleState.READING_STATS)
-+		{
-+			m_accessibleStats.ReadAllLines();
-+		}
-+		else if (m_curAccessibleState == AccessibleState.READING_DUELS_MENU)
-+        {
-+			//m_duelsMenu.StartReading();
-+			ReadDuelsMenu(); // refresh menu for play button to be updated
-+        }
-+		else if (m_playMat.GetPlayMatState() == AdventureDungeonCrawlPlayMat.PlayMatState.PVPDR_ACTIVE)
-+		{
-+			if (IsDuels() && m_curAccessibleState != AccessibleState.RUN_COMPLETED)
-+			{
-+				m_duelsMenu?.StartReading();
-+			}
-+			else {
-+				m_accessibleMenu?.StartReading();
-+			}
-+		}
 +		else
 +        {
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_TITLE));
@@ -33840,40 +33658,6 @@ index 06e27cf..a189cdd 100644
 +        DialogManager.Get().ShowPopup(popupInfo);
 +    }
 +
-+	public Boolean IsDuels()
-+	{
-+		if (SceneMgr.Get().IsInDuelsMode())
-+		{
-+			return true;
-+		}
-+		else {
-+			return false;
-+		}
-+	}
-+
-+	private void OnReadStats()
-+	{
-+		PVPDRLobbyDataModel pVPDRLobbyDataModel = PvPDungeonRunDisplay.Get().GetPVPDRLobbyDataModel();
-+		TAG_CLASS tagClassFromCardDbId = GameUtils.GetTagClassFromCardDbId((int)m_dungeonCrawlData.SelectedHeroCardDbId);
-+
-+		var WinsCount = pVPDRLobbyDataModel.Wins;
-+		var LossesCount = pVPDRLobbyDataModel.Losses;
-+		var LivesLeft = 3 - LossesCount;
-+		//var TotalWinsCount = GetBossWinsForClass(tagClassFromCardDbId);
-+		var TotalWinsCount = m_bossKillCounter.m_bossWins;
-+		var HeroName = DefLoader.Get().GetEntityDef((int)m_dungeonCrawlData.SelectedHeroCardDbId).GetName();
-+
-+
-+		var lines = new List<string>();
-+		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(GameStrings.Get("GLUE_PVPDR_LABEL_VAULT_WINS"), $"{WinsCount}"));
-+		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(LocalizationUtils.Get(LocalizationKey.SCREEN_DUELS_LOSSES_COUNT), $"{LossesCount}"));
-+		lines.Add(AccessibleSpeechUtils.CombineWordsWithColon(GameStrings.Format("GLUE_PVPDR_BEST_WINS_AS_CLASS", HeroName), $"{TotalWinsCount}"));
-+		m_accessibleStats = new AccessibleMultilineText(this, lines);
-+		m_accessibleStats.ReadAllLines();
-+		m_curAccessibleState = AccessibleState.READING_STATS;
-+
-+	}
-+
 +    #endregion
  }
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlHeroPowerOption.cs b/Assembly-CSharp/AdventureDungeonCrawlHeroPowerOption.cs
@@ -33892,7 +33676,7 @@ index 417febc..1c5e053 100644
 +    #endregion
  }
 diff --git a/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs b/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs
-index fedd698..86c0647 100644
+index fedd698..1d002d6 100644
 --- a/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs
 +++ b/Assembly-CSharp/AdventureDungeonCrawlPlayMat.cs
 @@ -8,6 +8,7 @@ using Hearthstone.DungeonCrawl;
@@ -33972,7 +33756,24 @@ index fedd698..86c0647 100644
  	}
  
  	public void HideBossHeroPowerTooltip(bool immediate = false)
-@@ -1889,4 +1893,23 @@ public class AdventureDungeonCrawlPlayMat : MonoBehaviour
+@@ -1494,6 +1498,16 @@ public class AdventureDungeonCrawlPlayMat : MonoBehaviour
+ 			}
+ 			num++;
+ 		}
++
++		switch (m_currentOptionType)
++		{
++			case OptionType.TREASURE:
++			AdventureDungeonCrawlDisplay.Get().ChooseTreasureReward();
++			break;
++			case OptionType.LOOT:
++			AdventureDungeonCrawlDisplay.Get().ChooseLoot();
++			break;
++		}
+ 	}
+ 
+ 	private IEnumerator PlayWidgetOptionAnimations(IEnumerable<AdventureOptionWidget> options, float dropDelay)
+@@ -1889,4 +1903,23 @@ public class AdventureDungeonCrawlPlayMat : MonoBehaviour
  			}
  		}
  	}
@@ -75976,7 +75777,7 @@ index 6a34c7c..9aaed65 100644
  	}
  }
 diff --git a/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs b/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs
-index 777e5dc..1fc1c96 100644
+index 777e5dc..b7fa55d 100644
 --- a/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs
 +++ b/Assembly-CSharp/GuestHeroPickerTrayDisplay.cs
 @@ -5,9 +5,10 @@ using Hearthstone.DataModels;
@@ -76034,7 +75835,7 @@ index 777e5dc..1fc1c96 100644
  
  	protected override void PlayGame()
  	{
-@@ -649,16 +652,122 @@ public class GuestHeroPickerTrayDisplay : AbsDeckPickerTrayDisplay
+@@ -649,16 +652,101 @@ public class GuestHeroPickerTrayDisplay : AbsDeckPickerTrayDisplay
  			return;
  		}
  		HeroClassIconsDataModel heroClassIconsDataModel = new HeroClassIconsDataModel();
@@ -76042,8 +75843,7 @@ index 777e5dc..1fc1c96 100644
 -		EntityDef entityDef = disposableFullDef?.EntityDef;
 -		if (entityDef == null)
 +		using (DefLoader.DisposableFullDef disposableFullDef = button.ShareFullDef())
- 		{
--			Debug.LogWarning("GuestHeroPickerTrayDisplay.UpdateSelectedHeroClasses - button did not contain an entity def!");
++		{
 +			EntityDef entityDef = disposableFullDef?.EntityDef;
 +			if (entityDef == null)
 +			{
@@ -76069,31 +75869,11 @@ index 777e5dc..1fc1c96 100644
 +
 +	private void ReadPickerTrayDisplay()
 +	{
-+		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode() && !SceneMgr.Get().IsInTavernBrawlMode())
-+        {
- 			return;
-+        }
-+
 +		AccessibilityMgr.SetScreen(this);
 +
 +		var menuTitle = LocalizationUtils.Get(LocalizationKey.SCREEN_ADVENTURE_SCREEN_CHOOSE_ADVENTURER_TITLE);
 +		var accessibleHeroPickerButtons = new AccessibleHorizontalMenu<AccessibleHeroPickerButton>(this, menuTitle, PressBackButton);
 +
-+		var numSupportedBoHHeroes = 11; // Jaina, Rexxar, Garrosh, Uther, Anduin, Valeera, Thrall
-+				var numSupportedBoMHeroes = 10; // Jaina, Rexxar, Garrosh, Uther, Anduin, Valeera, Thrall
-+				var numSupportedDuelsHeroes = 6;
-+		var selectedAdventure = AdventureConfig.Get().SelectedAdventure;
-+		var numSupported=0;
-+		if(selectedAdventure==AdventureDbId.BOH) numSupported=numSupportedBoHHeroes;
-+		if(selectedAdventure==AdventureDbId.BOM) numSupported=numSupportedBoMHeroes;
-+		if (SceneMgr.Get().IsInDuelsMode())
-+		{
-+			numSupported = numSupportedDuelsHeroes;
- 		}
--		heroClassIconsDataModel.Classes.Clear();
--		entityDef.GetClasses(heroClassIconsDataModel.Classes);
--		heroClassIconsDataModel.Classes.Sort((TAG_CLASS a, TAG_CLASS b) => (a == TAG_CLASS.NEUTRAL) ? 1 : (-1));
--		component.Owner.BindDataModel(heroClassIconsDataModel);
 +		foreach (var hb in m_heroButtons)
 +        {
 +			accessibleHeroPickerButtons.AddOption(new AccessibleHeroPickerButton(this, hb), () => ChooseHero(hb));
@@ -76103,7 +75883,7 @@ index 777e5dc..1fc1c96 100644
 +		m_accessibleHeroPickerButtons.StartReading();
 +
 +		m_curAccessibleState = AccessibleState.ADVENTURE_CHOOSING_HERO;
- 	}
++	}
 +
 +    private void ChooseHero(HeroPickerButton hb)
 +    {
@@ -76112,11 +75892,6 @@ index 777e5dc..1fc1c96 100644
 +
 +    protected override void OnChosenHero()
 +    {
-+		if (!SupportedAdventure() && !SceneMgr.Get().IsInDuelsMode())
-+        {
-+			return;
-+        }
-+
 +        m_curAccessibleState = AccessibleState.ADVENTURE_HERO_CHOSEN;
 +        AccessibilityMgr.Output(this, AccessibleSpeech.PRESS_ENTER_TO_START);
 +    }
@@ -76124,9 +75899,14 @@ index 777e5dc..1fc1c96 100644
 +	public void HandleInput()
 +	{
 +		if (m_curAccessibleState == AccessibleState.LOADING)
-+		{
-+			return;
-+		}
+ 		{
+-			Debug.LogWarning("GuestHeroPickerTrayDisplay.UpdateSelectedHeroClasses - button did not contain an entity def!");
+ 			return;
+ 		}
+-		heroClassIconsDataModel.Classes.Clear();
+-		entityDef.GetClasses(heroClassIconsDataModel.Classes);
+-		heroClassIconsDataModel.Classes.Sort((TAG_CLASS a, TAG_CLASS b) => (a == TAG_CLASS.NEUTRAL) ? 1 : (-1));
+-		component.Owner.BindDataModel(heroClassIconsDataModel);
 +		else if (m_curAccessibleState == AccessibleState.ADVENTURE_CHOOSING_HERO)
 +        {
 +            m_accessibleHeroPickerButtons?.HandleAccessibleInput();
@@ -76156,7 +75936,7 @@ index 777e5dc..1fc1c96 100644
 +        }
 +
 +		return "";
-+	}
+ 	}
 +
 +	public void OnGainedFocus()
 +	{
