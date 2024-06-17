@@ -172,6 +172,12 @@ The situation with older solo adventures is similar to that of tavern brawls, as
 [05] Changelog
 ----------
 
+### 2024-06-17
+
+- Updated to Hearthstone version 29.6.0.201108 (contributed by Endefx)
+- The Dungeon Run and Monster Hunt adventures are now accessible (contributed by Endefx)
+- Fixed an issue where health changes to heroes in Twist were not being reflected properly (contributed by Endefx)
+
 ### 2024-06-01
 
 - Implemented full support for the "Whizbang’s Heroes" season in Twist (contributed by Endefx)
