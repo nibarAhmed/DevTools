@@ -21205,10 +21205,10 @@ index 0000000..b2631d1
 +}
 diff --git a/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
 new file mode 100644
-index 0000000..8a6cf4f
+index 0000000..650a89a
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/CollectionManager/AccessibleCollectionDeckBoxVisual.cs
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,158 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using Hearthstone.Progression;
@@ -21297,12 +21297,26 @@ index 0000000..8a6cf4f
 +                ret.Add(LocalizationUtils.Format(LocalizationKey.SCREEN_TWIST_HEROIC_DECK_LOCKED, entityDef.GetName()));
 +            }
 +
-+            ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_HEALTH, heroCard.GetHealth()));
++            ret.Add(LocalizationUtils.Format(LocalizationKey.READ_HERO_CARD_HEALTH, GetTwistHeroHealth(heroCard)));
 +            ret.Add(LocalizationUtils.Format(LocalizationKey.SCREEN_TWIST_CARDS_IN_DECK, collectionDeck.GetTotalCardCount()));
 +            ret.AddRange(AccessibleCardUtils.GetHeroPowerCardLinesForHeroCard(collectionDeck.HeroCardID));
 +            ret.AddRange(AccessibleCardUtils.GetPassiveAbilityCardLinesForHeroCard(collectionDeck.HeroCardID));
 +            ret.Add(LocalizationUtils.Format(LocalizationKey.PRESS_KEY_TO_READ_DETAILS, AccessibleKey.SPACE));
 +            return ret;
++        }
++
++        private int GetTwistHeroHealth(EntityDef heroCard)
++        {
++            NetCache.CardDefinition key = new NetCache.CardDefinition {
++                Name = heroCard.GetCardId(),
++                Premium  = TAG_PREMIUM.NORMAL
++            };
++
++            if ((NetCache.Get()?.GetNetObject<NetCache.NetCacheFeatures>()?.TwistHeroicDeckHeroHealthOverrides?.TryGetValue(key, out int healthOverride) ?? false))
++            {
++                return healthOverride;
++            }
++            return heroCard.GetHealth();
 +        }
 +
 +
