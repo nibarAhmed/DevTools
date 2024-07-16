@@ -7753,10 +7753,10 @@ index 0000000..c5078ac
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleInGameState.cs b/Assembly-CSharp/Accessibility/AccessibleInGameState.cs
 new file mode 100644
-index 0000000..8a6ec1d
+index 0000000..d6cc146
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleInGameState.cs
-@@ -0,0 +1,2332 @@
+@@ -0,0 +1,2341 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -7959,7 +7959,7 @@ index 0000000..8a6ec1d
 +
 +            private static bool IsAbleToLive(Entity entity)
 +            {
-+                return entity.IsCharacter() || entity.IsWeapon() || entity.IsObjective();
++                return entity.IsCharacter() || entity.IsWeapon() || entity.IsObjective() || entity.IsLocation();
 +            }
 +
 +            internal EntitySpeech GetDeathSpeech()
@@ -7978,6 +7978,10 @@ index 0000000..8a6ec1d
 +                else if (m_after.IsObjective())
 +                {
 +                    return new EntitySpeech(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_AURA_FADED), LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_AURAS_FADED));
++                }
++                else if (m_after.IsLocation())
++                {
++                    return new EntitySpeech(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_LOCATION_WAS_DESTROYED), LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_LOCATIONS_WERE_DESTROYED));
 +                }
 +                else
 +                {
@@ -8157,6 +8161,11 @@ index 0000000..8a6ec1d
 +                {
 +                    sDescriptions.Add(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_ENTITY_WAS_HAUNTED));
 +                    pDescriptions.Add(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_ENTITIES_WERE_HAUNTED));
++                }
++                if (m_after.IsLocation() && m_before.IsExhausted() && !m_after.IsExhausted())
++                {
++                    sDescriptions.Add(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_LOCATION_REOPENED));
++                    pDescriptions.Add(LocalizationUtils.Get(LocalizationKey.GAMEPLAY_DIFF_MULTIPLE_LOCATIONS_REOPENED));
 +                }
 +                if (!m_before.IsSilenced() && m_after.IsSilenced())
 +                {
@@ -13003,10 +13012,10 @@ index 0000000..a2fd21e
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
 new file mode 100644
-index 0000000..1b9911a
+index 0000000..f56f435
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessiblePlayDescriber.cs
-@@ -0,0 +1,602 @@
+@@ -0,0 +1,615 @@
 +﻿using Assets;
 +using System;
 +using System.Collections.Generic;
@@ -13370,6 +13379,19 @@ index 0000000..1b9911a
 +                    play = LocalizationUtils.Format(LocalizationKey.GAMEPLAY_OPPONENT_PLAYED_CARD_BIG_CARD, cardName, cardText);
 +                }
 +            }
++            else if (card.IsLocation())
++            {
++                var durability = card.GetHealth();
++                if (isFriendlySide)
++                {
++                    play = LocalizationUtils.Format(LocalizationKey.GAMEPLAY_PLAYER_PLAYED_LOCATION_BIG_CARD, cardName, durability, cardText);
++                }
++                else
++                {
++                    play = LocalizationUtils.Format(LocalizationKey.GAMEPLAY_OPPONENT_PLAYED_LOCATION_BIG_CARD, cardName, durability, cardText);
++                }
++            }
++
 +            else
 +            {
 +                Log.Accessibility.Print($"GetBigCardPlayedText unknown type: {card.GetName()} / type = {card.GetCardType()}");
@@ -25565,10 +25587,10 @@ index 0000000..fb167df
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 0000000..0b7b939
+index 0000000..8c7a7f6
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1199 @@
+@@ -0,0 +1,1205 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -25762,6 +25784,8 @@ index 0000000..0b7b939
 +    public static LocalizationKey GAMEPLAY_PLAYER_CAST_SECRET_BIG_CARD = CreateKey("ACCESSIBILITY_GAMEPLAY_PLAYER_CAST_SECRET_BIG_CARD");
 +    public static LocalizationKey GAMEPLAY_OPPONENT_CAST_SECRET = CreateKey("ACCESSIBILITY_GAMEPLAY_OPPONENT_CAST_SECRET");
 +    public static LocalizationKey GAMEPLAY_OPPONENT_CAST_N_SECRETS = CreateKey("ACCESSIBILITY_GAMEPLAY_OPPONENT_CAST_N_SECRETS");
++    public static LocalizationKey GAMEPLAY_PLAYER_PLAYED_LOCATION_BIG_CARD = CreateKey("ACCESSIBILITY_GAMEPLAY_PLAYER_PLAYED_LOCATION_BIG_CARD");
++    public static LocalizationKey GAMEPLAY_OPPONENT_PLAYED_LOCATION_BIG_CARD = CreateKey("ACCESSIBILITY_GAMEPLAY_OPPONENT_PLAYED_LOCATION_BIG_CARD");
 +    public static LocalizationKey GAMEPLAY_PLAYER_DREW_CARD_FROM_EMPTY_DECK = CreateKey("ACCESSIBILITY_GAMEPLAY_PLAYER_DREW_CARD_FROM_EMPTY_DECK");
 +    public static LocalizationKey GAMEPLAY_OPPONENT_DREW_CARD_FROM_EMPTY_DECK = CreateKey("ACCESSIBILITY_GAMEPLAY_OPPONENT_DREW_CARD_FROM_EMPTY_DECK");
 +    public static LocalizationKey GAMEPLAY_PLAYER_DREW_CARD_BUT_BURNED = CreateKey("ACCESSIBILITY_GAMEPLAY_PLAYER_DREW_CARD_BUT_BURNED");
@@ -25871,6 +25895,10 @@ index 0000000..0b7b939
 +    public static LocalizationKey GAMEPLAY_DIFF_WEAPON_BROKE = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_WEAPON_BROKE");
 +    public static LocalizationKey GAMEPLAY_DIFF_AURA_FADED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_AURA_FADED");
 +    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_AURAS_FADED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_AURAS_FADED");
++    public static LocalizationKey GAMEPLAY_DIFF_LOCATION_WAS_DESTROYED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_LOCATION_WAS_DESTROYED");
++    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_LOCATIONS_WERE_DESTROYED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_LOCATIONS_WERE_DESTROYED");
++    public static LocalizationKey GAMEPLAY_DIFF_LOCATION_REOPENED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_LOCATION_REOPENED");
++    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_LOCATIONS_REOPENED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_LOCATIONS_REOPENED");
 +    public static LocalizationKey GAMEPLAY_DIFF_ENTITY_TRANSFORMED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_ENTITY_TRANSFORMED");
 +    public static LocalizationKey GAMEPLAY_DIFF_MULTIPLE_ENTITIES_TRANSFORMED = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_MULTIPLE_ENTITIES_TRANSFORMED");
 +    public static LocalizationKey GAMEPLAY_DIFF_ENTITY_TOOK_N_DAMAGE = CreateKey("ACCESSIBILITY_GAMEPLAY_DIFF_ENTITY_TOOK_N_DAMAGE");
