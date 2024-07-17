@@ -1,3 +1,10 @@
+### 2024-07-16
+
+- Updated to Hearthstone version 30.0.0.203120 (contributed by Endefx)
+- Improvements for the mod's handling of locations (all contributed by Endefx):
+- - When a location is reopened or destroyed, this will now be narrated
+- - When the opponent or spectated player plays a location, the full text is now read (the behavior now matches other card types)
+
 ### 2024-06-18
 
 - Updated to Hearthstone version 29.6.0.201392
