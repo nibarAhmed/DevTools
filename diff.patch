@@ -4000,10 +4000,10 @@ index 00000000..4127bfcd
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleGameplay.cs b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
 new file mode 100644
-index 00000000..e6ada19b
+index 00000000..e0f96f2e
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleGameplay.cs
-@@ -0,0 +1,2890 @@
+@@ -0,0 +1,2980 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -4060,7 +4060,7 @@ index 00000000..e6ada19b
 +        protected GameState.ResponseMode m_curResponseMode;
 +        protected GameState.ResponseMode m_prevResponseMode;
 +
-+        protected Zone m_curZone;
++        protected IZone m_curZone;
 +
 +        protected AccessibleCard m_cardBeingRead;
 +
@@ -4079,6 +4079,8 @@ index 00000000..e6ada19b
 +
 +        // Choice mode
 +        protected AccessibleListOfItems<AccessibleCard> m_accessibleChoiceCards;
++
++        protected bool m_waitingForChoiceConfirmation; // Multi-step choices (currently just BG trinkets)
 +
 +        // Mulligan
 +        protected AccessibleListOfItems<AccessibleCard> m_accessibleMulliganCards;
@@ -4298,11 +4300,11 @@ index 00000000..e6ada19b
 +        {
 +            m_cardBeingRead = AccessibleCard.CreateCard(this, card);
 +            var prevZone = m_curZone;
-+            m_curZone = card.GetZone();
++            m_curZone = card.GetAccessibleZone();
 +            ReadZoneChangeIfNecessary(card, prevZone, m_curZone, forceZoneRead);
 +        }
 +
-+        protected void ReadZoneChangeIfNecessary(Card card, Zone fromZone, Zone toZone, bool forceZoneRead)
++        protected void ReadZoneChangeIfNecessary(Card card, IZone fromZone, IZone toZone, bool forceZoneRead)
 +        {
 +            if (fromZone == toZone && !forceZoneRead)
 +            {
@@ -4312,7 +4314,7 @@ index 00000000..e6ada19b
 +            var player = GameState.Get().GetFriendlySidePlayer();
 +            var opponent = GameState.Get().GetOpposingSidePlayer();
 +
-+            if (card.GetEntity() == player.GetHeroPower())
++            if (card == GetPlayerHeroPower())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_PLAYER_HERO_POWER));
 +            }
@@ -4328,7 +4330,7 @@ index 00000000..e6ada19b
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_OPPONENT_WEAPON));
 +            }
-+            else if (toZone == player.GetHandZone())
++            else if (toZone == GetPlayerHand())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_PLAYER_HAND));
 +            }
@@ -4336,21 +4338,25 @@ index 00000000..e6ada19b
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_OPPONENT_HAND)); // Not needed atm
 +            }
-+            else if (toZone == player.GetBattlefieldZone())
++            else if (toZone == GetPlayerMinions())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_PLAYER_MINIONS));
 +            }
-+            else if (toZone == opponent.GetBattlefieldZone())
++            else if (toZone == GetOpponentMinions())
 +            {
 +                ReadOpponentZoneName();
 +            }
-+            else if (toZone == player.GetSecretZone())
++            else if (toZone == GetPlayerSecrets())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_PLAYER_SECRETS));
 +            }
-+            else if (toZone == opponent.GetSecretZone())
++            else if (toZone == GetOpponentSecrets())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_ZONE_OPPONENT_SECRETS)); // Not needed atm
++            }
++            else if (card.GetEntity().IsBattlegroundTrinket())
++            {
++                AccessibilityMgr.Output(this, LocalizationUtils.Get(card.GetEntity().IsControlledByFriendlySidePlayer() ? LocalizationKey.BATTLEGROUNDS_GAMEPLAY_ZONE_PLAYER_TRINKETS : LocalizationKey.BATTLEGROUNDS_GAMEPLAY_ZONE_OPPONENT_TRINKETS));
 +            }
 +        }
 +
@@ -4694,7 +4700,7 @@ index 00000000..e6ada19b
 +
 +        private bool CanTradeCard(Card card)
 +        {
-+            if (card == null || card.GetZone() != GameState.Get().GetFriendlySidePlayer().GetHandZone())
++            if (card == null || card.GetAccessibleZone() != GameState.Get().GetFriendlySidePlayer().GetHandZone())
 +            {
 +                return false;
 +            }
@@ -5057,7 +5063,7 @@ index 00000000..e6ada19b
 +                return;
 +            }
 +
-+            if (m_cardBeingRead.GetCard().GetZone() != GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone())
++            if (m_cardBeingRead.GetCard().GetAccessibleZone() != GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone())
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_SEND_TO_FACE_NOT_FRIENDLY_MINION));
 +                return;
@@ -5105,7 +5111,7 @@ index 00000000..e6ada19b
 +
 +            foreach (var entity in faceTargetters)
 +            {
-+                if (entity.IsMinion() && !entity.HasUsableTitanAbilities() && entity.GetCard()?.GetZone() == GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone())
++                if (entity.IsMinion() && !entity.HasUsableTitanAbilities() && entity.GetCard()?.GetAccessibleZone() == GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone())
 +                {
 +                    ret.Add(entity.GetCard());
 +                }
@@ -5170,6 +5176,11 @@ index 00000000..e6ada19b
 +                AccessibilityUtils.LogFatalError(e);
 +            }
 +
++            if (HandleChoiceConfirmation())
++            {
++                return true;
++            }
++
 +            if (AccessibleKey.CONFIRM.IsPressed())
 +            {
 +                AccessibleInputMgr.MoveMouseTo(m_cardBeingRead.GetCard());
@@ -5186,6 +5197,24 @@ index 00000000..e6ada19b
 +            return true;
 +        }
 +
++        private bool HandleChoiceConfirmation()
++        {
++            if (!m_waitingForChoiceConfirmation)
++            {
++                return false;
++            }
++            if (AccessibleKey.CONFIRM.IsPressed())
++            {
++                ChoiceCardMgr.Get().GetConfirmButton().TriggerRelease();
++            }
++            else if (AccessibleKey.BACK.IsPressed())
++            {
++                m_waitingForChoiceConfirmation = false;
++                m_accessibleChoiceCards.StartReading();
++            }
++            return true;
++        }
++
 +        protected bool IsTargetChoice()
 +        {
 +            return GameState.Get().GetFriendlyEntityChoices()?.ChoiceType == CHOICE_TYPE.TARGET;
@@ -5195,6 +5224,13 @@ index 00000000..e6ada19b
 +        {
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_CHOICES_HIDDEN));
 +            StopReadingCard();
++            m_waitingForChoiceConfirmation = false;
++        }
++
++        public void OnWaitingForChoiceConfirmation()
++        {
++            m_waitingForChoiceConfirmation = true;
++            AccessibilityMgr.Output(this, LocalizedText.GLOBAL_PRESS_ENTER_TO_CONFIRM_OR_BACKSPACE_TO_CANCEL);
 +        }
 +
 +        protected void HandleTargetMode()
@@ -5205,7 +5241,7 @@ index 00000000..e6ada19b
 +                m_forceAnnounceChooseTarget = false;
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_CHOOSE_TARGET));
 +
-+                if (m_cardBeingRead != null && m_cardBeingRead.GetCard().GetZone() == GameState.Get().GetFriendlySidePlayer().GetHandZone())
++                if (m_cardBeingRead != null && m_cardBeingRead.GetCard().GetAccessibleZone() == GameState.Get().GetFriendlySidePlayer().GetHandZone())
 +                {
 +                    StopReadingCard(false);
 +                }
@@ -5343,6 +5379,7 @@ index 00000000..e6ada19b
 +                {
 +                    // Potential race condition when multiple choices happen in a game
 +                    m_accessibleChoiceCards = null;
++                    m_waitingForChoiceConfirmation = false;
 +                }
 +            }
 +        }
@@ -5354,7 +5391,7 @@ index 00000000..e6ada19b
 +                return;
 +            }
 +
-+            if (m_cardBeingRead.GetCard().GetZone() != m_curZone)
++            if (m_cardBeingRead.GetCard().GetAccessibleZone() != m_curZone)
 +            {
 +                StopReadingCard();
 +            }
@@ -5566,7 +5603,7 @@ index 00000000..e6ada19b
 +
 +        protected void SeeOpponentMinions()
 +        {
-+            var opponentMinions = GameState.Get().GetOpposingSidePlayer().GetBattlefieldZone();
++            var opponentMinions = GetOpponentMinions();
 +
 +            if (opponentMinions.GetCardCount() == 0)
 +            {
@@ -5578,6 +5615,11 @@ index 00000000..e6ada19b
 +            }
 +        }
 +
++        protected virtual IZone GetOpponentMinions()
++        {
++            return GameState.Get().GetOpposingSidePlayer().GetBattlefieldZone();
++        }
++
 +        protected virtual void ReadOpponentMinionsEmpty()
 +        {
 +            AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_SEE_ZONE_OPPONENT_MINIONS_EMPTY));
@@ -5585,7 +5627,7 @@ index 00000000..e6ada19b
 +
 +        protected void SeePlayerMinions()
 +        {
-+            var playerMinions = GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone();
++            var playerMinions = GetPlayerMinions();
 +
 +            if (playerMinions.GetCardCount() == 0)
 +            {
@@ -5597,9 +5639,14 @@ index 00000000..e6ada19b
 +            }
 +        }
 +
++        protected virtual IZone GetPlayerMinions()
++        {
++            return GameState.Get().GetFriendlySidePlayer().GetBattlefieldZone();
++        }
++
 +        protected void SeePlayerSecrets()
 +        {
-+            var playerSecrets = GameState.Get().GetFriendlySidePlayer().GetSecretZone();
++            var playerSecrets = GetPlayerSecrets();
 +
 +            if (playerSecrets.GetCardCount() == 0)
 +            {
@@ -5611,9 +5658,14 @@ index 00000000..e6ada19b
 +            }
 +        }
 +
++        protected virtual  IZone GetPlayerSecrets()
++        {
++            return GameState.Get().GetFriendlySidePlayer().GetSecretZone();
++        }
++
 +        protected void SeeOpponentSecrets()
 +        {
-+            var opponentSecrets = GameState.Get().GetOpposingSidePlayer().GetSecretZone();
++            var opponentSecrets = GetOpponentSecrets();
 +
 +            if (opponentSecrets.GetCardCount() == 0)
 +            {
@@ -5625,20 +5677,34 @@ index 00000000..e6ada19b
 +            }
 +        }
 +
++        protected virtual IZone GetOpponentSecrets()
++        {
++            return GameState.Get().GetOpposingSidePlayer().GetSecretZone();
++        }
 +
 +        protected void SeeOpponentHero()
 +        {
-+            FocusOnCard(GameState.Get().GetOpposingSidePlayer().GetHeroCard(), false);
++            FocusOnCard(GetOpponentHero(), false);
 +        }
 +
 +        protected void SeePlayerHero()
 +        {
-+            FocusOnCard(GameState.Get().GetFriendlySidePlayer().GetHeroCard(), false);
++            FocusOnCard(GetPlayerHero(), false);
++        }
++
++        protected virtual Card GetPlayerHero()
++        {
++            return GameState.Get().GetFriendlySidePlayer().GetHeroCard();
++        }
++
++        protected virtual Card GetOpponentHero()
++        {
++            return GameState.Get().GetOpposingSidePlayer().GetHeroCard();
 +        }
 +
 +        protected void SeePlayerHeroPower()
 +        {
-+            var heroPower = GameState.Get().GetFriendlySidePlayer().GetHeroPowerCard();
++            var heroPower = GetPlayerHeroPower();
 +            if (heroPower != null)
 +            {
 +                FocusOnCard(heroPower, false);
@@ -5647,6 +5713,11 @@ index 00000000..e6ada19b
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_SEE_ZONE_PLAYER_HERO_POWER_EMPTY));
 +            }
++        }
++
++        protected virtual Card GetPlayerHeroPower()
++        {
++            return GameState.Get().GetFriendlySidePlayer().GetHeroPowerCard();
 +        }
 +
 +        protected void SeeOpponentHeroPower()
@@ -6049,11 +6120,11 @@ index 00000000..e6ada19b
 +
 +            var speech = m_cardBeingRead.GetLine(0);
 +
-+            var zonePos = card.GetZone().FindCardPos(card); // card.GetZonePosition() isn't trustworthy. Wasn't working for secrets
++            var zonePos = card.GetAccessibleZone().FindCardPos(card); // card.GetAccessibleZonePosition() isn't trustworthy. Wasn't working for secrets
 +
 +            if (ShouldReadCardAsList(card))
 +            {
-+                AccessibilityMgr.Output(this, AccessibleSpeech.MENU_OPTION(speech, zonePos, card.GetZone().GetCardCount()));
++                AccessibilityMgr.Output(this, AccessibleSpeech.MENU_OPTION(speech, zonePos, card.GetAccessibleZone().GetCardCount()));
 +            }
 +            else
 +            {
@@ -6067,20 +6138,20 @@ index 00000000..e6ada19b
 +        {
 +            var player = GameState.Get().GetFriendlySidePlayer();
 +            var opponent = GameState.Get().GetOpposingSidePlayer();
++            var zone = card.GetAccessibleZone();
 +
-+            var cardZone = card.GetZone();
-+
-+            return cardZone == player.GetHandZone() ||
-+                cardZone == opponent.GetHandZone() ||
-+                cardZone == player.GetBattlefieldZone() ||
-+                cardZone == opponent.GetBattlefieldZone() ||
-+                cardZone == player.GetSecretZone() ||
-+                cardZone == opponent.GetSecretZone();
++            return zone == GetPlayerHand() ||
++                zone == opponent.GetHandZone() ||
++                zone == GetPlayerMinions() ||
++                zone == GetOpponentMinions() ||
++                zone == GetPlayerSecrets() ||
++                zone == GetOpponentSecrets() ||
++                card.GetEntity().IsBattlegroundTrinket();
 +        }
 +
 +        protected virtual void MoveMouseToCard(Card card)
 +        {
-+            if (card.GetZone()?.GetType() == typeof(ZoneHand))
++            if (card.GetAccessibleZone()?.GetType() == typeof(ZoneHand))
 +            {
 +                if (!card.IsMousedOver())
 +                {
@@ -6173,7 +6244,7 @@ index 00000000..e6ada19b
 +
 +        protected void SeePlayerHand()
 +        {
-+            var playerHand = GameState.Get().GetFriendlySidePlayer().GetHandZone();
++            var playerHand = GetPlayerHand();
 +            if (playerHand.GetCardCount() == 0)
 +            {
 +                AccessibilityMgr.Output(this, LocalizationUtils.Get(LocalizationKey.GAMEPLAY_SEE_ZONE_PLAYER_HAND_EMPTY));
@@ -6184,7 +6255,12 @@ index 00000000..e6ada19b
 +            }
 +        }
 +
-+        private void SeeZone(Zone zone)
++        protected virtual IZone GetPlayerHand()
++        {
++            return GameState.Get().GetFriendlySidePlayer().GetHandZone();
++        }
++
++        protected void SeeZone(IZone zone)
 +        {
 +            if (zone == null)
 +            {
@@ -6287,11 +6363,12 @@ index 00000000..e6ada19b
 +            AccessiblePlayDescriber.Get().OnBigCardPlayed(taskList, card);
 +        }
 +
-+        public void OnChoice(List<Card> cards, Banner choiceBanner, NormalButton confirmChoiceButton)
++        public void OnChoice(List<Card> cards, Banner choiceBanner, bool isTrinketDiscover)
 +        {
 +            // Clear up any previous choices
 +            m_accessibleChoiceCards = null;
 +            StopReadingCard();
++            m_waitingForChoiceConfirmation = false;
 +
 +            try
 +            {
@@ -6299,11 +6376,12 @@ index 00000000..e6ada19b
 +                cards.ForEach(c => accessibleCards.Add(AccessibleCard.CreateCard(this, c)));
 +
 +                m_accessibleChoiceCards = new AccessibleListOfItems<AccessibleCard>(this, accessibleCards);
-+                AccessibilityMgr.Output(this, choiceBanner.m_headline.Text);
++                var title = isTrinketDiscover ? LocalizationUtils.Get(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_BUY_TRINKET) : choiceBanner.m_headline.Text;
++                AccessibilityMgr.Output(this, title);
 +                m_curPhase = AccessibleGamePhase.PLAYING;
 +                IsInBeginningChooseOne = true;
 +                m_accessibleChoiceCards.StartReading();
-+                AccessibleHistoryMgr.Get().AddEntry(choiceBanner.m_headline.Text+": "+AccessibleSpeechUtils.GetNames(cards));
++                AccessibleHistoryMgr.Get().AddEntry(title+": "+AccessibleSpeechUtils.GetNames(cards));
 +            }
 +            catch (Exception e)
 +            {
@@ -6315,6 +6393,7 @@ index 00000000..e6ada19b
 +        {
 +            // Clear up any previous choices
 +            m_accessibleChoiceCards = null;
++            m_waitingForChoiceConfirmation = false;
 +            StopReadingCard();
 +
 +            try
@@ -6463,6 +6542,10 @@ index 00000000..e6ada19b
 +
 +        private string GetChoiceModeHelp()
 +        {
++            if (m_waitingForChoiceConfirmation)
++            {
++                return LocalizedText.GLOBAL_PRESS_ENTER_TO_CONFIRM_OR_BACKSPACE_TO_CANCEL;
++            }
 +            return GetOrNarrateHelpSpeech(AccessibleSpeech.GAMEPLAY_CHOICE_MODE_HELP);
 +        }
 +
@@ -6620,7 +6703,7 @@ index 00000000..e6ada19b
 +
 +            if (IsValidOption(card))
 +            {
-+                if (card.GetZone() == playerHand)
++                if (card.GetAccessibleZone() == playerHand)
 +                {
 +                    speeches.Add(AccessibleSpeech.GAMEPLAY_PLAY_CARD_HELP);
 +
@@ -6629,7 +6712,7 @@ index 00000000..e6ada19b
 +                        speeches.Add(AccessibleSpeech.GAMEPLAY_TRADE_CARD_HELP);
 +                    }
 +                }
-+                else if (card.GetZone() == playerBattlefield)
++                else if (card.GetAccessibleZone() == playerBattlefield)
 +                {
 +                    speeches.Add(AccessibleSpeech.GAMEPLAY_ATTACK_WITH_MINION_HELP);
 +                }
@@ -6644,7 +6727,7 @@ index 00000000..e6ada19b
 +            }
 +            else
 +            {
-+                if (card.GetZone() == playerHand)
++                if (card.GetAccessibleZone() == playerHand)
 +                {
 +                    readManaFirst = true;
 +                }
@@ -6681,11 +6764,11 @@ index 00000000..e6ada19b
 +        }
 +
 +        #region Tutorial stuff
-+        private Dictionary<Zone, Action> m_zoneSelectedListeners = new Dictionary<Zone, Action>();
++        private Dictionary<IZone, Action> m_zoneSelectedListeners = new Dictionary<IZone, Action>();
 +        private Dictionary<Card, Action<AccessibleCard>> m_cardSelectedListeners = new Dictionary<Card, Action<AccessibleCard>>();
 +        private Dictionary<Card, Action> m_summoningMinionListeners = new Dictionary<Card, Action>();
 +
-+        private void OnZoneSelected(Zone zone)
++        private void OnZoneSelected(IZone zone)
 +        {
 +            if (m_zoneSelectedListeners.ContainsKey(zone))
 +            {
@@ -6696,13 +6779,15 @@ index 00000000..e6ada19b
 +
 +        private void OnCardSelected(Card card, AccessibleCard accessibleCard)
 +        {
-+            OnZoneSelected(card.GetZone());
++            OnZoneSelected(card.GetAccessibleZone());
 +
 +            if (m_cardSelectedListeners.ContainsKey(card))
 +            {
 +                m_cardSelectedListeners[card](accessibleCard);
 +                m_cardSelectedListeners.Remove(card);
 +            }
++
++            OnCardHovered(card);
 +        }
 +
 +        private void OnSummoningMinion(Card card)
@@ -6887,6 +6972,11 @@ index 00000000..e6ada19b
 +        }
 +
 +        internal virtual void OnMainActionStep()
++        {
++            // No-op
++        }
++
++        protected virtual void OnCardHovered(Card card)
 +        {
 +            // No-op
 +        }
@@ -11798,10 +11888,10 @@ index 00000000..3474fa40
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleKey.cs b/Assembly-CSharp/Accessibility/AccessibleKey.cs
 new file mode 100644
-index 00000000..54c003e2
+index 00000000..e7e71008
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleKey.cs
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,412 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using UnityEngine;
@@ -11937,6 +12027,8 @@ index 00000000..54c003e2
 +        public static AccessibleKey BATTLEGROUNDS_READ_LEADERBOARD = CreateKey(KeyCode.L);
 +        public static AccessibleKey BATTLEGROUNDS_READ_RACES_IN_GAME = CreateKey(KeyCode.O);
 +        public static AccessibleKey BATTLEGROUNDS_READ_HERO_BUDDY = CreateKey(KeyCode.D);
++        public static AccessibleKey BATTLEGROUNDS_READ_TRINKETS = CreateKey(KeyCode.Q);
++        public static AccessibleKey BATTLEGROUNDS_READ_OPPONENT_TRINKETS = CreateKey(KeyCode.Q, true);
 +        #endregion
 +
 +        #region Dev Utils
@@ -16750,10 +16842,10 @@ index 00000000..77efef08
 +}
 diff --git a/Assembly-CSharp/Accessibility/AccessibleTraditionalCard.cs b/Assembly-CSharp/Accessibility/AccessibleTraditionalCard.cs
 new file mode 100644
-index 00000000..059c7901
+index 00000000..512ffddd
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/AccessibleTraditionalCard.cs
-@@ -0,0 +1,388 @@
+@@ -0,0 +1,393 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -16989,6 +17081,11 @@ index 00000000..059c7901
 +
 +            AccessibleCardUtils.AddLineIfExists(GetDescription(), lines);
 +            AccessibleCardUtils.AddLineIfExists(GetRace(), lines); // Handles spell school as well
++
++            if (m_card.GetEntity().IsMinion() && isInPlayZone && !AccessibleGameplayUtils.IsPlayingBattlegrounds())
++            {
++                lines.Add(AccessibleCardUtils.GetCost(m_card));
++            }
 +
 +            if (!isInPlayZone)
 +            {
@@ -17693,10 +17790,10 @@ index 00000000..21899307
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs
 new file mode 100644
-index 00000000..bf770609
+index 00000000..bae4179a
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsCard.cs
-@@ -0,0 +1,336 @@
+@@ -0,0 +1,353 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -17742,6 +17839,10 @@ index 00000000..bf770609
 +            else if (m_card.GetEntity().IsBattlegroundQuestReward())
 +            {
 +                return GetLinesForBattlegroundsQuestReward();
++            }
++            else if (m_card.GetEntity().IsBattlegroundTrinket())
++            {
++                return GetLinesForBattlegroundsTrinket();
 +            }
 +            else
 +            {
@@ -18031,6 +18132,19 @@ index 00000000..bf770609
 +
 +            return lines;
 +        }
++
++        private List<string> GetLinesForBattlegroundsTrinket()
++        {
++            var ret = new List<string>();
++            ret.Add(m_card.GetEntity().GetName());
++            if (m_card.GetEntity().GetZone() != TAG_ZONE.PLAY)
++            {
++                AccessibleCardUtils.AddLineIfExists(AccessibleCardUtils.GetCost(m_card), ret);
++            }
++            ret.Add(GetDescription());
++            AccessibleCardUtils.AddLineIfExists(GetRace(), ret); // Handles spell school as well
++            return ret;
++        }
 +    }
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsChooseHeroCard.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsChooseHeroCard.cs
@@ -18087,10 +18201,10 @@ index 00000000..20d90672
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 00000000..68f943a5
+index 00000000..5bde734e
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1611 @@
+@@ -0,0 +1,1654 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -18575,6 +18689,10 @@ index 00000000..68f943a5
 +			{
 +                ReadHeroBuddy();
 +			}
++            else if (AccessibleKey.BATTLEGROUNDS_READ_TRINKETS.IsPressed())
++            {
++                ReadTrinkets(Player.Side.FRIENDLY);
++            }
 +        }
 +
 +		internal AccessibleInGameState GetStateAtStartOfCombat()
@@ -18599,6 +18717,36 @@ index 00000000..68f943a5
 +            m_curZone = heroBuddyCard.GetZone();
 +            m_cardBeingRead.ReadLine();
 +		}
++
++        private void ReadTrinkets(Player.Side side)
++        {
++            if (!GameState.Get().BattlegroundsAllowTrinkets())
++            {
++                return;
++            }
++            VirtualZone zone = GetTrinketsZone(side);
++            if (zone == null || zone.GetCardCount() == 0)
++            {
++                return;
++            }
++            SeeZone(zone);
++        }
++
++        private VirtualZone GetTrinketsZone(Player.Side side)
++        {
++            // Normally every trinket gets its own individual zone, but we put them into a single virtual zone to avoid introducing special case code in AccessibleGameplay.
++
++            var ret = new VirtualZone();
++            foreach (var zone in ZoneMgr.Get().FindZonesOfType<ZoneBattlegroundTrinket>(side))
++            {
++                var card = zone.GetFirstCard();
++                if (card != null)
++                {
++                    ret.UpdateCardPosition(card, zone.slot);
++                }
++            }
++            return ret;
++        }
 +
 +		private void ReadRacesAndAnomaly()
 +		{
@@ -18741,6 +18889,11 @@ index 00000000..68f943a5
 +			HandleZoneInput();
 +			HandleValidOptionsSelectionInput();
 +			HandleZoneSelection();
++
++            if (AccessibleKey.BATTLEGROUNDS_READ_OPPONENT_TRINKETS.IsPressed())
++            {
++                ReadTrinkets(Player.Side.OPPOSING);
++            }
 +		}
 +
 +		private void UpdateState()
@@ -19641,6 +19794,10 @@ index 00000000..68f943a5
 +            if (GameState.Get().BattlegroundAllowBuddies())
 +            {
 +                lines.Add(LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_HERO_BUDDY_HELP, AccessibleKey.BATTLEGROUNDS_READ_HERO_BUDDY));
++            }
++            if (GameState.Get().BattlegroundsAllowTrinkets())
++            {
++                lines.Add(LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_TRINKETS_HELP, AccessibleKey.BATTLEGROUNDS_READ_TRINKETS));
 +            }
 +            lines.Add(LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_NEXT_OPPONENT_STATS_HELP, AccessibleKey.BATTLEGROUNDS_READ_NEXT_OPPONENT_STATS));
 +            lines.Add(LocalizationUtils.Format(LocalizationKey.BATTLEGROUNDS_GAMEPLAY_READ_MY_STATS_HELP, AccessibleKey.BATTLEGROUNDS_READ_MY_STATS));
@@ -24712,6 +24869,22 @@ index 00000000..7cd61379
 +        }
 +    }
 +}
+diff --git a/Assembly-CSharp/Accessibility/IZone.cs b/Assembly-CSharp/Accessibility/IZone.cs
+new file mode 100644
+index 00000000..7bb6ad7a
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/IZone.cs
+@@ -0,0 +1,9 @@
++namespace Accessibility
++{
++    interface IZone
++    {
++        int GetCardCount();
++        Card GetCardAtSlot(int slot);
++        int FindCardPos(Card card);
++    }
++}
+\ No newline at end of file
 diff --git a/Assembly-CSharp/Accessibility/InGameSystemTests.cs b/Assembly-CSharp/Accessibility/InGameSystemTests.cs
 new file mode 100644
 index 00000000..d12f6e9c
@@ -25624,10 +25797,10 @@ index 00000000..fb167df2
 +}
 diff --git a/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
 new file mode 100644
-index 00000000..8c7a7f6c
+index 00000000..bf27f535
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Localization/LocalizationKey.cs
-@@ -0,0 +1,1205 @@
+@@ -0,0 +1,1209 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Linq;
@@ -26135,6 +26308,8 @@ index 00000000..8c7a7f6c
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_GOLD = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_GOLD");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_REMAINING_GOLD = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_REMAINING_GOLD");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_ZONE_MINIONS_FOR_SALE = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_ZONE_MINIONS_FOR_SALE");
++    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_ZONE_PLAYER_TRINKETS = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_ZONE_PLAYER_TRINKETS");
++    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_ZONE_OPPONENT_TRINKETS = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_ZONE_OPPONENT_TRINKETS");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_SEE_ZONE_MINIONS_FOR_SALE_EMPTY = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_SEE_ZONE_MINIONS_FOR_SALE_EMPTY");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_QUERY_BUY_MINION = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_QUERY_BUY_MINION");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_QUERY_SELL_MINION = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_QUERY_SELL_MINION");
@@ -26144,6 +26319,7 @@ index 00000000..8c7a7f6c
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_QUERY_REFRESH_TAVERN_FOR_N_GOLD = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_QUERY_REFRESH_TAVERN_FOR_N_GOLD");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_QUERY_UPGRADE_TAVERN_FOR_N_GOLD = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_QUERY_UPGRADE_TAVERN_FOR_N_GOLD");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_ANOMALY");
++    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_BUY_TRINKET = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_BUY_TRINKET");
 +
 +    // Battlegrounds cont'd
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_QUERY_MOVE_MINION_TO_LAST_POSITION = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_QUERY_MOVE_MINION_TO_LAST_POSITION");
@@ -26179,6 +26355,7 @@ index 00000000..8c7a7f6c
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_GOLD_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_GOLD_HELP");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_TAVERN_INFORMATION_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_TAVERN_INFORMATION_HELP");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_HERO_BUDDY_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_HERO_BUDDY_HELP");
++    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_TRINKETS_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_PLAYER_TRINKETS_HELP");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_NEXT_OPPONENT_STATS_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_NEXT_OPPONENT_STATS_HELP");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_LEADERBOARD_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_LEADERBOARD_HELP");
 +    public static LocalizationKey BATTLEGROUNDS_GAMEPLAY_READ_MY_STATS_HELP = CreateKey("ACCESSIBILITY_BATTLEGROUNDS_GAMEPLAY_READ_MY_STATS_HELP");
@@ -28635,6 +28812,66 @@ index 00000000..7b6bb021
 +		}
 +	}
 +}
+diff --git a/Assembly-CSharp/Accessibility/VirtualZone.cs b/Assembly-CSharp/Accessibility/VirtualZone.cs
+new file mode 100644
+index 00000000..d2f5c055
+--- /dev/null
++++ b/Assembly-CSharp/Accessibility/VirtualZone.cs
+@@ -0,0 +1,53 @@
++using System;
++using System.Collections.Generic;
++
++namespace Accessibility
++{
++    class VirtualZone : IZone
++    {
++        private List<Card> m_cards;
++
++        public VirtualZone()
++        {
++            m_cards = new List<Card>();
++        }
++
++        public void UpdateCardPosition(Card card, int index)
++        {
++            m_cards.Remove(card);
++            card.SetVirtualZone(this);
++            if (index > m_cards.Count)
++            {
++                m_cards.Add(card);
++                return;
++            }
++            m_cards.Insert(index, card);
++        }
++
++        public void RemoveCard(Card card)
++        {
++            m_cards.Remove(card);
++            card.ClearVirtualZone();
++        }
++
++        public Card GetCardAtSlot(int slot)
++        {
++            if (slot <= 0 || slot > m_cards.Count)
++            {
++                return null;
++            }
++            return m_cards[slot - 1];
++        }
++
++        public int GetCardCount()
++        {
++            return m_cards.Count;
++        }
++
++        public int FindCardPos(Card card)
++        {
++            return 1 + m_cards.FindIndex((Card currCard) => currCard == card);
++        }
++
++    }
++}
+\ No newline at end of file
 diff --git a/Assembly-CSharp/Accessibility/arena/AccessibleArenaDisplay.cs b/Assembly-CSharp/Accessibility/arena/AccessibleArenaDisplay.cs
 new file mode 100644
 index 00000000..ff262714
@@ -38809,7 +39046,7 @@ index 6048edbe..9c505000 100644
  	private List<GameObject> m_horizontalDividers = new List<GameObject>();
  
 diff --git a/Assembly-CSharp/Card.cs b/Assembly-CSharp/Card.cs
-index a9bfe0e5..01ff73d9 100644
+index a9bfe0e5..861d1ea7 100644
 --- a/Assembly-CSharp/Card.cs
 +++ b/Assembly-CSharp/Card.cs
 @@ -11,6 +11,7 @@ using Hearthstone.Progression;
@@ -39441,6 +39678,30 @@ index a9bfe0e5..01ff73d9 100644
  		if (collider == null)
  		{
  			return false;
+@@ -9343,4 +9348,23 @@ public class Card : MonoBehaviour
+ 		}
+ 		return m_cardDef.CardDef.GetComponent<T>();
+ 	}
++
++	#region Accessibility
++	private VirtualZone m_virtualZone;
++
++	internal IZone GetAccessibleZone()
++	{
++		return m_virtualZone != null ? m_virtualZone : GetZone();
++	}
++
++	internal void SetVirtualZone(VirtualZone zone)
++	{
++		m_virtualZone = zone;
++	}
++
++	internal void ClearVirtualZone()
++	{
++		m_virtualZone = null;
++	}
++	#endregion
+ }
 diff --git a/Assembly-CSharp/CardBackInfoManager.cs b/Assembly-CSharp/CardBackInfoManager.cs
 index a03fe27e..908031c7 100644
 --- a/Assembly-CSharp/CardBackInfoManager.cs
@@ -45490,10 +45751,19 @@ index dbee850b..3bf3a678 100644
 +    #endregion
  }
 diff --git a/Assembly-CSharp/ChoiceCardMgr.cs b/Assembly-CSharp/ChoiceCardMgr.cs
-index 250e1119..706e2d24 100644
+index 250e1119..3a937607 100644
 --- a/Assembly-CSharp/ChoiceCardMgr.cs
 +++ b/Assembly-CSharp/ChoiceCardMgr.cs
-@@ -841,7 +841,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -427,6 +427,8 @@ public class ChoiceCardMgr : MonoBehaviour
+ 		}
+ 		ManaCrystalMgr.Get().ProposeManaCrystalUsage(entity);
+ 		EnableConfirmButton(entity != null);
++
++		Accessibility.AccessibleGameplay.Get().OnWaitingForChoiceConfirmation();
+ 	}
+ 
+ 	public void OnChooseOneTentativeSelection(Network.MulliganChooseOneTentativeSelection selection)
+@@ -841,7 +843,7 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		if (GameState.Get()?.GameScenarioAllowsPowerPrinting() ?? true)
  		{
@@ -45502,19 +45772,19 @@ index 250e1119..706e2d24 100644
  		}
  		List<Card> linkedChoiceCards = new List<Card>();
  		Entity entity2 = GameState.Get().GetEntity(state.m_sourceEntityId);
-@@ -1172,6 +1172,11 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1172,6 +1174,11 @@ public class ChoiceCardMgr : MonoBehaviour
  	private void ShowChoiceCards(ChoiceState state, bool friendly)
  	{
  		StartCoroutine(PlayCardAnimation(state, friendly));
 +
 +		if (friendly)
 +		{
-+			Accessibility.AccessibleGameplay.Get().OnChoice(state.m_cards, m_choiceBanner, m_confirmChoiceButton);
++			Accessibility.AccessibleGameplay.Get().OnChoice(state.m_cards, m_choiceBanner, state.m_isMagicItemDiscover);
 +		}
  	}
  
  	private void GetDeckTransform(ZoneDeck deckZone, out Vector3 startPos, out Vector3 startRot, out Vector3 startScale)
-@@ -1274,11 +1279,11 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1274,11 +1281,11 @@ public class ChoiceCardMgr : MonoBehaviour
  			}
  			return;
  		}
@@ -45531,7 +45801,7 @@ index 250e1119..706e2d24 100644
  
  	private void ActivateChoiceCardStateSpells(Card card)
  	{
-@@ -1328,24 +1333,24 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1328,24 +1335,24 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		if (flag3)
  		{
@@ -45572,7 +45842,7 @@ index 250e1119..706e2d24 100644
  
  	private void DeactivateChoiceCardStateSpells(Card card)
  	{
-@@ -1500,7 +1505,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1500,7 +1507,7 @@ public class ChoiceCardMgr : MonoBehaviour
  			{
  				if (allowedToPrintPowers)
  				{
@@ -45581,7 +45851,7 @@ index 250e1119..706e2d24 100644
  				}
  				while (choiceState.m_waitingToStart)
  				{
-@@ -1536,7 +1541,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1536,7 +1543,7 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		if (allowedToPrintPowers)
  		{
@@ -45590,7 +45860,7 @@ index 250e1119..706e2d24 100644
  		}
  		ConcealChoicesFromPacket(playerId, choiceState, chosen);
  	}
-@@ -1574,7 +1579,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1574,7 +1581,7 @@ public class ChoiceCardMgr : MonoBehaviour
  			GameState gameState = GameState.Get();
  			if (gameState == null || gameState.GameScenarioAllowsPowerPrinting())
  			{
@@ -45599,7 +45869,7 @@ index 250e1119..706e2d24 100644
  			}
  			return false;
  		}
-@@ -1731,18 +1736,18 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1731,18 +1738,18 @@ public class ChoiceCardMgr : MonoBehaviour
  		HideChoiceBanner();
  		if ((!choiceState.m_isSubOptionChoice || choiceState.m_isTitanAbility) && !choiceState.m_isMagicItemDiscover)
  		{
@@ -45627,7 +45897,7 @@ index 250e1119..706e2d24 100644
  		}
  	}
  
-@@ -1790,7 +1795,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1790,7 +1797,7 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		else
  		{
@@ -45636,7 +45906,7 @@ index 250e1119..706e2d24 100644
  		}
  		Network.EntityChoices friendlyEntityChoices = GameState.Get().GetFriendlyEntityChoices();
  		if (friendlyEntityChoices != null && (!friendlyEntityChoices.IsSingleChoice() || choiceState.m_isMagicItemDiscover))
-@@ -1887,6 +1892,8 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1887,6 +1894,8 @@ public class ChoiceCardMgr : MonoBehaviour
  			m_toggleChoiceButton.SetText(GameStrings.Get("GLOBAL_SHOW"));
  			HideChoiceCards(state);
  			m_friendlyChoicesShown = false;
@@ -45645,7 +45915,7 @@ index 250e1119..706e2d24 100644
  		}
  		else
  		{
-@@ -1903,8 +1910,8 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -1903,8 +1912,8 @@ public class ChoiceCardMgr : MonoBehaviour
  	{
  		if ((bool)m_choiceBanner)
  		{
@@ -45656,7 +45926,7 @@ index 250e1119..706e2d24 100644
  	}
  
  	private void ToggleConfirmButtonVisibility(bool visible)
-@@ -2039,30 +2046,30 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -2039,30 +2048,30 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		if (spell != null)
  		{
@@ -45707,7 +45977,7 @@ index 250e1119..706e2d24 100644
  					card.transform.localScale = localScale;
  				}
  			}
-@@ -2116,6 +2123,7 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -2116,6 +2125,7 @@ public class ChoiceCardMgr : MonoBehaviour
  			ShowChoiceUi(choiceState);
  		}
  		HideEnlargedHand();
@@ -45715,19 +45985,19 @@ index 250e1119..706e2d24 100644
  	}
  
  	private void HideSubOptions(Entity chosenEntity = null)
-@@ -2217,6 +2225,11 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -2217,6 +2227,11 @@ public class ChoiceCardMgr : MonoBehaviour
  		}
  		PlayChoiceEffects(choiceState, choiceState.m_isFriendly);
  		choiceState.m_hasBeenRevealed = true;
 +
 +		if (choiceState.m_isFriendly)
 +		{
-+			Accessibility.AccessibleGameplay.Get().OnChoice(choiceState.m_cards, m_choiceBanner, m_confirmChoiceButton);
++			Accessibility.AccessibleGameplay.Get().OnChoice(choiceState.m_cards, m_choiceBanner, choiceState.m_isMagicItemDiscover);
 +		}
  	}
  
  	private void ConcealChoiceCardsUsingCustomSpell(ISpell customChoiceConcealSpell, ChoiceState choiceState, Network.EntitiesChosen chosen)
-@@ -2242,4 +2255,11 @@ public class ChoiceCardMgr : MonoBehaviour
+@@ -2242,4 +2257,16 @@ public class ChoiceCardMgr : MonoBehaviour
  		OnFinishedConcealChoices(entitiesChosen.PlayerId);
  		GameState.Get().OnEntitiesChosenProcessed(entitiesChosen);
  	}
@@ -45738,6 +46008,11 @@ index 250e1119..706e2d24 100644
 +		return m_friendlyChoicesShown;
 +	}
 +	#endregion
++
++	internal NormalButton GetConfirmButton()
++	{
++		return m_confirmChoiceButton;
++	}
  }
 diff --git a/Assembly-CSharp/ChooseDeckReward.cs b/Assembly-CSharp/ChooseDeckReward.cs
 index 06b81952..88ae771c 100644
@@ -98496,3 +98771,18 @@ index 318ac0ad..3576fe6f 100644
  	}
  
  	public void LoadNewActorAndConstructIt()
+diff --git a/Assembly-CSharp/Zone.cs b/Assembly-CSharp/Zone.cs
+index 847e0e59..5243be5c 100644
+--- a/Assembly-CSharp/Zone.cs
++++ b/Assembly-CSharp/Zone.cs
+@@ -1,8 +1,9 @@
+ using System.Collections;
+ using System.Collections.Generic;
+ using UnityEngine;
++using Accessibility;
+ 
+-public class Zone : MonoBehaviour
++public class Zone : MonoBehaviour, IZone
+ {
+ 	public delegate void UpdateLayoutCompleteCallback(Zone zone, object userData);
+ 
