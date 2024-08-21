@@ -18201,10 +18201,10 @@ index 00000000..20d90672
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 00000000..5bde734e
+index 00000000..174968fa
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1654 @@
+@@ -0,0 +1,1659 @@
 +﻿using System;
 +using System.Collections.Generic;
 +using System.Text;
@@ -19027,7 +19027,12 @@ index 00000000..5bde734e
 +                return;
 +			}
 +
-+            if (m_cardBeingRead != null)
++            if (m_curState == AccessibleGameState.CHOICE_MODE || m_curState == AccessibleGameState.SUB_OPTION_MODE)
++            {
++                m_accessibleChoiceCards.StartReading();
++            }
++
++            else if (m_cardBeingRead != null)
 +			{
 +                // Reread zone regardless
 +                var card = m_cardBeingRead.GetCard();

@@ -1,3 +1,7 @@
+### 2024-08-21
+
+- Fixed a hang caused by viewing the leaderboard while choosing a trinket in Battlegrounds (contributed by Endefx)
+
 ### 2024-08-20
 
 - Updated to Hearthstone version 30.2.0.205267 (contributed by Endefx)
