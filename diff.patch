@@ -18219,12 +18219,13 @@ index 00000000..20d90672
 +}
 diff --git a/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
 new file mode 100644
-index 00000000..7785512a
+index 00000000..138edc39
 --- /dev/null
 +++ b/Assembly-CSharp/Accessibility/Battlegrounds/AccessibleBattlegroundsGameplay.cs
-@@ -0,0 +1,1792 @@
+@@ -0,0 +1,1795 @@
 +﻿using System;
 +using System.Collections.Generic;
++using System.Linq;
 +using System.Text;
 +using UnityEngine;
 +
@@ -19857,8 +19858,10 @@ index 00000000..7785512a
 +            {
 +                m_mulliganConfirmButton = confirmButton;
 +
-+                var accessibleCards = new List<AccessibleCard>(startingCards.Count);
-+                startingCards.ForEach(c => accessibleCards.Add(new AccessibleBattlegroundsChooseHeroCard(this, c)));
++                var unlockedCards = startingCards.Where((card) => !card.GetEntity().HasTag(GAME_TAG.BACON_LOCKED_MULLIGAN_HERO)).ToList();
++
++                var accessibleCards = new List<AccessibleCard>(unlockedCards.Count);
++                unlockedCards.ForEach(c => accessibleCards.Add(new AccessibleBattlegroundsChooseHeroCard(this, c)));
 +
 +                m_accessibleMulliganCards = new AccessibleListOfItems<AccessibleCard>(this, accessibleCards);
 +                m_accessibleMulliganCards.StartReading();
